@@ -27,7 +27,7 @@ A CRM system for managing Sparx EA customers, their communications, and newslett
 ## Tech Stack
 | Layer | Choice |
 |---|---|
-| Framework | Python 3.13 + Django 5.x |
+| Framework | Python 3.13 + Django 6.0.6 |
 | Database | SQLite (file-based, ideal for QNAP NAS) |
 | IMAP | imaplib + email stdlib |
 | PDF parsing | PyMuPDF (fitz) |
@@ -45,37 +45,60 @@ A CRM system for managing Sparx EA customers, their communications, and newslett
 - No AI dependencies by design; optional small local LLM later if needed (ollama)
 
 ## Models (files in ../models/)
-- `EAxCRM.xmi` — ArchiMate model (AMEFF 3.1 format, deprecated but kept as reference)
-- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 44 elements, 57 relations)
-- `EAxCRM-Datamodel.xml` — UML data model for Sparx EA (XMI 1.1, will be replaced by Markdown)
+- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 44 elements, 57 relations, 1 diagram)
 - `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model)
 
 ## Active Context
-- Project is in Phase 0 setup
-- No code committed yet
-- Remote: https://github.com/hvroosmalen-eaxpertise/EAxCRM (no remote configured locally yet)
-- Superpowers plugin installed globally via opencode.jsonc
-- Pending: Django scaffold, IMAP experiment, PDF experiment, data models, admin UI, Docker
+- ArchiMate model fully generated with 44 elements, 57 relationships, 1 diagram
+- ApplicationService Object_Type fixed to 'Activity' (confirmed correct shape in EA)
+- Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
+- GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
+- Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
 
 ## Generator Scripts (experiments/modelgen/)
-- `generate_archimate.py`: MD → Sparx EA via 3-phase approach (COM API for elements, SQLite for connectors, COM API for diagram objects + SQLite for diagram stereotype)
-- `generate_archimate.py` is idempotent: saves GUID map to `archimate_guid_map.json`, re-runs update existing without duplicates
+- `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
+- Idempotent: saves GUID map to `archimate_guid_map.json`, re-runs update existing without duplicates
+- 4-phase approach:
+  - **Phase 1**: COM API for elements (create/update using `StereotypeEx`), MDG activation
+  - **Phase 1b**: SQLite to fix `Object_Type`, `t_object.Stereotype` (short form), and `t_xref.Description` (FQName with `ArchiMate3::`)
+  - **Phase 2**: COM API for relationships (create connectors, set `StereotypeEx`, `SupplierID`)
+  - **Phase 3**: COM API for diagram objects + SQLite for diagram type/stereotype/t_xref
 
-## Critical Context: COM API + SQLite Interactions
-- `ElementGUID` is read-only (can't set programmatically); idempotency via JSON GUID mapping file
-- Element `StereotypeEx` stores correctly via COM API (persists to `t_xref` with Visibility='element property')
-- Connector `StereotypeEx` does NOT persist via COM API (t_connector.Stereotype stays NULL, no t_xref entry)
-- Connector stereotypes must be set via direct SQLite writes to `t_connector.Stereotype` AND `t_xref` (Visibility='connector property')
-- COM API + SQLite concurrent access works only when COM API hasn't started a write transaction; for consistency, use 3-phase approach:
-  - Phase 1: COM API for elements (open file, sync, close file)
-  - Phase 2: SQLite for connector creation/stereotypes (COM API closed)
-  - Phase 3: COM API for diagram objects (open fresh, close) + SQLite for diagram stereotype
-- `repo.CloseFile()` can hang; use try/finally with except: pass
-- EA processes (EA.exe) accumulate between runs — kill all before re-running generator
-- GUID map file: `experiments/modelgen/archimate_guid_map.json`
+### Element Object_Type Mapping
+Controls the UML base type shape in Sparx EA. Set via `ELEMENT_BASE_TYPE` in the generator:
 
-## Connector Type Mapping (ArchiMate → Sparx EA)
-| ArchiMate | Connector_Type | Stereotype |
+| ArchiMate Type    | Object_Type | Shape Purpose              |
+|-------------------|-------------|----------------------------|
+| BusinessActor     | Class       | Default UML class shape    |
+| BusinessRole      | Class       | Default UML class shape    |
+| BusinessFunction  | Activity    | Rounded-corner activity    |
+| BusinessProcess   | Activity    | Rounded-corner activity    |
+| BusinessObject    | Class       | Default UML class shape    |
+| BusinessService   | Class       | Default UML class shape    |
+| ApplicationComponent | Component | UML component shape (two small rectangles) |
+| ApplicationCollaboration | Class | Ellipse shape |
+| ApplicationInterface | Interface | UML interface shape (circle) |
+| ApplicationService | Activity   | Rounded-corner activity    |
+| ApplicationFunction | Class     | Default UML class shape    |
+| DataObject        | Class       | Default UML class shape    |
+| Node              | Node        | UML node shape (3D box)    |
+| Device            | Device      | UML device shape           |
+| SystemSoftware    | Class       | Default UML class shape    |
+| TechnologyService | Class       | Default UML class shape    |
+| Artifact          | Class       | Uses MDG stereotype for visual |
+| Grouping          | Class       | Default UML class shape    |
+| Location          | Class       | Default UML class shape    |
+
+### Stereotype Storage (t_object column vs t_xref)
+- `t_object.Stereotype` stores the **short name** (e.g. `ArchiMate_BusinessActor`)
+- `t_xref.Description` stores the FQName with the MDG prefix:
+  ```
+  @STEREO;Name=ArchiMate_BusinessActor;FQName=ArchiMate3::ArchiMate_BusinessActor;@ENDSTEREO;
+  ```
+  - `Type` = `'Stereotypes'`, `Visibility` = `'element property'`, `Client` = element `ea_guid`
+
+### Connector Type Mapping (ArchiMate → Sparx EA)
+| ArchiMate | Connector_Type | Stereotype `(t_xref FQName: ArchiMate3::...)` |
 |---|---|---|
 | Composition | Aggregation | ArchiMate_Composition |
 | Aggregation | Aggregation | ArchiMate_Aggregation |
@@ -88,9 +111,47 @@ A CRM system for managing Sparx EA customers, their communications, and newslett
 | Access | Association | ArchiMate_Access |
 | Influence | Association | ArchiMate_Influence |
 
+### Diagram Configuration
+- `Diagram_Type` = `'ArchiMateBusiness'`
+- `t_diagram.Stereotype` = `'ArchiMate_ArchimateDiagram'`
+- `t_xref` (Visibility='diagram property'): `@STEREO;Name=ArchiMate_ArchimateDiagram;FQName=ArchiMate3::ArchiMate_ArchimateDiagram;@ENDSTEREO;`
+
+### Diagram Preservation
+- On first creation, diagram GUID is saved to `archimate_guid_map.json` with key `_diagram_eax_archimate`
+- On re-runs, generator loads diagram by GUID (or falls back to name lookup)
+- If diagram already exists (by GUID or name), element placement is skipped — preserves manual layout
+- Only diagram type/stereotype/t_xref are updated on re-runs
+
+## Critical Context: COM API + SQLite Interactions
+- All model operations go through COM API (elements, relationships, diagram). Direct SQLite is used only as a workaround for COM API limitations:
+  - Phase 1b: Fix `Object_Type` and `t_xref.Description` via SQLite (COM API `AddNew` doesn't always set the right base type, and `StereotypeEx` leaves `t_xref.Description` NULL for elements)
+- `repo.CloseFile()` can hang; use try/finally with except: pass
+- EA processes (EA.exe) accumulate between runs — script tracks pre-existing PIDs and only kills its own zombie EA processes after each phase
+- GUID map file: `experiments/modelgen/archimate_guid_map.json`
+
+## Markdown Model File Format
+The generator reads `.md` files with the following structure:
+
+```markdown
+## Elements
+
+### Type—ID
+- Name: Element Name
+- Description: Description text
+- GUID: {00000000-0000-0000-0000-000000000000}
+- Layer: Business | Application | Technology | Composite
+
+## Relationships
+
+### Type—ID
+- Source: source_element_id
+- Target: target_element_id
+- GUID: {00000000-0000-0000-0000-000000000000}
+```
+
+Where `Type` matches one of the ArchiMate types listed in `ARCHIMATE_ELEMENT_STEREOTYPES` or `ARCHIMATE_RELATION_STEREOTYPES` in the generator.
+
 ## Next Steps
-- Open EAxCRM.qea in Sparx EA to verify diagram rendering (ArchiMate icons, connector display)
-- Create the logical data model generator (`generate_datamodel.py`) reading from a Markdown model file (not yet created)
-- Create skill files: `.opencode/skills/generate-archimate-model/SKILL.md` and `.opencode/skills/generate-datamodel/SKILL.md`
-- Configure Git remote and make initial commit
-- Build IMAP experiment, PDF parsing experiment
+1. Open EAxCRM.qea in Sparx EA to verify diagram rendering
+2. Create the logical data model generator (`generate_datamodel.py`) reading from a Markdown model file
+3. Build IMAP experiment, PDF parsing experiment

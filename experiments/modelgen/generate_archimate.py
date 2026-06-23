@@ -6,7 +6,7 @@ Usage:
 Idempotent: stores a JSON mapping of MD-GUID -> EA-GUID after first run.
 Re-run to update names, descriptions, or add new elements/relations.
 """
-import sys, os, argparse, json, uuid, sqlite3
+import sys, os, argparse, json, uuid, sqlite3, subprocess, time
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -49,28 +49,28 @@ ARCHIMATE_RELATION_STEREOTYPES = {
     "Influence": "ArchiMate3::ArchiMate_Influence",
 }
 
-# Short stereotype name (for t_connector.Stereotype)
-SHORT_STEREOTYPE = {k: v.split("::")[-1] for k, v in ARCHIMATE_RELATION_STEREOTYPES.items()}
+# Short stereotype name (for t_connector.Stereotype) — no longer used via SQLite
+# but kept for reference: {k: v.split("::")[-1] for k, v in ARCHIMATE_RELATION_STEREOTYPES.items()}
 
 # Base Object_Type for each ArchiMate element type (Sparx EA base UML type)
 ELEMENT_BASE_TYPE = {
     "BusinessActor": "Class",
     "BusinessRole": "Class",
-    "BusinessFunction": "Class",
-    "BusinessProcess": "Class",
+    "BusinessFunction": "Activity",
+    "BusinessProcess": "Activity",
     "BusinessObject": "Class",
     "BusinessService": "Class",
     "ApplicationComponent": "Component",
     "ApplicationCollaboration": "Class",
     "ApplicationInterface": "Interface",
-    "ApplicationService": "Class",
+    "ApplicationService": "Activity",
     "ApplicationFunction": "Class",
     "DataObject": "Class",
     "Node": "Node",
     "Device": "Device",
     "SystemSoftware": "Class",
     "TechnologyService": "Class",
-    "Artifact": "Artifact",
+    "Artifact": "Class",
     "Grouping": "Class",
     "Location": "Class",
 }
@@ -236,8 +236,8 @@ def sync_elements(repo, pkg, elements, guid_map):
             print(f"  Created: '{el['name']}' ({el['type']})")
 
 
-def sync_relations(db, relations, elements, guid_map):
-    """Create or update connectors via direct SQLite."""
+def sync_relations(repo, relations, elements, guid_map):
+    """Create or update connectors via COM API."""
     elem_by_id = {e["id"]: e for e in elements}
 
     for rel in relations:
@@ -256,50 +256,58 @@ def sync_relations(db, relations, elements, guid_map):
             print(f"  SKIP rel '{rel['id']}': source/target not yet in EA")
             continue
 
-        short_stereo = SHORT_STEREOTYPE.get(rel["type"])
+        full_stereo = rel["sparx_stereotype"]
         base_type = CONNECTOR_BASE_TYPE.get(rel["type"], "Association")
 
-        # Resolve element IDs from GUID map
-        src_row = db.execute(
-            "SELECT Object_ID FROM t_object WHERE ea_guid=?", (src_ea_guid,)
-        ).fetchone()
-        tgt_row = db.execute(
-            "SELECT Object_ID FROM t_object WHERE ea_guid=?", (tgt_ea_guid,)
-        ).fetchone()
-        if not src_row or not tgt_row:
-            print(f"  SKIP rel '{rel['id']}': source/target object not in DB")
+        src_elem = repo.GetElementByGuid(src_ea_guid)
+        tgt_elem = repo.GetElementByGuid(tgt_ea_guid)
+        if not src_elem or not tgt_elem:
+            print(f"  SKIP rel '{rel['id']}': source/target element not found in repo")
             continue
-        src_id, tgt_id = src_row[0], tgt_row[0]
 
-        # Check existing via SQLite
-        existing = db.execute(
-            "SELECT Connector_ID FROM t_connector WHERE Start_Object_ID=? AND End_Object_ID=? AND Stereotype=?",
-            (src_id, tgt_id, short_stereo)
-        ).fetchone()
+        # Check if connector already exists between these two elements
+        exists = False
+        for i in range(src_elem.Connectors.Count):
+            conn = src_elem.Connectors.GetAt(i)
+            if conn.SupplierID == tgt_elem.ElementID:
+                exists = True
+                break
 
-        if existing:
+        if exists:
             print(f"  Exists rel: '{rel['id']}' ({rel['type']})")
         else:
-            cguid = "{" + str(uuid.uuid4()).upper() + "}"
-            db.execute(
-                "INSERT INTO t_connector (Start_Object_ID, End_Object_ID, "
-                "Connector_Type, Stereotype, Name, Direction, ea_guid) "
-                "VALUES (?, ?, ?, ?, '', 'Source -> Destination', ?)",
-                (src_id, tgt_id, base_type, short_stereo, cguid)
-            )
-
-            # t_xref entry for MDG recognition
-            xref_id = "{" + str(uuid.uuid4()).upper() + "}"
-            desc = f"@STEREO;Name={short_stereo};FQName={rel['sparx_stereotype']};@ENDSTEREO;"
-            db.execute(
-                "INSERT INTO t_xref (XrefID, Type, Visibility, Namespace, "
-                "Partition, Description, Client, Supplier) "
-                "VALUES (?, 'Stereotypes', 'connector property', "
-                "'Public', '0', ?, ?, '<none>')",
-                (xref_id, desc, cguid)
-            )
-            db.commit()
+            new_conn = src_elem.Connectors.AddNew(rel["id"], base_type)
+            new_conn.SupplierID = tgt_elem.ElementID
+            new_conn.StereotypeEx = full_stereo
+            new_conn.Direction = "Source -> Destination"
+            new_conn.Update()
             print(f"  Created rel: '{rel['id']}' ({rel['type']})")
+
+
+def get_ea_pids():
+    """Return set of PIDs for all currently running EA.exe processes."""
+    try:
+        out = subprocess.check_output(
+            ["powershell", "-command",
+             "Get-Process -Name 'EA' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
+            text=True, timeout=10
+        )
+        return set(int(pid.strip()) for pid in out.strip().splitlines() if pid.strip())
+    except:
+        return set()
+
+
+def kill_new_ea_processes(before_pids):
+    """Kill EA.exe processes that started after before_pids was captured."""
+    after_pids = get_ea_pids()
+    new_pids = after_pids - before_pids
+    for pid in new_pids:
+        try:
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                           capture_output=True, timeout=5)
+        except:
+            pass
+    return new_pids
 
 
 def main():
@@ -319,6 +327,9 @@ def main():
     except ImportError:
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
+
+    # Record EA processes before we start (only kill our own later)
+    before_pids = get_ea_pids()
 
     # Phase 1: Elements — requires COM API
     repo = win32com.client.Dispatch("EA.Repository")
@@ -354,35 +365,83 @@ def main():
             repo.CloseFile()
         except:
             pass
+        kill_new_ea_processes(before_pids)
+        time.sleep(0.5)
 
-    # Phase 1b: Fix element Object_Type via SQLite (cases where AddNew type differs)
+    # Phase 1b: Fix element Object_Type + Stereotype via SQLite
+    # COM API's AddNew doesn't always set the right base type or fill t_object.Stereotype
     db_fix = sqlite3.connect(args.qea)
     try:
+        t_object_fixes = 0
+        t_xref_fixes = 0
         for el in elements:
             ea_guid = guid_map.get(el["guid"])
             if not ea_guid:
                 continue
             base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
-            db_fix.execute(
-                "UPDATE t_object SET Object_Type=? WHERE ea_guid=? AND Object_Type!=?",
-                (base_type, ea_guid, base_type)
+            full_stereo = ARCHIMATE_ELEMENT_STEREOTYPES.get(el["type"], "")
+            short_stereo = full_stereo.split("::")[-1]
+
+            # Fix Object_Type + Stereotype in t_object (short form, e.g. ArchiMate_Artifact)
+            # EA stores the short form in t_object.Stereotype; the full ArchiMate3:: prefix
+            # goes only in t_xref.Description as the FQName.
+            c = db_fix.execute(
+                "UPDATE t_object SET Object_Type=?, Stereotype=?"
+                " WHERE ea_guid=? AND (Object_Type!=? OR Stereotype IS NULL OR Stereotype!=?)",
+                (base_type, short_stereo, ea_guid, base_type, short_stereo)
             )
+            t_object_fixes += c.rowcount
+
+            # Ensure t_xref entry for stereotype (COM API StereotypeEx often leaves Description NULL)
+            existing_xref = db_fix.execute(
+                "SELECT XrefID FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='element property'",
+                (ea_guid,)
+            ).fetchone()
+            desc = f"@STEREO;Name={short_stereo};FQName={full_stereo};@ENDSTEREO;"
+            if existing_xref:
+                db_fix.execute(
+                    "UPDATE t_xref SET Description=? WHERE XrefID=?",
+                    (desc, existing_xref[0])
+                )
+                t_xref_fixes += 1
+            else:
+                xref_id = "{" + str(uuid.uuid4()).upper() + "}"
+                db_fix.execute(
+                    "INSERT INTO t_xref (XrefID, Type, Visibility, Namespace, "
+                    "Partition, Description, Client, Supplier) "
+                    "VALUES (?, 'Stereotypes', 'element property', "
+                    "'Public', '0', ?, ?, '<none>')",
+                    (xref_id, desc, ea_guid)
+                )
+                t_xref_fixes += 1
+
         db_fix.commit()
-        updated = db_fix.total_changes
-        if updated:
-            print(f"  Fixed Object_Type for {updated} elements")
+        if t_object_fixes:
+            print(f"  Fixed Object_Type/Stereotype for {t_object_fixes} elements")
+        if t_xref_fixes:
+            print(f"  Fixed t_xref for {t_xref_fixes} elements")
     finally:
         db_fix.close()
 
-    # Phase 2: Relationships — direct SQLite (COM API hangs on CloseFile)
-    db = sqlite3.connect(args.qea)
+    # Phase 2: Relationships — COM API
+    repo_rel = win32com.client.Dispatch("EA.Repository")
+    repo_rel.OpenFile(args.qea)
     try:
         print("\n--- Relationships ---")
-        sync_relations(db, relations, elements, guid_map)
+        sync_relations(repo_rel, relations, elements, guid_map)
     finally:
-        db.close()
+        # CloseFile can hang; use Exit() as a fallback
+        try:
+            repo_rel.CloseFile()
+        except:
+            pass
+        kill_new_ea_processes(before_pids)
+        time.sleep(0.5)
 
-    # Phase 3: Diagram — COM API for objects, auto-layout, then SQLite for diagram type/stereotype
+    # Phase 3: Diagram — COM API for objects, then SQLite for diagram type/stereotype
+    diag_guid_key = "_diagram_eax_archimate"
+    existing_diag_guid = guid_map.get(diag_guid_key)
+
     repo2 = win32com.client.Dispatch("EA.Repository")
     repo2.OpenFile(args.qea)
     try:
@@ -399,66 +458,76 @@ def main():
             root2.Update()
         eax_pkg2 = get_or_create_package(app_arch2, "EAxCRM")
         print("\n--- Diagram ---")
+
+        # Look up diagram by GUID (for idempotent preservation)
         diag = None
-        for i in range(eax_pkg2.Diagrams.Count):
-            d = eax_pkg2.Diagrams.GetAt(i)
-            if d.Name == "EAxCRM ArchiMate":
-                diag = d
-                break
+        if existing_diag_guid:
+            try:
+                diag = repo2.GetDiagramByGuid(existing_diag_guid)
+            except:
+                diag = None
+
+        if not diag:
+            for i in range(eax_pkg2.Diagrams.Count):
+                d = eax_pkg2.Diagrams.GetAt(i)
+                if d.Name == "EAxCRM ArchiMate":
+                    diag = d
+                    break
+
         if not diag:
             diag = eax_pkg2.Diagrams.AddNew("EAxCRM ArchiMate", "ArchiMate3::ArchiMate_ArchimateDiagram")
             diag.Update()
             eax_pkg2.Update()
-            print("  Created diagram")
+            guid_map[diag_guid_key] = diag.DiagramGUID
+            save_guid_map(guid_map)
+            print("  Created diagram — element layout will be auto-generated")
+
+            # Place elements with grid layout
+            LAYER_Y = {"Business": 20, "Application": 340, "Technology": 660, "Composite": 980}
+            W, H = 180, 100
+            GAP = 30
+            layer_counters = {}
+            added = 0
+
+            for el in elements:
+                ea_guid = guid_map.get(el["guid"])
+                if not ea_guid:
+                    continue
+                try:
+                    ea_elem = repo2.GetElementByGuid(ea_guid)
+                except:
+                    continue
+                if not ea_elem:
+                    continue
+
+                layer = el.get("layer", "Business")
+                y = LAYER_Y.get(layer, 20)
+                idx = layer_counters.get(layer, 0)
+                x = idx * (W + GAP) + 20
+                layer_counters[layer] = idx + 1
+
+                dobj = diag.DiagramObjects.AddNew("", "")
+                dobj.ElementID = ea_elem.ElementID
+                dobj.left = x
+                dobj.top = y
+                dobj.right = x + W
+                dobj.bottom = y + H
+                dobj.Update()
+                added += 1
+
+            diag.Update()
+            print(f"  Placed {added} elements in diagram")
         else:
-            print("  Diagram already exists")
-
-        # Clear existing objects
-        for i in range(diag.DiagramObjects.Count - 1, -1, -1):
-            diag.DiagramObjects.Delete(i)
-        diag.Update()
-
-        # Simple grid layout by layer
-        LAYER_Y = {"Business": 20, "Application": 340, "Technology": 660, "Composite": 980}
-        W, H = 180, 100
-        GAP = 30
-        layer_counters = {}
-        added = 0
-
-        for el in elements:
-            ea_guid = guid_map.get(el["guid"])
-            if not ea_guid:
-                continue
-            try:
-                ea_elem = repo2.GetElementByGuid(ea_guid)
-            except:
-                continue
-            if not ea_elem:
-                continue
-
-            layer = el.get("layer", "Business")
-            y = LAYER_Y.get(layer, 20)
-            idx = layer_counters.get(layer, 0)
-            x = idx * (W + GAP) + 20
-            layer_counters[layer] = idx + 1
-
-            dobj = diag.DiagramObjects.AddNew("", "")
-            dobj.ElementID = ea_elem.ElementID
-            dobj.left = x
-            dobj.top = y
-            dobj.right = x + W
-            dobj.bottom = y + H
-            dobj.Update()
-            added += 1
-
-        diag.Update()
-
-        print(f"  Added {added} elements to diagram")
+            guid_map[diag_guid_key] = diag.DiagramGUID
+            save_guid_map(guid_map)
+            print("  Diagram already exists — preserving manual layout")
     finally:
         try:
             repo2.CloseFile()
         except:
             pass
+        kill_new_ea_processes(before_pids)
+        time.sleep(0.5)
 
     # Set diagram type, stereotype, and t_xref via SQLite
     db2 = sqlite3.connect(args.qea)
@@ -493,6 +562,10 @@ def main():
             print("  Updated diagram type to ArchiMateBusiness + stereotype")
     finally:
         db2.close()
+
+    killed = kill_new_ea_processes(before_pids)
+    if killed:
+        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
     print("\nDone. Open EAxCRM.qea in Sparx EA to view.")
 
