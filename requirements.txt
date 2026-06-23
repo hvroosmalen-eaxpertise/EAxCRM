@@ -1,0 +1,4 @@
+django>=6.0
+requests
+beautifulsoup4
+PyMuPDF
