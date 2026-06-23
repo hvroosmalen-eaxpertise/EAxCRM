@@ -17,13 +17,13 @@ The Markdown model drives a generator that syncs into the `.qea` Sparx EA projec
 python experiments/modelgen/generate_archimate.py
 ```
 
-The generator uses Sparx EA's COM API (`EA.Repository`) for element/diagram creation and direct SQLite writes for connector stereotypes (COM API does not persist `StereotypeEx` on connectors).
+The generator uses Sparx EA's COM API (`EA.Repository`) exclusively — no direct SQLite. Elements, connectors, and diagrams are all created via the EA interop (`EA.dll`) with `AddNew`, `StereotypeEx`, and `Update`.
 
 ## ArchiMate Model
 
 - **Layers**: Business, Application, Technology
 - **Elements**: 44 (actors, roles, processes, objects, components, services, data objects, nodes, artifacts)
 - **Relations**: 57 (composition, assignment, realization, flow, access, serving, association)
-- **Diagram**: Composite overview with all 44 elements arranged by layer
+- **Diagram**: Application Layer type with all 44 elements arranged by layer; connectors use type properties (StereotypeEx + Connector_Type) rather than display names
 
 See `AGENTS.md` for COM API interaction details and connector type mapping.

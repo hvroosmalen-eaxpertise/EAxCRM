@@ -71,7 +71,7 @@ try:
             diag = d
             break
     if not diag:
-        diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", "ArchiMate3::ArchiMate_ArchimateDiagram")
+        diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", "Application Layer")
         diag.Update()
         eax_pkg.Update()
         print(f"\nCreated diagram: '{diag.Name}'")
