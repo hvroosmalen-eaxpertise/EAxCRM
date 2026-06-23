@@ -30,18 +30,10 @@ EAxCRM/
 ├── contacts/           # CRM app (Customer, Contact, Communication, Purchase, License)
 ├── newsletter/         # Newsletter app (Newsletter, NewsSource, Article)
 ├── eacrm/              # Django project settings
-├── models/             # Sparx EA model files (.qea, .md, .xmi)
+├── models/             # Sparx EA model files (.qea, .md) — see models/README.md
 ├── experiments/        # Isolated POCs (IMAP, PDF parsing, modelgen)
 │   └── modelgen/       # ArchiMate model generator (MD → Sparx EA .qea)
 └── requirements.txt
 ```
 
-## Sparx EA Model
-
-The ArchiMate model source of truth is `models/EAxCRM-Archimate.md` (Markdown). Run the generator to sync to `EAxCRM.qea`:
-
-```bash
-python experiments/modelgen/generate_archimate.py
-```
-
-See `AGENTS.md` for detailed design context and COM API interaction notes.
+See `AGENTS.md` for detailed design context.
