@@ -52,6 +52,29 @@ ARCHIMATE_RELATION_STEREOTYPES = {
 # Short stereotype name (for t_connector.Stereotype)
 SHORT_STEREOTYPE = {k: v.split("::")[-1] for k, v in ARCHIMATE_RELATION_STEREOTYPES.items()}
 
+# Base Object_Type for each ArchiMate element type (Sparx EA base UML type)
+ELEMENT_BASE_TYPE = {
+    "BusinessActor": "Class",
+    "BusinessRole": "Class",
+    "BusinessFunction": "Class",
+    "BusinessProcess": "Class",
+    "BusinessObject": "Class",
+    "BusinessService": "Class",
+    "ApplicationComponent": "Component",
+    "ApplicationCollaboration": "Class",
+    "ApplicationInterface": "Interface",
+    "ApplicationService": "Class",
+    "ApplicationFunction": "Class",
+    "DataObject": "Class",
+    "Node": "Node",
+    "Device": "Device",
+    "SystemSoftware": "Class",
+    "TechnologyService": "Class",
+    "Artifact": "Artifact",
+    "Grouping": "Class",
+    "Location": "Class",
+}
+
 # Base Connector_Type for each ArchiMate relationship type
 CONNECTOR_BASE_TYPE = {
     "Composition": "Aggregation",
@@ -189,6 +212,8 @@ def sync_elements(repo, pkg, elements, guid_map):
             except:
                 pass
 
+        base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
+
         if existing:
             existing.Name = el["name"]
             existing.Notes = el["description"]
@@ -196,7 +221,7 @@ def sync_elements(repo, pkg, elements, guid_map):
             existing.Update()
             print(f"  Updated: '{el['name']}' ({el['type']})")
         else:
-            new_elem = pkg.Elements.AddNew(el["name"], "Class")
+            new_elem = pkg.Elements.AddNew(el["name"], base_type)
             new_elem.StereotypeEx = el["sparx_stereotype"]
             new_elem.Notes = el["description"]
             new_elem.Update()
@@ -277,73 +302,6 @@ def sync_relations(db, relations, elements, guid_map):
             print(f"  Created rel: '{rel['id']}' ({rel['type']})")
 
 
-def create_diagram(repo, pkg, elements, guid_map, qea_path):
-    """Create ArchiMate diagram with elements arranged by layer. Returns the diagram GUID."""
-    diag = None
-    for i in range(pkg.Diagrams.Count):
-        d = pkg.Diagrams.GetAt(i)
-        if d.Name == "EAxCRM ArchiMate":
-            diag = d
-            break
-
-    if not diag:
-        diag = pkg.Diagrams.AddNew("EAxCRM ArchiMate", "ArchiMate3::ArchiMate_ArchimateDiagram")
-        diag.Update()
-        pkg.Update()
-        print("  Created diagram")
-    else:
-        print("  Diagram already exists")
-
-    # Clear existing objects
-    for i in range(diag.DiagramObjects.Count - 1, -1, -1):
-        diag.DiagramObjects.Delete(i)
-    diag.Update()
-
-    # Simple grid layout by layer
-    LAYER_Y = {"Business": 20, "Application": 240, "Technology": 460, "Composite": 680}
-    W, H = 160, 80
-    GAP = 30
-    layer_counters = {}
-    added = 0
-
-    for el in elements:
-        ea_guid = guid_map.get(el["guid"])
-        if not ea_guid:
-            continue
-        try:
-            ea_elem = repo.GetElementByGuid(ea_guid)
-        except:
-            continue
-        if not ea_elem:
-            continue
-
-        layer = el.get("layer", "Business")
-        y = LAYER_Y.get(layer, 20)
-        idx = layer_counters.get(layer, 0)
-        x = idx * (W + GAP) + 20
-        layer_counters[layer] = idx + 1
-
-        dobj = diag.DiagramObjects.AddNew("", "")
-        dobj.ElementID = ea_elem.ElementID
-        dobj.left = x
-        dobj.top = y
-        dobj.right = x + W
-        dobj.bottom = y + H
-        dobj.Update()
-        added += 1
-
-    diag.Update()
-
-    # Re-fetch diagram for accurate object count
-    pkg.Diagrams.Refresh()
-    for i in range(pkg.Diagrams.Count):
-        d = pkg.Diagrams.GetAt(i)
-        if d.DiagramGUID == diag.DiagramGUID:
-            diag = d
-            break
-    print(f"  Added {added} elements to diagram (reported: {diag.DiagramObjects.Count})")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Generate ArchiMate model in EAxCRM.qea")
     parser.add_argument("--qea", default=DEFAULT_QEA)
@@ -366,6 +324,14 @@ def main():
     repo = win32com.client.Dispatch("EA.Repository")
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
+
+    # Activate ArchiMate MDG technology
+    try:
+        repo.ActivateTechnology("ArchiMate3")
+        print("  Activated ArchiMate3 MDG technology")
+    except Exception as e:
+        print(f"  Note: ActivateTechnology failed: {e}")
+
     root = repo.Models.GetAt(0)
     app_arch = None
     for i in range(root.Packages.Count):
@@ -389,6 +355,25 @@ def main():
         except:
             pass
 
+    # Phase 1b: Fix element Object_Type via SQLite (cases where AddNew type differs)
+    db_fix = sqlite3.connect(args.qea)
+    try:
+        for el in elements:
+            ea_guid = guid_map.get(el["guid"])
+            if not ea_guid:
+                continue
+            base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
+            db_fix.execute(
+                "UPDATE t_object SET Object_Type=? WHERE ea_guid=? AND Object_Type!=?",
+                (base_type, ea_guid, base_type)
+            )
+        db_fix.commit()
+        updated = db_fix.total_changes
+        if updated:
+            print(f"  Fixed Object_Type for {updated} elements")
+    finally:
+        db_fix.close()
+
     # Phase 2: Relationships — direct SQLite (COM API hangs on CloseFile)
     db = sqlite3.connect(args.qea)
     try:
@@ -397,33 +382,102 @@ def main():
     finally:
         db.close()
 
-    # Phase 3: Diagram — COM API for objects + SQLite for diagram stereotype
+    # Phase 3: Diagram — COM API for objects, auto-layout, then SQLite for diagram type/stereotype
+    repo2 = win32com.client.Dispatch("EA.Repository")
+    repo2.OpenFile(args.qea)
     try:
-        repo2 = win32com.client.Dispatch("EA.Repository")
-        repo2.OpenFile(args.qea)
         root2 = repo2.Models.GetAt(0)
-        eax_pkg2 = get_or_create_package(
-            get_or_create_package(root2, "Application Architecture"), "EAxCRM"
-        )
+        app_arch2 = None
+        for i in range(root2.Packages.Count):
+            p = root2.Packages.GetAt(i)
+            if p.Name == "Application Architecture":
+                app_arch2 = p
+                break
+        if not app_arch2:
+            app_arch2 = root2.Packages.AddNew("Application Architecture", "Package")
+            app_arch2.Update()
+            root2.Update()
+        eax_pkg2 = get_or_create_package(app_arch2, "EAxCRM")
         print("\n--- Diagram ---")
-        create_diagram(repo2, eax_pkg2, elements, guid_map, args.qea)
+        diag = None
+        for i in range(eax_pkg2.Diagrams.Count):
+            d = eax_pkg2.Diagrams.GetAt(i)
+            if d.Name == "EAxCRM ArchiMate":
+                diag = d
+                break
+        if not diag:
+            diag = eax_pkg2.Diagrams.AddNew("EAxCRM ArchiMate", "ArchiMate3::ArchiMate_ArchimateDiagram")
+            diag.Update()
+            eax_pkg2.Update()
+            print("  Created diagram")
+        else:
+            print("  Diagram already exists")
+
+        # Clear existing objects
+        for i in range(diag.DiagramObjects.Count - 1, -1, -1):
+            diag.DiagramObjects.Delete(i)
+        diag.Update()
+
+        # Simple grid layout by layer
+        LAYER_Y = {"Business": 20, "Application": 340, "Technology": 660, "Composite": 980}
+        W, H = 180, 100
+        GAP = 30
+        layer_counters = {}
+        added = 0
+
+        for el in elements:
+            ea_guid = guid_map.get(el["guid"])
+            if not ea_guid:
+                continue
+            try:
+                ea_elem = repo2.GetElementByGuid(ea_guid)
+            except:
+                continue
+            if not ea_elem:
+                continue
+
+            layer = el.get("layer", "Business")
+            y = LAYER_Y.get(layer, 20)
+            idx = layer_counters.get(layer, 0)
+            x = idx * (W + GAP) + 20
+            layer_counters[layer] = idx + 1
+
+            dobj = diag.DiagramObjects.AddNew("", "")
+            dobj.ElementID = ea_elem.ElementID
+            dobj.left = x
+            dobj.top = y
+            dobj.right = x + W
+            dobj.bottom = y + H
+            dobj.Update()
+            added += 1
+
+        diag.Update()
+
+        print(f"  Added {added} elements to diagram")
     finally:
         try:
             repo2.CloseFile()
         except:
             pass
 
-    # Set diagram stereotype via SQLite
+    # Set diagram type, stereotype, and t_xref via SQLite
     db2 = sqlite3.connect(args.qea)
     try:
-        diag_guid = db2.execute(
+        drow = db2.execute(
             "SELECT ea_guid FROM t_diagram WHERE Name='EAxCRM ArchiMate'"
         ).fetchone()
-        if diag_guid:
-            dguid = diag_guid[0]
+        if drow:
+            dguid = drow[0]
             db2.execute(
-                "UPDATE t_diagram SET Stereotype=? WHERE Name='EAxCRM ArchiMate'",
-                ("ArchiMate_ArchimateDiagram",)
+                "UPDATE t_diagram SET Diagram_Type='ArchiMateBusiness', "
+                "Stereotype='ArchiMate_ArchimateDiagram' "
+                "WHERE Name='EAxCRM ArchiMate'"
+            )
+            # Remove previous diagram xrefs for this diagram
+            db2.execute(
+                "DELETE FROM t_xref WHERE Type='Stereotypes' "
+                "AND Visibility='diagram property' AND Client=?",
+                (dguid,)
             )
             xref_id = "{" + str(uuid.uuid4()).upper() + "}"
             desc = "@STEREO;Name=ArchiMate_ArchimateDiagram;" \
@@ -436,7 +490,7 @@ def main():
                 (xref_id, desc, dguid)
             )
             db2.commit()
-            print("  Updated diagram stereotype")
+            print("  Updated diagram type to ArchiMateBusiness + stereotype")
     finally:
         db2.close()
 
