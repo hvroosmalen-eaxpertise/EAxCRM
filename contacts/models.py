@@ -86,6 +86,44 @@ class Attachment(models.Model):
         return self.filename
 
 
+class Quote(models.Model):
+    quote_number = models.CharField(max_length=100, unique=True)
+    date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    pdf = models.FileField(upload_to="quotes/", blank=True)
+    seen = models.BooleanField(default=False, help_text="Quote has been reviewed")
+    order_placed = models.BooleanField(default=False, help_text="Quote approved and order placed")
+    cancelled = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.quote_number} ({self.date})"
+
+
+class Invoice(models.Model):
+    invoice_number = models.CharField(max_length=100, unique=True)
+    date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    pdf = models.FileField(upload_to="invoices/", blank=True)
+    paid = models.BooleanField(default=False)
+    paid_date = models.DateField(null=True, blank=True)
+    cancelled = models.BooleanField(default=False)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.invoice_number} ({self.date})"
+
+
 class Purchase(models.Model):
     class Type(models.TextChoices):
         PRODUCT = "PRODUCT", "Product"
@@ -97,16 +135,13 @@ class Purchase(models.Model):
     type = models.CharField(max_length=10, choices=Type.choices, default=Type.PRODUCT)
     purchase_date = models.DateField()
 
-    # Product-specific fields
-    quote_file = models.CharField(
-        max_length=500, blank=True,
-        help_text="Path to quote PDF on OneDrive (e.g. OneDrive/EAxpertise/Quotes/...)",
-        verbose_name="quote (PDF)"
+    quote = models.OneToOneField(
+        Quote, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="purchase", help_text="Quote that triggered this procurement"
     )
-    invoice_file = models.CharField(
-        max_length=500, blank=True,
-        help_text="Path to invoice PDF on OneDrive (e.g. OneDrive/EAxpertise/Invoices/...)",
-        verbose_name="invoice (PDF)"
+    invoice = models.OneToOneField(
+        Invoice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="purchase", help_text="Invoice that fulfilled this procurement"
     )
 
     # Service-specific fields
@@ -134,6 +169,10 @@ class License(models.Model):
     purchase = models.ForeignKey(
         Purchase, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="licenses", help_text="Purchase that originated this license"
+    )
+    invoice = models.ForeignKey(
+        Invoice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="licenses", help_text="Invoice that procured this license"
     )
     renewed_license = models.ForeignKey(
         "self", on_delete=models.SET_NULL, null=True, blank=True,

@@ -197,13 +197,20 @@ def get_or_create_package(parent, name):
 
 def sync_elements(repo, pkg, elements, guid_map):
     """Create or update elements. Uses md_guid -> ea_guid mapping for idempotency."""
+    # Build name lookup from package elements (for idempotent fallback)
+    pkg.Elements.Refresh()
+    pkg_elems_by_name = {}
+    for j in range(pkg.Elements.Count):
+        e = pkg.Elements.GetAt(j)
+        pkg_elems_by_name[e.Name] = e
+
     for el in elements:
         md_guid = el["guid"]
         if not md_guid:
             print(f"  SKIP '{el['id']}': no GUID in MD")
             continue
 
-        # Lookup EA GUID from map, then try to find element
+        # 1) Lookup EA GUID from map
         ea_guid = guid_map.get(md_guid)
         existing = None
         if ea_guid:
@@ -212,6 +219,10 @@ def sync_elements(repo, pkg, elements, guid_map):
             except:
                 pass
 
+        # 2) Name-based fallback — scan package for element with same name
+        if not existing:
+            existing = pkg_elems_by_name.get(el["name"])
+
         base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
 
         if existing:
@@ -219,6 +230,7 @@ def sync_elements(repo, pkg, elements, guid_map):
             existing.Notes = el["description"]
             existing.StereotypeEx = el["sparx_stereotype"]
             existing.Update()
+            guid_map[md_guid] = existing.ElementGUID
             print(f"  Updated: '{el['name']}' ({el['type']})")
         else:
             new_elem = pkg.Elements.AddNew(el["name"], base_type)
@@ -231,6 +243,7 @@ def sync_elements(repo, pkg, elements, guid_map):
                 e = pkg.Elements.GetAt(j)
                 if e.ElementID == new_elem.ElementID:
                     guid_map[md_guid] = e.ElementGUID
+                    pkg_elems_by_name[e.Name] = e
                     break
 
             print(f"  Created: '{el['name']}' ({el['type']})")

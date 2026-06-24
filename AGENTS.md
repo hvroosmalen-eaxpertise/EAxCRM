@@ -3,6 +3,15 @@
 ## Purpose
 A CRM system for managing Sparx EA customers, their communications, and newsletter campaigns.
 
+## MANDATORY: Model Sync Before Discussion
+**Before ANY discussion or work involving the data model (entities, attributes, relationships), you MUST first run:**
+```
+python experiments\modelgen\sync_datamodel_from_ea.py
+```
+This reads the current state from `EAxCRM.qea` and updates `EAxCRM-DataModel.md`. Only then do you have the current model to discuss.
+
+Without this sync, any conversation about the model is based on stale data. The EA repo is the canonical source — the MD file must reflect it before we proceed.
+
 ## Core Features
 
 ### 1. Customer Insight
@@ -152,6 +161,5 @@ The generator reads `.md` files with the following structure:
 Where `Type` matches one of the ArchiMate types listed in `ARCHIMATE_ELEMENT_STEREOTYPES` or `ARCHIMATE_RELATION_STEREOTYPES` in the generator.
 
 ## Next Steps
-1. Open EAxCRM.qea in Sparx EA to verify diagram rendering
-2. Create the logical data model generator (`generate_datamodel.py`) reading from a Markdown model file
-3. Build IMAP experiment, PDF parsing experiment
+1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
+2. Build IMAP experiment, PDF parsing experiment
