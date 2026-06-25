@@ -88,23 +88,6 @@
   - last_sync: datetime
   - enabled: boolean
 
-### Class—invoice
-- Name: Invoice
-- Description: An invoice from Sparx Systems (or another supplier) received after quote approval. Holds the procured licenses and services.
-- GUID: {3A60FD60-3797-41df-8BED-20A2148B32F5}
-- Attributes:
-  - id: int <<PK>>
-  - invoice_number: string(100)
-  - date: date
-  - amount: float
-  - pdf: string(500)
-  - paid: boolean
-  - paid_date: date
-  - cancelled: boolean
-  - notes: text
-  - created_at: datetime
-  - updated_at: datetime
-
 ### Class—license
 - Name: License
 - Description: License entitlement per customer, including type, start and expiry dates. Can be linked to a purchase and optionally renew a previous license.
@@ -163,17 +146,49 @@
   - url: string(200)
   - enabled: boolean
 
+### Class—offer
+- Name: Offer
+- Description: A sales proposal to a customer, bundling optional service line items.
+- GUID: {67448211-42F0-4105-97D5-4B065E0148E4}
+- Attributes:
+  - id: int <<PK>>
+  - offer_number: string(100)
+  - date: date
+  - amount: float
+  - currency: string(3)
+  - status: string(10)
+  - expiry_date: date
+  - pdf: string(500)
+  - notes: text
+  - created_at: datetime
+  - updated_at: datetime
+
+### Class—procurementinvoice
+- Name: ProcurementInvoice
+- Description: An invoice from Sparx Systems (or another supplier) received after quote approval. Holds the procured licenses and services.
+- GUID: {3A60FD60-3797-41df-8BED-20A2148B32F5}
+- Attributes:
+  - id: int <<PK>>
+  - invoice_number: string(100)
+  - date: date
+  - amount: float
+  - pdf: string(500)
+  - paid: boolean
+  - paid_date: date
+  - cancelled: boolean
+  - notes: text
+  - created_at: datetime
+  - updated_at: datetime
+  - currency: string(3)
+
 ### Class—purchase
 - Name: Purchase
-- Description: A procurement event for a product or service. Links the Quote that triggered it and the Invoice that fulfilled it.
+- Description: A procurement event for a product or service. Links the Quote that triggered it and the ProcurementInvoice that fulfilled it.
 - GUID: {E16E85CB-5C83-403e-B2FC-517E644EFFC1}
 - Attributes:
   - id: int <<PK>>
   - type: string(10)
   - purchase_date: date
-  - service_name: string(200)
-  - start_month: date
-  - expiry_month: date
   - notes: text
   - created_at: datetime
   - updated_at: datetime
@@ -195,11 +210,41 @@
   - created_at: datetime
   - updated_at: datetime
 
+### Class—salesinvoice
+- Name: SalesInvoice
+- Description: An invoice sent to a customer for services rendered.
+- GUID: {B021AB28-9E3D-43b2-B5DB-D714BF7057F0}
+- Attributes:
+  - id: int <<PK>>
+  - invoice_number: string(100)
+  - date: date
+  - amount: float
+  - currency: string(3)
+  - pdf: string(500)
+  - paid: boolean
+  - paid_date: date
+  - cancelled: boolean
+  - notes: text
+  - created_at: datetime
+  - updated_at: datetime
+
 ### Class—service
 - Name: Service
+- Description: A service resold to customers. Can be procured (linked to a Purchase) or EAxpertise's own. Optionally part of an Offer.
 - GUID: {BBA9619D-9886-4ae6-B9E3-BE69D5959DFB}
 - Attributes:
-  - service_name: string
+  - service_name: string(200)
+  - id: int <<PK>>
+  - service_type: string(20)
+  - description: text
+  - start_month: date
+  - expiry_month: date
+  - auto_renew: boolean
+  - renewal_notice_sent: boolean
+  - status: string(10)
+  - notes: text
+  - created_at: datetime
+  - updated_at: datetime
 
 ## Relationships
 
@@ -249,10 +294,10 @@
 - Description: Links a procurement event to its originating quote.
 - GUID: {7200B9F1-1AAA-4032-98C6-B4765443EA80}
 
-### Association—r-purchase-invoice
+### Association—r-purchase-procurementinvoice
 - Source: purchase (0..1)
-- Target: invoice (1)
-- Description: Links a procurement event to its fulfilling invoice.
+- Target: procurementinvoice (1)
+- Description: Links a procurement event to its fulfilling procurement invoice.
 - GUID: {A4A6C418-1F9B-44a8-9052-8765271B7C7A}
 
 ### Association—r-license-customer
@@ -265,10 +310,10 @@
 - Target: purchase (1)
 - GUID: {70E45BC5-BD6B-499b-A5BE-34929E9D5C8B}
 
-### Association—r-license-invoice
+### Association—r-license-procurementinvoice
 - Source: license (*)
-- Target: invoice (0..1)
-- Description: Links a license to the invoice that procured it.
+- Target: procurementinvoice (0..1)
+- Description: Links a license to the procurement invoice that procured it.
 - GUID: {937308B4-849A-444f-8129-1E2E7D04DD92}
 
 ### Association—r-license-license
@@ -290,6 +335,37 @@
 
 ### Association—r-service-purchase
 - Source: service (*)
-- Target: purchase (1)
+- Target: purchase (0..1)
+- Description: Links a procured service to its purchase.
 - GUID: {8AAE733E-308E-40db-B07D-64A7E08D442D}
+
+### Association—r-service-offer
+- Source: service (*)
+- Target: offer (0..1)
+- Description: A service optionally included in an offer.
+- GUID: {13EA23A1-B91B-4ce0-AED7-7375E00FBF2F}
+
+### Association—r-service-salesinvoice
+- Source: service (*)
+- Target: salesinvoice (0..1)
+- Description: A service billed on a sales invoice.
+- GUID: {9E02A6B2-34E5-46d4-8F6C-53E51F270E3F}
+
+### Association—r-offer-customer
+- Source: offer (*)
+- Target: customer (1)
+- Description: An offer belongs to a customer.
+- GUID: {6EADD078-EE1D-4034-A7E4-20BD81283F51}
+
+### Association—r-salesinvoice-customer
+- Source: salesinvoice (*)
+- Target: customer (1)
+- Description: A sales invoice belongs to a customer.
+- GUID: {6DAB0EF7-1339-4aa8-BCB0-48AA5D774D4F}
+
+### Association—r-salesinvoice-offer
+- Source: salesinvoice (0..1)
+- Target: offer (1)
+- Description: A sales invoice references the originating offer.
+- GUID: {D2F37FB6-BCBA-492d-B67A-8B18E6DDC3F5}
 

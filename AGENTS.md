@@ -12,6 +12,8 @@ This reads the current state from `EAxCRM.qea` and updates `EAxCRM-DataModel.md`
 
 Without this sync, any conversation about the model is based on stale data. The EA repo is the canonical source — the MD file must reflect it before we proceed.
 
+**After any sync that changes the model, you MUST update this AGENTS.md** to document new entities, renamed entities, new attributes, and new relationships. Review the diff of `EAxCRM-DataModel.md` and update the "Data Model Summary" section below.
+
 ## Core Features
 
 ### 1. Customer Insight
@@ -25,7 +27,16 @@ Without this sync, any conversation about the model is based on stale data. The 
 - A purchase can be a Product (with quote/invoice PDFs + license entitlements) or a Service (with name, start_month, expiry_month)
 - Service expiry_month signals renewal needed; a renewal aggregates all expiring licenses and services for a customer
 
-### 2. Newsletter Management
+### 2. Sales Management
+- Offer is a sales proposal to a customer with optional service line items
+- Services (SaaS, Training, Support) can be procured (linked to Purchase) or EAxpertise's own
+- Services can be part of an Offer; the actual line items sold are on the SalesInvoice
+- SalesInvoice is the outgoing invoice to the customer, references the originating Offer
+- ProcurementInvoice (was Invoice) is the incoming invoice from Sparx Systems — can be USD or EUR
+- Offers are typically in EUR
+- Service status, auto_renew, and renewal_notice_sent fields enable expiry notifications
+
+### 3. Newsletter Management
 - Create and send EAxNewsletter to opted-in contacts
 - Compose from news sources: SparxSystems.com, sparxsystems.eu
 - Newsletter format: logo + ~5 article pointers (heading + summary + link to full article)
@@ -45,7 +56,45 @@ Without this sync, any conversation about the model is based on stale data. The 
 | Auth | Django built-in (local network only) |
 | Deployment | Native dev on Windows → Docker on QNAP NAS (Phase 3) |
 
-## Design Decisions
+## Data Model Summary
+**Current state (as of 2026-06-25):** 17 entities, 22 relationships
+
+### Entities
+| Entity | Description | Key Attributes |
+|--------|-------------|----------------|
+| Customer | Organization that uses Sparx EA | name, address |
+| Contact | Person associated with a customer, with role | name, email, role, opt_in |
+| Quote | Incoming quote from Sparx Systems | quote_number, date, amount, pdf |
+| ProcurementInvoice | Incoming invoice from supplier (was Invoice) | invoice_number, date, amount, currency |
+| Purchase | Procurement event, links Quote → ProcurementInvoice | type, purchase_date |
+| License | License entitlement per customer | license_type, start_date, expiry_date |
+| LicenseLineItem | Line items under a license | description, is_service, quantity |
+| Service | Resold service (procured or own) | service_name, service_type, start_month, expiry_month, auto_renew, status |
+| Offer | Sales proposal to customer | offer_number, date, amount, currency, status |
+| SalesInvoice | Outgoing invoice to customer | invoice_number, date, amount, currency, paid |
+| Communication | Email from IMAP | subject, from_address, body, received_date |
+| Attachment | File attached to a communication | filename, content_type, file |
+| ImapAccount | IMAP config | email_address, host, username |
+| Article | Scraped news article | source_url, heading, summary |
+| NewsSource | Website scraped for articles | name, url |
+| Newsletter | Composed EAxNewsletter | title, subject, status |
+| NewsletterContact | Join: newsletter → contact | sent_date, opened_date, bounced |
+
+### Procurement Flow
+Quote → Purchase → ProcurementInvoice → License (via Purchase)
+
+### Sales Flow
+Offer → SalesInvoice (Customer)
+Service → Offer (optional)
+Service → SalesInvoice (optional)
+Service → Purchase (optional, if procured)
+
+### Key Relationships
+- Purchase → Customer (M:1), License (*) → Purchase (M:1)
+- Service → Purchase (0..1, if procured)
+- Service → Offer (0..1), Service → SalesInvoice (0..1)
+- SalesInvoice → Customer (M:1), SalesInvoice → Offer (0..1)
+- Offer → Customer (M:1)
 - Newsletter content sourced from SparxSystems.com and sparxsystems.eu
 - Newsletter frequency: once per 6 weeks
 - Opt-in required for newsletter contacts (initial opt-in via CRM-marked email addresses)
@@ -63,6 +112,9 @@ Without this sync, any conversation about the model is based on stale data. The 
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
 - GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
+- Data model has 17 entities and 22 relationships — updated 2026-06-25
+- New entities: Offer, SalesInvoice; renamed: Invoice → ProcurementInvoice; expanded: Service (11 attributes)
+- `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
 
 ## Generator Scripts (experiments/modelgen/)
 - `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
@@ -160,6 +212,17 @@ The generator reads `.md` files with the following structure:
 ```
 
 Where `Type` matches one of the ArchiMate types listed in `ARCHIMATE_ELEMENT_STEREOTYPES` or `ARCHIMATE_RELATION_STEREOTYPES` in the generator.
+
+## Bugfix: Attribute Deletion via Collection Index (2026-06-25)
+`sync_attributes()` used `a.AttributeID` with `Attributes.Delete()` which expects a 0-based collection index, not the EA internal ID. Caused "Index out of bounds" when removing attributes from Purchase (`service_name`, `start_month`, `expiry_month`).
+
+**Fix**: Iterate in reverse index order so deletions don't shift indices:
+```python
+for i in range(ea_elem.Attributes.Count - 1, -1, -1):
+    a = ea_elem.Attributes.GetAt(i)
+    if a.Name not in md_names:
+        ea_elem.Attributes.Delete(i)
+```
 
 ## Bugfix: COM API Only — No SQLite Dependency (2026-06-25)
 Three fixes in `generate_uml_datamodel.py`:

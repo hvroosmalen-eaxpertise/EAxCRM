@@ -207,10 +207,12 @@ def sync_attributes(ea_elem, attr_defs):
             new_a = ea_elem.Attributes.AddNew(ad["name"], ad["sparx_type"])
             sync_attribute(new_a, ad)
 
-    for name, a in list(existing.items()):
-        if name not in md_names:
-            ea_elem.Attributes.Delete(a.AttributeID)
-            print(f"    Deleted attribute '{name}'")
+    # Iterate in reverse index order so deletions don't shift indices
+    for i in range(ea_elem.Attributes.Count - 1, -1, -1):
+        a = ea_elem.Attributes.GetAt(i)
+        if a.Name not in md_names:
+            ea_elem.Attributes.Delete(i)
+            print(f"    Deleted attribute '{a.Name}'")
 
     ea_elem.Update()
 
@@ -528,7 +530,7 @@ def main():
             dm_pkg.Update()
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
-            print("  Created diagram — placing elements")
+            print("  Created diagram — placing all entities")
 
             W, H = 200, 120
             GAP = 40
@@ -562,7 +564,49 @@ def main():
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
-            print("  Diagram already exists — preserving manual layout")
+
+            # Build set of element IDs already on the diagram
+            diag.DiagramObjects.Refresh()
+            placed_ids = set()
+            for i in range(diag.DiagramObjects.Count):
+                dobj = diag.DiagramObjects.GetAt(i)
+                placed_ids.add(dobj.ElementID)
+
+            # Add missing entities to the diagram
+            W, H = 200, 120
+            GAP = 40
+            cols = 4
+            new_count = 0
+            for idx, ent in enumerate(entities):
+                ea_guid = guid_map.get(ent["guid"])
+                if not ea_guid:
+                    continue
+                try:
+                    ea_elem = repo.GetElementByGuid(ea_guid)
+                except:
+                    continue
+                if not ea_elem or ea_elem.ElementID in placed_ids:
+                    continue
+
+                col = idx % cols
+                row = idx // cols
+                x = col * (W + GAP) + 20
+                y = row * (H + GAP) + 20
+
+                dobj = diag.DiagramObjects.AddNew("", "")
+                dobj.ElementID = ea_elem.ElementID
+                dobj.left = x
+                dobj.top = y
+                dobj.right = x + W
+                dobj.bottom = y + H
+                dobj.Update()
+                new_count += 1
+
+            if new_count:
+                diag.Update()
+                print(f"  Added {new_count} new entit(ies) to existing diagram")
+            else:
+                print("  Diagram already has all entities — preserving manual layout")
 
     finally:
         try:
