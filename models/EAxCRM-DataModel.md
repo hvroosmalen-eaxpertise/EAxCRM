@@ -69,7 +69,7 @@
   - id: int <<PK>>
   - name: string(200)
   - address: text
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
 
@@ -97,7 +97,7 @@
   - license_type: string(200)
   - start_date: date
   - expiry_date: date
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
 
@@ -158,10 +158,10 @@
   - currency: string(3)
   - status: string(10)
   - expiry_date: date
-  - pdf: string(500)
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
+  - pdf_file: string(500)
 
 ### Class—procurementinvoice
 - Name: ProcurementInvoice
@@ -172,14 +172,14 @@
   - invoice_number: string(100)
   - date: date
   - amount: float
-  - pdf: string(500)
   - paid: boolean
   - paid_date: date
   - cancelled: boolean
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
   - currency: string(3)
+  - pdf_file: string(500)
 
 ### Class—purchase
 - Name: Purchase
@@ -189,7 +189,7 @@
   - id: int <<PK>>
   - type: string(10)
   - purchase_date: date
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
 
@@ -202,13 +202,13 @@
   - quote_number: string(100)
   - date: date
   - amount: float
-  - pdf: string(500)
   - seen: boolean
   - order_placed: boolean
   - cancelled: boolean
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
+  - pdf_file: string(500)
 
 ### Class—salesinvoice
 - Name: SalesInvoice
@@ -220,13 +220,13 @@
   - date: date
   - amount: float
   - currency: string(3)
-  - pdf: string(500)
   - paid: boolean
   - paid_date: date
   - cancelled: boolean
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
+  - pdf_file: string(500)
 
 ### Class—service
 - Name: Service
@@ -242,7 +242,7 @@
   - auto_renew: boolean
   - renewal_notice_sent: boolean
   - status: string(10)
-  - notes: text
+  - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
 
