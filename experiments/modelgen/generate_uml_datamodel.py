@@ -6,7 +6,7 @@ Usage:
 Idempotent: stores a GUID mapping after first run.
 Re-run to update names, descriptions, attribute types, or add new entities/relations.
 """
-import sys, os, argparse, json, subprocess, re, sqlite3
+import sys, os, argparse, json, subprocess, re
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -397,37 +397,110 @@ def main():
                 new_conn.Update()
                 print(f"  Created rel: '{rel['id']}'")
 
-        # Phase 2b: Set cardinality via SQLite (COM API doesn't support SourceCard/DestCard)
-        print("\n--- Relationship Cardinality (SQLite) ---")
-        qea_path = args.qea
-        conn_sqlite = sqlite3.connect(qea_path)
-        c = conn_sqlite.cursor()
-        # Build a map: (Start_Object_ID, End_Object_ID) -> (source_multi, target_multi)
-        id_map = {}
-        for md_id, ent in entity_by_id.items():
-            ea_guid = guid_map.get(ent["guid"])
-            if ea_guid:
-                c.execute("SELECT Object_ID FROM t_object WHERE ea_guid=?", (ea_guid,))
-                row = c.fetchone()
-                if row:
-                    id_map[md_id] = row[0]
+        # Phase 2b: Delete orphan connectors via COM API (database-independent)
+        print("\n--- Relationship Orphan Cleanup (COM API) ---")
+        # Build set of expected (source_EA_guid, target_EA_guid) pairs from MD
+        md_pairs = set()
+        for rel in relations:
+            src = entity_by_id.get(rel["source"])
+            tgt = entity_by_id.get(rel["target"])
+            if src and tgt:
+                sg = guid_map.get(src["guid"])
+                tg = guid_map.get(tgt["guid"])
+                if sg and tg:
+                    md_pairs.add((sg, tg))
 
+        # Only consider connectors where both ends are data-model entities
+        dm_guids = set(v for k, v in guid_map.items() if not k.startswith('_'))
+
+        orphan_count = 0
+        for ent in entities:
+            ea_guid_val = guid_map.get(ent["guid"])
+            if not ea_guid_val:
+                continue
+            try:
+                ea_elem = repo.GetElementByGuid(ea_guid_val)
+            except:
+                continue
+            if not ea_elem:
+                continue
+
+            # First pass: collect all candidate orphan connector IDs
+            candidates = set()
+            for i in range(ea_elem.Connectors.Count):
+                conn = ea_elem.Connectors.GetAt(i)
+                # Use ClientID/SupplierID for actual source/target (not the element being iterated)
+                try:
+                    src_e = repo.GetElementByID(conn.ClientID)
+                    tgt_e = repo.GetElementByID(conn.SupplierID)
+                except:
+                    continue
+                if not src_e or not tgt_e:
+                    continue
+                src_guid = src_e.ElementGUID
+                tgt_guid = tgt_e.ElementGUID
+                # Only consider connectors where BOTH ends are data-model elements
+                if src_guid not in dm_guids or tgt_guid not in dm_guids:
+                    continue
+                in_md = (src_guid, tgt_guid) in md_pairs or (tgt_guid, src_guid) in md_pairs
+                if in_md:
+                    continue
+                candidates.add(conn.ConnectorID)
+
+            # Second pass: delete orphans from their source element's collection
+            for cid in candidates:
+                try:
+                    conn = repo.GetConnectorByID(cid)
+                except:
+                    continue
+                if not conn:
+                    continue
+                try:
+                    src_elem = repo.GetElementByID(conn.ClientID)
+                except:
+                    continue
+                if not src_elem:
+                    continue
+                for j in range(src_elem.Connectors.Count - 1, -1, -1):
+                    if src_elem.Connectors.GetAt(j).ConnectorID == cid:
+                        src_elem.Connectors.Delete(j)
+                        orphan_count += 1
+                        break
+
+        if orphan_count:
+            print(f"  Deleted {orphan_count} orphan connector(s)")
+        else:
+            print("  No orphan connectors to remove")
+
+        # Phase 2c: Set cardinality via COM API
+        print("\n--- Relationship Cardinality ---")
         cardinality_ok = 0
         for rel in relations:
-            src_id = id_map.get(rel["source"])
-            tgt_id = id_map.get(rel["target"])
-            if not src_id or not tgt_id:
+            src = entity_by_id.get(rel["source"])
+            tgt = entity_by_id.get(rel["target"])
+            if not src or not tgt:
+                continue
+            sg = guid_map.get(src["guid"])
+            tg = guid_map.get(tgt["guid"])
+            if not sg or not tg:
+                continue
+            src_elem = repo.GetElementByGuid(sg)
+            tgt_elem = repo.GetElementByGuid(tg)
+            if not src_elem or not tgt_elem:
                 continue
             src_multi = rel.get("source_multi", "")
             tgt_multi = rel.get("target_multi", "")
-            c.execute(
-                "UPDATE t_connector SET SourceCard=?, DestCard=? WHERE Start_Object_ID=? AND End_Object_ID=?",
-                (src_multi, tgt_multi, src_id, tgt_id)
-            )
-            if c.rowcount:
-                cardinality_ok += 1
-        conn_sqlite.commit()
-        conn_sqlite.close()
+            for i in range(src_elem.Connectors.Count):
+                conn = src_elem.Connectors.GetAt(i)
+                if conn.SupplierID == tgt_elem.ElementID:
+                    try:
+                        conn.ClientEnd.Cardinality = src_multi
+                        conn.SupplierEnd.Cardinality = tgt_multi
+                        conn.Update()
+                        cardinality_ok += 1
+                    except:
+                        pass
+                    break
         print(f"  Set cardinality on {cardinality_ok} connector(s)")
 
         # Phase 3: Diagram

@@ -199,7 +199,7 @@
 - Name: Service
 - GUID: {BBA9619D-9886-4ae6-B9E3-BE69D5959DFB}
 - Attributes:
-  - (none)
+  - service_name: string
 
 ## Relationships
 
@@ -287,4 +287,9 @@
 - Target: attachment (0..1)
 - Description: Links a license to the source attachment (PDF/TXT) from which it was extracted.
 - GUID: {4B8D0033-C3D1-4201-BEA7-6603066E0229}
+
+### Association—r-service-purchase
+- Source: service (*)
+- Target: purchase (1)
+- GUID: {8AAE733E-308E-40db-B07D-64A7E08D442D}
 

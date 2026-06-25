@@ -136,6 +136,7 @@ Controls the UML base type shape in Sparx EA. Set via `ELEMENT_BASE_TYPE` in the
   - Phase 1b: Fix `Object_Type` and `t_xref.Description` via SQLite (COM API `AddNew` doesn't always set the right base type, and `StereotypeEx` leaves `t_xref.Description` NULL for elements)
 - `repo.CloseFile()` can hang; use try/finally with except: pass
 - EA processes (EA.exe) accumulate between runs — script tracks pre-existing PIDs and only kills its own zombie EA processes after each phase
+- **NEVER kill EA processes externally** (e.g. `Get-Process -Name EA | Stop-Process`). The user has EA open. Only the scripts' `kill_new_ea_processes()` may kill zombie processes, and it only kills PIDs that didn't exist before the script started.
 - GUID map file: `experiments/modelgen/archimate_guid_map.json`
 
 ## Markdown Model File Format
@@ -159,6 +160,34 @@ The generator reads `.md` files with the following structure:
 ```
 
 Where `Type` matches one of the ArchiMate types listed in `ARCHIMATE_ELEMENT_STEREOTYPES` or `ARCHIMATE_RELATION_STEREOTYPES` in the generator.
+
+## Bugfix: COM API Only — No SQLite Dependency (2026-06-25)
+Three fixes in `generate_uml_datamodel.py`:
+
+### Bug 1: Wrong connector direction in orphan detection
+The orphan detection loop iterated `ea_elem.Connectors` and assumed `ea_elem` was the **source** element. But EA's COM API returns connectors where the element participates as **either** source or target. When iterating a target element's connectors, `conn.SupplierID` returned the target's own ID, making every connector appear self-referencing `(ElementGUID, ElementGUID)` — which never matched any MD pair, so all connectors were falsely identified as orphans.
+
+**Fix**: Use `conn.ClientID` (actual source) and `conn.SupplierID` (actual target) to determine the true direction, regardless of which element's Connectors collection is being iterated.
+
+### Bug 2: Orphan deletion via source element
+Original code tried `ea_elem.Connectors.Delete(index)` on the iterated element, which is wrong when the iterated element is the target. COM API's `Connector.Delete()` method doesn't exist.
+
+**Fix**: After collecting orphan `ConnectorID`s via COM API, locate each orphan by `ConnectorID` using `repo.GetConnectorByID()`, then delete from its true source element's `Connectors` collection.
+
+### Fix 3: Cardinality via COM API instead of SQLite
+Originally used `sqlite3.connect()` to write `SourceCard`/`DestCard` directly. EA COM API's `Connector.SourceCard`/`DestCard` are read-only, but `Connector.ClientEnd.Cardinality` and `Connector.SupplierEnd.Cardinality` can be set.
+
+**Fix**: Removed `sqlite3` dependency entirely. Set cardinality via COM API using `conn.ClientEnd.Cardinality` and `conn.SupplierEnd.Cardinality`.
+
+### Result
+`generate_uml_datamodel.py` is now **pure COM API** — zero SQLite calls. Works with any EA repository backend (SQLite, SQL Server, Oracle, etc.).
+
+### Round-Trip Test Results (2026-06-25)
+Full delete/recreate orphan test passed:
+1. Add `r-imapaccount-quote` to MD → sync → 17 connectors in EA ✓
+2. Sync EA→MD → relationship appears in re-synced MD ✓
+3. Remove relationship from MD → sync → 1 orphan deleted, back to 16 ✓
+4. Final EA→MD sync → clean MD, no remnants ✓
 
 ## Next Steps
 1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
