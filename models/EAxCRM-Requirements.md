@@ -221,8 +221,8 @@
 - Parents:
   - eaxcrmmustusesqliteasitsdatabasebackend
 
-### Requirement—eaxcrmmustshowauxthatshowsthecurrentstateofprocuement
-- Name: EAxCRM must show a UX that shows the current state of Procuement
+### Requirement—eaxcrmmustshowauxthatshowsthecurrentstateofprocurement
+- Name: EAxCRM must show a UX that shows the current state of Procurement
 - ID: RPT-4
 - Description: The system shall display the current procurement state per vendor including which quotes have been received and which invoices are paid or pending.
 - Entities: ProcurementInvoice, Quote, Vendor
