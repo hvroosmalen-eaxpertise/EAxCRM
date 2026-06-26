@@ -57,7 +57,7 @@ Without this sync, any conversation about the model is based on stale data. The 
 | Deployment | Native dev on Windows → Docker on QNAP NAS (Phase 3) |
 
 ## Data Model Summary
-**Current state (as of 2026-06-25):** 17 entities, 22 relationships
+**Current state (as of 2026-06-26):** 19 entities, 30 relationships
 
 ### Entities
 | Entity | Description | Key Attributes |
@@ -69,9 +69,11 @@ Without this sync, any conversation about the model is based on stale data. The 
 | Purchase | Procurement event, links Quote → ProcurementInvoice | type, purchase_date |
 | License | License entitlement per customer | license_type, start_date, expiry_date |
 | LicenseLineItem | Line items under a license | description, is_service, quantity |
-| Service | Resold service (procured or own) | service_name, service_type, start_month, expiry_month, auto_renew, status |
+| Service | Resold service (procured or own) | service_name, service_type, unit_price, billing_frequency, start_month, expiry_month, cancelled_date, auto_renew, status |
 | Offer | Sales proposal to customer | offer_number, date, amount, currency, status |
 | SalesInvoice | Outgoing invoice to customer | invoice_number, date, amount, currency, paid |
+| Vendor | Supplier organization (Sparx Systems, Prolaborate) | name, address, bank_account_holder, iban, bic_swift, payment_currency |
+| Delivery | Handover email with license files, service agreements | sent_date, to_address, subject, body, status |
 | Communication | Email from IMAP | subject, from_address, body, received_date |
 | Attachment | File attached to a communication | filename, content_type, file |
 | ImapAccount | IMAP config | email_address, host, username |
@@ -82,19 +84,28 @@ Without this sync, any conversation about the model is based on stale data. The 
 
 ### Procurement Flow
 Quote → Purchase → ProcurementInvoice → License (via Purchase)
+Vendor → Quote (*), Vendor → ProcurementInvoice (*)
 
 ### Sales Flow
 Offer → SalesInvoice (Customer)
 Service → Offer (optional)
 Service → SalesInvoice (optional)
 Service → Purchase (optional, if procured)
+Service → Vendor (optional, if procured)
+License → SalesInvoice (billed_on)
+Delivery → SalesInvoice (fulfills)
+Delivery → Customer (delivered_to)
+Attachment → Delivery (included_in)
 
 ### Key Relationships
 - Purchase → Customer (M:1), License (*) → Purchase (M:1)
 - Service → Purchase (0..1, if procured)
 - Service → Offer (0..1), Service → SalesInvoice (0..1)
+- Service → Vendor (0..1, if procured)
 - SalesInvoice → Customer (M:1), SalesInvoice → Offer (0..1)
 - Offer → Customer (M:1)
+- Vendor → Quote (*), Vendor → ProcurementInvoice (*)
+- Vendor → License (*), Vendor → Service (*)
 - Newsletter content sourced from SparxSystems.com and sparxsystems.eu
 - Newsletter frequency: once per 6 weeks
 - Opt-in required for newsletter contacts (initial opt-in via CRM-marked email addresses)
@@ -112,8 +123,9 @@ Service → Purchase (optional, if procured)
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
 - GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
-- Data model has 17 entities and 22 relationships — updated 2026-06-25
-- New entities: Offer, SalesInvoice; renamed: Invoice → ProcurementInvoice; expanded: Service (11 attributes)
+- Data model has 19 entities and 30 relationships — updated 2026-06-26
+- New entities: Vendor, Delivery; expanded: Service (+5 attributes), Attachment (+delivery_id)
+- New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
 - `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
 
 ## Generator Scripts (experiments/modelgen/)

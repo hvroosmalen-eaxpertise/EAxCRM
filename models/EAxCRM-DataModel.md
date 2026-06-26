@@ -29,6 +29,7 @@
   - content_type: string(200)
   - file: string(500)
   - parsed_text: text
+  - delivery_id: int
 
 ### Class—communication
 - Name: Communication
@@ -69,6 +70,21 @@
   - id: int <<PK>>
   - name: string(200)
   - address: text
+  - notes: string(2000)
+  - created_at: datetime
+  - updated_at: datetime
+
+### Class—delivery
+- Name: Delivery
+- Description: Email sent to a customer containing license files, service agreements, and mention of trainings/consultancies/support.
+- GUID: {0CB6B189-C3BB-4eb4-9E09-DC17356387D7}
+- Attributes:
+  - id: int <<PK>>
+  - sent_date: datetime
+  - to_address: string(254)
+  - subject: string(500)
+  - body: text
+  - status: string(10)
   - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
@@ -245,127 +261,223 @@
   - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
+  - unit_price: float
+  - billing_frequency: string(10)
+  - provisioned_url: string(500)
+  - max_users: int
+  - cancelled_date: date
+
+### Class—vendor
+- Name: Vendor
+- Description: A supplier organization that provides products or services (e.g. Sparx Systems, Prolaborate).
+- GUID: {5AA443A4-1DA9-4417-8F5C-316C4238C9BB}
+- Attributes:
+  - id: int <<PK>>
+  - name: string(200)
+  - address: text
+  - bank_account_holder: string(200)
+  - bank_name: string(200)
+  - iban: string(34)
+  - bic_swift: string(11)
+  - payment_currency: string(3)
+  - notes: string(2000)
+  - created_at: datetime
+  - updated_at: datetime
 
 ## Relationships
 
 ### Association—r-contact-customer
 - Source: contact (*)
 - Target: customer (1)
+- Name: belongs_to
 - GUID: {C9CA64AF-AFAE-4d9a-9EF9-2014013769F5}
 
 ### Association—r-communication-imapaccount
 - Source: communication (*)
 - Target: imapaccount (1)
+- Name: retrieved_from
 - GUID: {2676BB60-3D47-4de3-96BC-4D20293529F5}
 
 ### Association—r-attachment-communication
 - Source: attachment (*)
 - Target: communication (1)
+- Name: attached_to
 - GUID: {FA6FAD91-7BCF-4ee5-AF68-64E54104BF93}
 
 ### Association—r-article-newssource
 - Source: article (*)
 - Target: newssource (1)
+- Name: sourced_from
 - GUID: {8341222A-BF61-42f4-A635-37C1DD32DC82}
 
 ### Association—r-article-newsletter
 - Source: article (*)
 - Target: newsletter (1)
+- Name: included_in
 - GUID: {48E2FEB9-37B8-4165-A2FD-DE27E7C538C6}
 
 ### Association—r-newslettercontact-newsletter
 - Source: newslettercontact (*)
 - Target: newsletter (1)
+- Name: for
 - GUID: {35628AA4-C765-40bd-8CC4-ACD9186AB74A}
 
 ### Association—r-newslettercontact-contact
 - Source: newslettercontact (*)
 - Target: contact (1)
+- Name: sent_to
 - GUID: {43479F65-F6DA-4335-A2C7-AEB3FA2CB947}
 
 ### Association—r-purchase-customer
 - Source: purchase (*)
 - Target: customer (1)
+- Name: made_by
 - GUID: {005D5D29-0CDA-4b1e-962B-0ED9E2AACA7E}
 
 ### Association—r-purchase-quote
 - Source: purchase (0..1)
 - Target: quote (1)
+- Name: originates_from
 - Description: Links a procurement event to its originating quote.
 - GUID: {7200B9F1-1AAA-4032-98C6-B4765443EA80}
 
 ### Association—r-purchase-procurementinvoice
 - Source: purchase (0..1)
 - Target: procurementinvoice (1)
+- Name: fulfilled_by
 - Description: Links a procurement event to its fulfilling procurement invoice.
 - GUID: {A4A6C418-1F9B-44a8-9052-8765271B7C7A}
 
 ### Association—r-license-customer
 - Source: license (*)
 - Target: customer (1)
+- Name: held_by
 - GUID: {089753EB-B3EF-43aa-A242-08921CDF4DE4}
 
 ### Association—r-license-purchase
 - Source: license (*)
 - Target: purchase (1)
+- Name: procured_via
 - GUID: {70E45BC5-BD6B-499b-A5BE-34929E9D5C8B}
 
 ### Association—r-license-procurementinvoice
 - Source: license (*)
 - Target: procurementinvoice (0..1)
+- Name: invoiced_in
 - Description: Links a license to the procurement invoice that procured it.
 - GUID: {937308B4-849A-444f-8129-1E2E7D04DD92}
 
 ### Association—r-license-license
 - Source: license (*)
 - Target: license (0..1)
+- Name: renews
 - Description: Self-referential — renewed_license FK on License pointing to a previous License.
 - GUID: {12777B6B-618F-4b07-9ED2-2C914402AF57}
 
 ### Association—r-licenselineitem-license
 - Source: licenselineitem (*)
 - Target: license (1)
+- Name: line_item_of
 - GUID: {136C85F5-62C6-412a-8860-DCBC2E2A0378}
 
 ### Association—r-license-attachment
 - Source: license (*)
 - Target: attachment (0..1)
+- Name: extracted_from
 - Description: Links a license to the source attachment (PDF/TXT) from which it was extracted.
 - GUID: {4B8D0033-C3D1-4201-BEA7-6603066E0229}
 
 ### Association—r-service-purchase
 - Source: service (*)
 - Target: purchase (0..1)
+- Name: procured_via
 - Description: Links a procured service to its purchase.
 - GUID: {8AAE733E-308E-40db-B07D-64A7E08D442D}
 
 ### Association—r-service-offer
 - Source: service (*)
 - Target: offer (0..1)
+- Name: offered_in
 - Description: A service optionally included in an offer.
 - GUID: {13EA23A1-B91B-4ce0-AED7-7375E00FBF2F}
 
 ### Association—r-service-salesinvoice
 - Source: service (*)
 - Target: salesinvoice (0..1)
+- Name: billed_in
 - Description: A service billed on a sales invoice.
 - GUID: {9E02A6B2-34E5-46d4-8F6C-53E51F270E3F}
 
 ### Association—r-offer-customer
 - Source: offer (*)
 - Target: customer (1)
+- Name: receives
 - Description: An offer belongs to a customer.
 - GUID: {6EADD078-EE1D-4034-A7E4-20BD81283F51}
 
 ### Association—r-salesinvoice-customer
 - Source: salesinvoice (*)
 - Target: customer (1)
+- Name: receives
 - Description: A sales invoice belongs to a customer.
 - GUID: {6DAB0EF7-1339-4aa8-BCB0-48AA5D774D4F}
 
 ### Association—r-salesinvoice-offer
 - Source: salesinvoice (0..1)
 - Target: offer (1)
+- Name: references
 - Description: A sales invoice references the originating offer.
 - GUID: {D2F37FB6-BCBA-492d-B67A-8B18E6DDC3F5}
+
+### Association—r-service-vendor
+- Source: service (*)
+- Target: vendor (1)
+- Name: sourced_from
+- Description: Links a procured service to its vendor (null for EAxpertise's own services).
+- GUID: {6DA30258-ACFE-4f0b-BEDF-65D801E9EF7B}
+
+### Association—r-vendor-license
+- Source: vendor (1)
+- Target: license (*)
+- Name: issues
+- Description: Licenses issued by a vendor (typically Sparx Systems).
+- GUID: {A9E35378-A873-4e12-BD07-9F63FE9AC5EA}
+
+### Association—r-vendor-procurementinvoice
+- Source: vendor (1)
+- Target: procurementinvoice (*)
+- Name: sends
+- Description: Procurement invoices received from a vendor.
+- GUID: {86C1E584-1F6C-4479-8BA0-CF0B3E309E07}
+
+### Association—r-vendor-quote
+- Source: vendor (1)
+- Target: quote (*)
+- Name: provides
+- Description: Quotes received from a vendor.
+- GUID: {79C894B6-9D84-4efb-A6A0-EBC1654E95AF}
+
+### Association—r-attachment-delivery
+- Source: attachment (*)
+- Target: delivery (1)
+- Name: included_in
+- GUID: {1F1B9287-E051-4747-83CF-AD42A7ADCACE}
+
+### Association—r-delivery-customer
+- Source: delivery (*)
+- Target: customer (1)
+- Name: delivered_to
+- GUID: {D9841B6E-10CB-4dba-843E-F05C3A697548}
+
+### Association—r-delivery-salesinvoice
+- Source: delivery (*)
+- Target: salesinvoice (1)
+- Name: fulfills
+- GUID: {EE282559-8C02-4e00-B124-F64B3114CFA4}
+
+### Association—r-license-salesinvoice
+- Source: license (*)
+- Target: salesinvoice (1)
+- Name: billed_on
+- GUID: {0619E0BA-35D5-412d-9A65-691A9ED3CA4F}
 

@@ -135,6 +135,8 @@ def parse_md(path):
                     current["name"] = value
                 elif key == "Description":
                     current["description"] = value
+                elif key == "Name":
+                    current["name"] = value
                 elif key in ("GUID", "Guid", "guid"):
                     current["guid"] = value
                 elif key == "Source":
@@ -386,6 +388,7 @@ def main():
                 conn = src_elem.Connectors.GetAt(i)
                 if conn.SupplierID == tgt_elem.ElementID:
                     exists = True
+                    conn.Name = rel.get("name", "")
                     conn.Notes = rel.get("description", "")
                     conn.Update()
                     print(f"  Updated rel: '{rel['id']}'")
@@ -395,6 +398,7 @@ def main():
                 new_conn = src_elem.Connectors.AddNew("", "Association")
                 new_conn.SupplierID = tgt_elem.ElementID
                 new_conn.Direction = "Source -> Destination"
+                new_conn.Name = rel.get("name", "")
                 new_conn.Notes = rel.get("description", "")
                 new_conn.Update()
                 print(f"  Created rel: '{rel['id']}'")

@@ -81,7 +81,8 @@ def main():
     c.execute(f"""
         SELECT Start_Object_ID, End_Object_ID,
                IFNULL(SourceCard, '*'), IFNULL(DestCard, '1'),
-               IFNULL(Notes, ''), IFNULL(ea_guid, '')
+               IFNULL(Notes, ''), IFNULL(ea_guid, ''),
+               IFNULL(Name, '')
         FROM t_connector
         WHERE Start_Object_ID IN ({','.join(oid_list)})
           AND End_Object_ID IN ({','.join(oid_list)})
@@ -130,7 +131,7 @@ def main():
     lines.append("")
 
     seen_rel_ids = set()
-    for src_id, tgt_id, src_card, dst_card, notes, guid in connectors:
+    for src_id, tgt_id, src_card, dst_card, notes, guid, conn_name in connectors:
         src_info = obj_info.get(src_id)
         tgt_info = obj_info.get(tgt_id)
         if not src_info or not tgt_info:
@@ -149,6 +150,8 @@ def main():
         lines.append(f"### Association—{rel_id}")
         lines.append(f"- Source: {src_sid} ({src_card})")
         lines.append(f"- Target: {tgt_sid} ({dst_card})")
+        if conn_name.strip():
+            lines.append(f"- Name: {conn_name.strip()}")
         if notes.strip():
             lines.append(f"- Description: {notes.strip()}")
         if not guid.strip():
