@@ -267,12 +267,14 @@ Full delete/recreate orphan test passed:
 4. Final EA→MD sync → clean MD, no remnants ✓
 
 ## Process Architecture
-- `EAxCRM-ProcessModel.md` holds the BPMN 2.0 process model (1 CollaborationModel, draft)
+- `EAxCRM-ProcessModel.md` holds the BPMN 2.0 process model (1 CollaborationModel, 32 elements, 35 SequenceFlows)
 - Process Architecture package is at root level in the EA project
 - `<<CollaborationModel>>` elements (Activity with CollaborationModel stereotype) describe logical processes
-- `sync_process_from_ea.py` — COM API only, reads BPMN 2.0 elements and SequenceFlow connectors from EA → MD
-- Currently a draft: 1 CollaborationModel element (EAxCRM Process Architecture), no children yet
-- Future: add Pools, Lanes, Tasks, Events, Gateways; create `generate_process_from_md.py`
+- `sync_process_from_ea.py` — reads BPMN 2.0 elements and SequenceFlow connectors from EA → MD (direct SQLite, since COM API doesn't detect elements added by another EA session)
+- Sales process modelled: 3 Lanes (Customer, EAxpertise, Vendor), 21 Activities, 4 Events, 2 Gateways, 1 DataObject
+- BPMN adornments mapped: taskType (Abstract/User/Manual), gatewayType, loopCharacteristics, etc. (see BPMN_TAGGED_VALUES dict)
+- All 32 elements have descriptions
+- Future: create `generate_process_from_md.py` for bidirectional sync
 
 ## Requirements Model
 - `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
