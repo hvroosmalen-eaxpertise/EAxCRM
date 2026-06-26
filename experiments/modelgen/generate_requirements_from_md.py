@@ -308,6 +308,97 @@ def main():
             except:
                 pass
 
+        # --- Diagram ---
+        print("\n--- Diagram ---")
+        diag_guid_key = "_diagram_eax_requirements"
+        existing_diag_guid = guid_map.get(diag_guid_key)
+
+        diag = None
+        if existing_diag_guid:
+            try:
+                diag = repo.GetDiagramByGuid(existing_diag_guid)
+            except:
+                diag = None
+
+        if not diag:
+            for i in range(pkg.Diagrams.Count):
+                d = pkg.Diagrams.GetAt(i)
+                if d.Name == "EAxCRM Requirements":
+                    diag = d
+                    break
+
+        if not diag:
+            diag = pkg.Diagrams.AddNew("EAxCRM Requirements", "Logical")
+            diag.Update()
+            pkg.Update()
+            guid_map[diag_guid_key] = diag.DiagramGUID
+            save_guid_map(guid_map)
+            print("  Created diagram — placing all requirements")
+
+            W, H = 220, 100
+            GAP = 30
+            cols = 5
+            for idx, req in enumerate(requirements):
+                ea_elem = resolve_element(req)
+                if not ea_elem:
+                    continue
+
+                col = idx % cols
+                row = idx // cols
+                x = col * (W + GAP) + 20
+                y = row * (H + GAP) + 20
+
+                dobj = diag.DiagramObjects.AddNew("", "")
+                dobj.ElementID = ea_elem.ElementID
+                dobj.left = x
+                dobj.top = y
+                dobj.right = x + W
+                dobj.bottom = y + H
+                dobj.Update()
+
+            diag.Update()
+            print(f"  Placed {len(requirements)} requirements on diagram")
+        else:
+            guid_map[diag_guid_key] = diag.DiagramGUID
+            save_guid_map(guid_map)
+
+            # Build set of element IDs already on the diagram
+            diag.DiagramObjects.Refresh()
+            placed_ids = set()
+            for i in range(diag.DiagramObjects.Count):
+                dobj = diag.DiagramObjects.GetAt(i)
+                placed_ids.add(dobj.ElementID)
+
+            # Add missing requirements to the diagram
+            W, H = 220, 100
+            GAP = 30
+            cols = 5
+            new_count = 0
+            for idx, req in enumerate(requirements):
+                ea_elem = resolve_element(req)
+                if not ea_elem or ea_elem.ElementID in placed_ids:
+                    continue
+
+                col = idx % cols
+                row = idx // cols
+                x = col * (W + GAP) + 20
+                y = row * (H + GAP) + 20
+
+                dobj = diag.DiagramObjects.AddNew("", "")
+                dobj.ElementID = ea_elem.ElementID
+                dobj.left = x
+                dobj.top = y
+                dobj.right = x + W
+                dobj.bottom = y + H
+                dobj.Update()
+                new_count += 1
+
+            if new_count:
+                diag.Update()
+                print(f"  Added {new_count} new requirement(s) to existing diagram")
+            else:
+                print("  Diagram already has all requirements — preserving manual layout")
+
         save_guid_map(guid_map)
 
     finally:
