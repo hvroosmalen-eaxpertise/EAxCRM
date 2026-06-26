@@ -265,6 +265,17 @@ Full delete/recreate orphan test passed:
 3. Remove relationship from MD → sync → 1 orphan deleted, back to 16 ✓
 4. Final EA→MD sync → clean MD, no remnants ✓
 
+## Requirements Model
+- `EAxCRM-Requirements.md` holds 8 requirements with ID, Status, Version, GUID, and parent hierarchy
+- ID stored in EA's `t_object.Alias` field, synced via COM API
+- Status and Version are standard EA `t_object` columns
+- `sync_requirements_from_ea.py` — COM API only, reads from EA → MD
+- `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
+
+## Generator Scripts (experiments/modelgen/)
+- All scripts in this directory use the **EA COM API** (win32com.client.Dispatch) exclusively
+- Direct SQLite writes to `EAxCRM.qea` are **FORBIDDEN** — EA must always be the access layer
+
 ## Next Steps
 1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
 2. Build IMAP experiment, PDF parsing experiment
