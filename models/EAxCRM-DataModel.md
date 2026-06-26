@@ -14,8 +14,8 @@
   - id: int <<PK>>
   - source_url: string(200)
   - heading: string(500)
-  - summary: text
-  - body: text
+  - summary: string
+  - body: string
   - included: boolean
   - discovered_date: datetime
 
@@ -28,7 +28,7 @@
   - filename: string(500)
   - content_type: string(200)
   - file: string(500)
-  - parsed_text: text
+  - parsed_text: string
   - delivery_id: int
 
 ### Class—communication
@@ -39,9 +39,9 @@
   - id: int <<PK>>
   - message_id: string(500)
   - from_address: string(254)
-  - to_addresses: text
+  - to_addresses: string
   - subject: string(500)
-  - body: text
+  - body: string
   - received_date: datetime
   - raw_email: string(500)
   - linked_to_contact: boolean
@@ -69,7 +69,7 @@
 - Attributes:
   - id: int <<PK>>
   - name: string(200)
-  - address: text
+  - address: string
   - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
@@ -83,7 +83,7 @@
   - sent_date: datetime
   - to_address: string(254)
   - subject: string(500)
-  - body: text
+  - body: string
   - status: string(10)
   - notes: string(2000)
   - created_at: datetime
@@ -136,8 +136,8 @@
   - id: int <<PK>>
   - title: string(200)
   - subject: string(500)
-  - body_html: text
-  - body_text: text
+  - body_html: string
+  - body_text: string
   - status: string(10)
   - created_date: datetime
   - sent_date: datetime
@@ -252,7 +252,7 @@
   - service_name: string(200)
   - id: int <<PK>>
   - service_type: string(20)
-  - description: text
+  - description: string
   - start_month: date
   - expiry_month: date
   - auto_renew: boolean
@@ -274,7 +274,7 @@
 - Attributes:
   - id: int <<PK>>
   - name: string(200)
-  - address: text
+  - address: string
   - bank_account_holder: string(200)
   - bank_name: string(200)
   - iban: string(34)

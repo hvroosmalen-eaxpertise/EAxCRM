@@ -57,6 +57,12 @@ def parse_md(path):
         if m:
             current["guid"] = m.group(1).strip()
             continue
+        m = re.match(r"^- Entities:\s*(.*)", line)
+        if m:
+            entities_str = m.group(1).strip()
+            if entities_str:
+                current["entities"] = [e.strip() for e in entities_str.split(",")]
+            continue
         m = re.match(r"^\s{2}-\s+(.+)", line)
         if m and len(line) > 4 and line.startswith("  - "):
             # Parent reference under "Parents:"
@@ -400,6 +406,84 @@ def main():
                 print(f"  Added {new_count} new requirement(s) to existing diagram")
             else:
                 print("  Diagram already has all requirements — preserving manual layout")
+
+        # --- Entity → Requirement connectors (Realisation) ---
+        print("\n--- Entity → Requirement Realizations ---")
+
+        # Find the EAxCRM Data Model package
+        dm_pkg = None
+        for i in range(root.Packages.Count):
+            p = root.Packages.GetAt(i)
+            if p.Name == "Data Architecture":
+                for j in range(p.Packages.Count):
+                    sp = p.Packages.GetAt(j)
+                    if sp.Name == "EAxCRM Data Model":
+                        dm_pkg = sp
+                        break
+                break
+
+        entity_by_name = {}
+        if dm_pkg:
+            dm_pkg.Elements.Refresh()
+            for i in range(dm_pkg.Elements.Count):
+                el = dm_pkg.Elements.GetAt(i)
+                entity_by_name[el.Name] = el
+
+        # Build existing Realisation connectors: {entity_id: {req_id: connector}}
+        # We iterate requirement elements to find Realisation connectors where they are the target
+        existing_real = {}  # {(entity_id, req_id): connector}
+        for el_id, el in fresh_by_id.items():
+            el.Connectors.Refresh()
+            for j in range(el.Connectors.Count):
+                conn = el.Connectors.GetAt(j)
+                if conn.Type == "Realisation" and conn.SupplierID == el.ElementID:
+                    existing_real[(conn.ClientID, conn.SupplierID)] = conn
+
+        new_real = 0
+        matched_real = set()
+
+        for req in requirements:
+            req_el = resolve_element(req)
+            if not req_el:
+                continue
+            for ent_name in req.get("entities", []):
+                ent_el = entity_by_name.get(ent_name)
+                if not ent_el:
+                    print(f"  WARN '{req['id']}': entity '{ent_name}' not found in EA")
+                    continue
+
+                key = (ent_el.ElementID, req_el.ElementID)
+                if key in existing_real:
+                    matched_real.add(key)
+                else:
+                    conn = ent_el.Connectors.AddNew("", "Realisation")
+                    conn.SupplierID = req_el.ElementID
+                    conn.Update()
+                    print(f"  Created: {ent_name} -> {req['alias'] or req['id']}")
+                    new_real += 1
+
+        # Delete orphan Realisation connectors
+        orphan_real = 0
+        for (eid, rid), conn in existing_real.items():
+            if (eid, rid) not in matched_real:
+                try:
+                    src_el = repo.GetElementByID(eid)
+                    src_el.Connectors.Refresh()
+                    for k in range(src_el.Connectors.Count):
+                        c = src_el.Connectors.GetAt(k)
+                        if c.ConnectorID == conn.ConnectorID:
+                            src_el.Connectors.Delete(k)
+                            orphan_real += 1
+                            break
+                except:
+                    pass
+
+        if new_real:
+            print(f"  Created {new_real} new Realisation connector(s)")
+        else:
+            print("  All Realisation connectors exist")
+        if orphan_real:
+            print(f"  Deleted {orphan_real} orphan Realisation connector(s)")
 
         save_guid_map(guid_map)
 

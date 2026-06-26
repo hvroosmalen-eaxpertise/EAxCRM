@@ -96,6 +96,28 @@ def main():
 
         # Build parent mapping from Aggregation connectors
         parents_of = {}
+        # Build entity mapping from Realisation connectors
+        entities_of = {}  # req ElementID → [entity names]
+
+        # Find entity elements (in Data Architecture → EAxCRM Data Model)
+        dm_pkg = None
+        for i in range(root.Packages.Count):
+            p = root.Packages.GetAt(i)
+            if p.Name == "Data Architecture":
+                for j in range(p.Packages.Count):
+                    sp = p.Packages.GetAt(j)
+                    if sp.Name == "EAxCRM Data Model":
+                        dm_pkg = sp
+                        break
+                break
+
+        entity_id_to_name = {}
+        if dm_pkg:
+            dm_pkg.Elements.Refresh()
+            for i in range(dm_pkg.Elements.Count):
+                el = dm_pkg.Elements.GetAt(i)
+                entity_id_to_name[el.ElementID] = el.Name
+
         for el in elements:
             el.Connectors.Refresh()
             for j in range(el.Connectors.Count):
@@ -103,6 +125,11 @@ def main():
                 if conn.Type == "Aggregation" and conn.ClientID == el.ElementID:
                     if conn.SupplierID in elem_by_id:
                         parents_of.setdefault(el.ElementID, []).append(conn.SupplierID)
+                elif conn.Type == "Realisation" and conn.SupplierID == el.ElementID:
+                    # Requirement is the target of a Realisation connector from an entity
+                    ent_name = entity_id_to_name.get(conn.ClientID)
+                    if ent_name:
+                        entities_of.setdefault(el.ElementID, []).append(ent_name)
 
         # Sort: top-level (no parents) before children
         def sort_key(el):
@@ -133,6 +160,9 @@ def main():
             if notes:
                 notes_clean = " ".join(notes.split())
                 lines.append(f"- Description: {notes_clean}")
+            entity_names = entities_of.get(el.ElementID)
+            if entity_names:
+                lines.append(f"- Entities: {', '.join(sorted(entity_names))}")
             lines.append(f"- Status: {el.Status or 'Proposed'}")
             lines.append(f"- Version: {el.Version or '1.0'}")
             lines.append(f"- GUID: {el.ElementGUID}")

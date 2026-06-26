@@ -16,7 +16,7 @@ GUID_MAP_PATH = os.path.join(SCRIPT_DIR, "uml_datamodel_guid_map.json")
 SPARX_TYPE_MAP = {
     "int": "int",
     "string": "string",
-    "text": "memo",
+    "text": "string",
     "datetime": "datetime",
     "date": "date",
     "boolean": "boolean",

@@ -267,17 +267,25 @@ Full delete/recreate orphan test passed:
 4. Final EA→MD sync → clean MD, no remnants ✓
 
 ## Requirements Model
-- `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, and parent hierarchy
+- `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
 - ID stored in EA's `t_object.Alias` field, synced via COM API
 - Status and Version are standard EA `t_object` columns
-- `sync_requirements_from_ea.py` — COM API only, reads from EA → MD
+- Entity → Requirement mappings use Realisation connectors (entity is source, requirement is target)
+- 57 Realisation connectors link 29 entity mappings across all 33 requirements
+- `sync_requirements_from_ea.py` — COM API only, reads from EA → MD (outputs `- Entities:` lines)
 - `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
-- `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD (idempotent, saves GUID map)
+- `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD, including parent Aggregation connectors, Realisation connectors to entities, and diagram placement (idempotent, saves GUID map)
 
 ## Generator Scripts (experiments/modelgen/)
 - All scripts in this directory use the **EA COM API** (win32com.client.Dispatch) exclusively
 - Direct SQLite writes to `EAxCRM.qea` are **FORBIDDEN** — EA must always be the access layer
 
+### Attribute Type Mapping
+- **MD → EA** (`generate_uml_datamodel.py`): `text` → `string`
+- **EA → MD** (`sync_datamodel_from_ea.py`): `memo` → `string`
+- EA's `memo` type is a structured tag artifact, not used — all text attributes use `string` in both EA and MD
+
 ## Next Steps
 1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
-2. Build IMAP experiment, PDF parsing experiment
+2. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
+3. Build IMAP experiment, PDF parsing experiment

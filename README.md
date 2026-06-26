@@ -22,12 +22,13 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 
 ## Data Model
 
-**17 entities**, **22 relationships** — maintained in Sparx EA as the canonical source.
+**19 entities**, **30 relationships** — maintained in Sparx EA as the canonical source.
 
 | Procurement Flow | Sales Flow |
 |---|---|
-| Quote → Purchase → ProcurementInvoice → License | Offer → SalesInvoice → Customer |
+| Vendor → Quote → Purchase → ProcurementInvoice → License | Offer → SalesInvoice → Customer |
 | | Service → Offer / SalesInvoice (optional) |
+| | Delivery → Customer / SalesInvoice |
 
 See `models/EAxCRM-DataModel.md` for the full entity list and `AGENTS.md` for design context.
 

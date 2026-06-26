@@ -16,7 +16,7 @@ DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-DataModel.md"
 SPARX_TO_MD_TYPE = {
     "int": "int",
     "string": "string",
-    "memo": "text",
+    "memo": "string",
     "datetime": "datetime",
     "date": "date",
     "boolean": "boolean",
