@@ -266,6 +266,14 @@ Full delete/recreate orphan test passed:
 3. Remove relationship from MD → sync → 1 orphan deleted, back to 16 ✓
 4. Final EA→MD sync → clean MD, no remnants ✓
 
+## Process Architecture
+- `EAxCRM-ProcessModel.md` holds the BPMN 2.0 process model (1 CollaborationModel, draft)
+- Process Architecture package is at root level in the EA project
+- `<<CollaborationModel>>` elements (Activity with CollaborationModel stereotype) describe logical processes
+- `sync_process_from_ea.py` — COM API only, reads BPMN 2.0 elements and SequenceFlow connectors from EA → MD
+- Currently a draft: 1 CollaborationModel element (EAxCRM Process Architecture), no children yet
+- Future: add Pools, Lanes, Tasks, Events, Gateways; create `generate_process_from_md.py`
+
 ## Requirements Model
 - `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
 - ID stored in EA's `t_object.Alias` field, synced via COM API
@@ -289,3 +297,5 @@ Full delete/recreate orphan test passed:
 1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
 2. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
 3. Build IMAP experiment, PDF parsing experiment
+4. **Extend BPMN model** — add Pools, Lanes, Tasks, Events, Gateways to the CollaborationModel in EA, run `sync_process_from_ea.py` to verify MD output
+5. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements

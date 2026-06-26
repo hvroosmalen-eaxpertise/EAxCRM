@@ -30,7 +30,7 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 | | Service → Offer / SalesInvoice (optional) |
 | | Delivery → Customer / SalesInvoice |
 
-See `models/EAxCRM-DataModel.md` for the full entity list and `AGENTS.md` for design context.
+See `models/EAxCRM-DataModel.md` for the full entity list, `models/EAxCRM-Requirements.md` for requirements, and `AGENTS.md` for design context.
 
 ## Setup
 
@@ -45,12 +45,12 @@ python manage.py runserver
 
 ```
 EAxCRM/
-├── contacts/           # CRM app (Customer, Contact, Communication, Purchase, License, Invoice, Service)
+├── contacts/           # CRM app (Customer, Contact, Communication, Purchase, License, SalesInvoice, ProcurementInvoice, Offer, Service, Vendor, Delivery)
 ├── newsletter/         # Newsletter app (Newsletter, NewsSource, Article)
 ├── eacrm/              # Django project settings
-├── models/             # Sparx EA model files (.qea, .md) — see models/README.md
+├── models/             # Sparx EA model files (.qea, Requirements, Data Model, Process Model .md) — see models/README.md
 ├── experiments/        # Isolated POCs (IMAP, PDF parsing, modelgen)
-│   ├── modelgen/       # Model generators (Markdown ↔ Sparx EA .qea)
+│   ├── modelgen/       # Model generators (Markdown ↔ Sparx EA: data model, requirements, BPMN process)
 │   ├── imap/           # IMAP retrieval experiments
 │   └── parsing/        # PDF parsing experiments
 └── requirements.txt
