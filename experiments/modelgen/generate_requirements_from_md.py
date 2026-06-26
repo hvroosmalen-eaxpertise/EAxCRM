@@ -295,14 +295,16 @@ def main():
         # --- Delete orphan connectors ---
         for (client_id, supplier_id), conn in existing_conns.items():
             try:
+                child_el = fresh_by_id.get(client_id)
+                parent_el = fresh_by_id.get(supplier_id)
+                child_name = child_el.Name if child_el else str(client_id)
+                parent_name = parent_el.Name if parent_el else str(supplier_id)
                 src_el = repo.GetElementByID(client_id)
                 src_el.Connectors.Refresh()
                 for k in range(src_el.Connectors.Count):
                     c = src_el.Connectors.GetAt(k)
                     if c.ConnectorID == conn.ConnectorID:
                         src_el.Connectors.Delete(k)
-                        child_name = fresh_by_id.get(client_id, fresh_by_id.get(client_id, str(client_id)))
-                        parent_name = fresh_by_id.get(supplier_id, fresh_by_id.get(supplier_id, str(supplier_id)))
                         print(f"  Deleted orphan connector: {child_name} -> {parent_name}")
                         break
             except:
