@@ -74,8 +74,8 @@
 - Parents:
   - (none — top-level)
 
-### Requirement—procumentcanbedoneviamultipleparties
-- Name: Procument can be done via multiple parties
+### Requirement—procurementcanbedoneviamultipleparties
+- Name: Procurement can be done via multiple parties
 - ID: PRO-5
 - Description: There are several suppliers to EAxpertise.
 - Status: Approved
@@ -292,7 +292,7 @@
 - Version: 1.0
 - GUID: {675A33C1-835A-4fda-8B97-50BA072EAFA1}
 - Parents:
-  - procumentcanbedoneviamultipleparties
+  - procurementcanbedoneviamultipleparties
 
 ### Requirement—procurementcanbedoneviaprolaborate
 - Name: Procurement can be done via Prolaborate
@@ -302,7 +302,7 @@
 - Version: 1.0
 - GUID: {492044AB-6D15-4455-B6D0-7C8F950480BC}
 - Parents:
-  - procumentcanbedoneviamultipleparties
+  - procurementcanbedoneviamultipleparties
 
 ### Requirement—procurementcanbedoneviasparxsystemseu
 - Name: Procurement can be done via Sparx Systems EU
@@ -312,7 +312,7 @@
 - Version: 1.0
 - GUID: {CEBF5E06-3BF4-4909-96A8-D91004A36647}
 - Parents:
-  - procumentcanbedoneviamultipleparties
+  - procurementcanbedoneviamultipleparties
 
 ### Requirement—procurementcanbedoneviasparxsystemsltd
 - Name: Procurement can be done via Sparx Systems LTD
@@ -322,7 +322,7 @@
 - Version: 1.0
 - GUID: {AE2C78B0-A8C3-4aef-B5AE-3C0AB921189B}
 - Parents:
-  - procumentcanbedoneviamultipleparties
+  - procurementcanbedoneviamultipleparties
 
 ### Requirement—procurementmustbetrackablepervendorwithlinkedquoteandprocurementinvoicepdfs
 - Name: Procurement must be trackable per Vendor with linked Quote and ProcurementInvoice PDFs
