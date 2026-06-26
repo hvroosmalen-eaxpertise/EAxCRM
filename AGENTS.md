@@ -115,7 +115,7 @@ Attachment → Delivery (included_in)
 
 ## Models (files in ../models/)
 - `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 44 elements, 57 relations, 1 diagram)
-- `EAxCRM-Requirements.md` — Requirements model (Markdown, 8 requirements)
+- `EAxCRM-Requirements.md` — Requirements model (Markdown, 33 requirements)
 - `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements)
 
 ## Active Context
@@ -125,6 +125,7 @@ Attachment → Delivery (included_in)
 - GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
 - Data model has 19 entities and 30 relationships — updated 2026-06-26
+- Requirements model expanded from 8 to 33 requirements with IDs, Status, Version — updated 2026-06-26
 - New entities: Vendor, Delivery; expanded: Service (+5 attributes), Attachment (+delivery_id)
 - New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
 - `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
@@ -266,11 +267,12 @@ Full delete/recreate orphan test passed:
 4. Final EA→MD sync → clean MD, no remnants ✓
 
 ## Requirements Model
-- `EAxCRM-Requirements.md` holds 8 requirements with ID, Status, Version, GUID, and parent hierarchy
+- `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, and parent hierarchy
 - ID stored in EA's `t_object.Alias` field, synced via COM API
 - Status and Version are standard EA `t_object` columns
 - `sync_requirements_from_ea.py` — COM API only, reads from EA → MD
 - `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
+- `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD (idempotent, saves GUID map)
 
 ## Generator Scripts (experiments/modelgen/)
 - All scripts in this directory use the **EA COM API** (win32com.client.Dispatch) exclusively
