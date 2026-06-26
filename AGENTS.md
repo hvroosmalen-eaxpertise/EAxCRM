@@ -115,7 +115,8 @@ Attachment → Delivery (included_in)
 
 ## Models (files in ../models/)
 - `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 44 elements, 57 relations, 1 diagram)
-- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model)
+- `EAxCRM-Requirements.md` — Requirements model (Markdown, 8 requirements)
+- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements)
 
 ## Active Context
 - ArchiMate model fully generated with 44 elements, 57 relationships, 1 diagram
