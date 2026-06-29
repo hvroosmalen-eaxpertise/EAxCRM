@@ -349,19 +349,39 @@ def main():
         else:
             diag_row = None
 
+        pdata = ("HideRel=0;ShowTags=0;ShowReqs=0;ShowCons=0;OpParams=1;ShowSN=0;ScalePI=0;"
+                 "PPgs.cx=0;PPgs.cy=0;PSize=9;ShowIcons=1;SuppCN=0;HideProps=0;HideParents=0;"
+                 "UseAlias=0;HideAtts=0;HideOps=0;HideStereo=0;HideEStereo=0;ShowRec=1;"
+                 "ShowRes=0;ShowShape=1;FormName=;")
+        styleex = ("ExcludeRTF=0;DocAll=0;HideQuals=0;AttPkg=1;ShowTests=0;ShowMaint=0;"
+                   "SuppressFOC=1;MatrixActive=0;SwimlanesActive=1;KanbanActive=0;"
+                   "MatrixLineWidth=1;MatrixLineClr=0;MatrixLocked=0;"
+                   "TConnectorNotation=UML 2.1;TExplicitNavigability=0;"
+                   "AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;"
+                   "m_bElementClassifier=1;SPT=1;MDGDgm=BPMN2.0::Collaboration;STBLDgm=;"
+                   "ShowNotes=0;VisibleAttributeDetail=0;ShowOpRetType=1;"
+                   "SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;"
+                   "ShowAsList=0;SuppressedCompartments=;Theme=:119;")
+        swimlanes = "locked=false;orientation=0;width=0;inbar=false;names=false;color=-1;bold=false;fcol=0;tcol=-1;ofCol=-1;ufCol=-1;hl=1;ufh=0;hh=0;cls=0;bw=0;hli=0;bro=0;"
+
         if diag_row:
             dia_id = diag_row[0]
-            c.execute("UPDATE t_diagram SET Name=?, ParentID=? WHERE Diagram_ID=?",
-                      ("Newsletter Process Architecture", collab_oid, dia_id))
+            c.execute("""UPDATE t_diagram SET Name=?, ParentID=?, Author=?, PDATA=?, StyleEx=?,
+                Swimlanes=?, cx=?, cy=? WHERE Diagram_ID=?""",
+                      ("Newsletter Process Architecture", collab_oid,
+                       "generator", pdata, styleex, swimlanes, 1100, 240, dia_id))
         else:
             c.execute("SELECT MAX(Diagram_ID) FROM t_diagram")
             max_diag = c.fetchone()[0] or 0
             dia_id = max_diag + 1
             diag_guid = "{" + __import__("uuid").uuid4().hex.upper() + "}"
             c.execute("""INSERT INTO t_diagram 
-                (Diagram_ID, Name, ParentID, Package_ID, Diagram_Type, ea_guid, CreatedDate, ModifiedDate)
-                VALUES (?, ?, ?, ?, 'BusinessProcess', ?, datetime('now'), datetime('now'))
-            """, (dia_id, "Newsletter Process Architecture", collab_oid, pkg_id, diag_guid))
+                (Diagram_ID, Name, ParentID, Package_ID, Diagram_Type, ea_guid,
+                 Author, PDATA, StyleEx, Swimlanes, cx, cy, CreatedDate, ModifiedDate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            """, (dia_id, "Newsletter Process Architecture", collab_oid, pkg_id,
+                  "BusinessProcess", diag_guid, "generator", pdata, styleex,
+                  swimlanes, 1100, 240))
 
     # Add BPMN2.0:: stereotype t_xref for all elements
     for eid, oid in object_ids.items():
