@@ -363,3 +363,14 @@
 - Parents:
   - eaxcrmmustsupporttheprocurementprocess
 
+### Requirement—eaxcrmmustsupportdraganddropdocumentingestionthatautomaticallyparsesandfillsentities
+- Name: EAxCRM must support drag-and-drop document ingestion that automatically parses and fills entities
+- ID: DOC-1
+- Description: The system shall allow a user to drag and drop a document (PDF, TXT, email file) onto the UI, which then automatically parses the content and populates the correct entities (License, LicenseLineItem, Service, Quote, ProcurementInvoice, Communication, Contact) as accurately as possible, reducing manual data entry.
+- Entities: Attachment, Communication, Contact, Customer, License, LicenseLineItem, ProcurementInvoice, Quote, Service
+- Status: Proposed
+- Version: 1.0
+- GUID: {3BCA089A-AEB3-4cce-8364-9422A2211D4B}
+- Parents:
+  - (none — top-level)
+

@@ -14,6 +14,9 @@ Without this sync, any conversation about the model is based on stale data. The 
 
 **After any sync that changes the model, you MUST update this AGENTS.md** to document new entities, renamed entities, new attributes, and new relationships. Review the diff of `EAxCRM-DataModel.md` and update the "Data Model Summary" section below.
 
+## Modelling vs Implementation Level
+Unless I say "implement in Django" or "update the models.py", we stay at **modelling level** — only the EA data model (`EAxCRM.qea`) and `EAxCRM-DataModel.md` are changed. No Django code, no database migrations, no Python model files. This avoids premature coupling between the logical model and the implementation.
+
 ## Core Features
 
 ### 1. Customer Insight
@@ -57,7 +60,7 @@ Without this sync, any conversation about the model is based on stale data. The 
 | Deployment | Native dev on Windows → Docker on QNAP NAS (Phase 3) |
 
 ## Data Model Summary
-**Current state (as of 2026-06-26):** 19 entities, 30 relationships
+**Current state (as of 2026-06-29):** 19 entities, 30 relationships
 
 ### Entities
 | Entity | Description | Key Attributes |
@@ -124,9 +127,9 @@ Attachment → Delivery (included_in)
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
 - GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
-- Data model has 19 entities and 30 relationships — updated 2026-06-26
-- Requirements model expanded from 8 to 33 requirements with IDs, Status, Version — updated 2026-06-26
-- New entities: Vendor, Delivery; expanded: Service (+5 attributes), Attachment (+delivery_id)
+- Data model has 19 entities and 30 relationships — updated 2026-06-29
+- Requirements model expanded from 8 to 34 requirements with IDs, Status, Version — updated 2026-06-29
+- New entities: Vendor, Delivery; expanded: Service (+5 attributes then -2), Attachment (+delivery_id)
 - New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
 - `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
 
