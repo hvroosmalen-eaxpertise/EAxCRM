@@ -173,6 +173,16 @@ def main():
         if val and val.strip():
             tv_by_elem.setdefault(tv_oid, {})[prop] = val.strip()
 
+    # Read diagrams in this package (nested under CollaborationModel elements)
+    c.execute(
+        "SELECT Diagram_ID, Name, ParentID, IFNULL(ea_guid, '') "
+        "FROM t_diagram WHERE Package_ID=?",
+        (pkg_id,)
+    )
+    diagram_by_parent = {}  # ParentID → {name, guid}
+    for d_id, d_name, d_parent, d_guid in c.fetchall():
+        diagram_by_parent[d_parent] = {"name": d_name, "guid": d_guid}
+
     # Read connectors between elements in this package
     c.execute(f"""
         SELECT Start_Object_ID, End_Object_ID,
@@ -228,6 +238,11 @@ def main():
         lines.append(f"## BPMN Collaboration—{ccid}")
         lines.append(f"- Name: {col['name']}")
         lines.append(f"- GUID: {col['guid']}")
+        # Diagram nested under this CollaborationModel
+        dia = diagram_by_parent.get(cid)
+        if dia:
+            lines.append(f"- Diagram Name: {dia['name']}")
+            lines.append(f"- Diagram GUID: {dia['guid']}")
         for k, label in sorted(BPMN_TAGGED_VALUES.get("CollaborationModel", {}).items()):
             v = tv_by_elem.get(cid, {}).get(k, "")
             if v and v not in ("<memo>", ""):

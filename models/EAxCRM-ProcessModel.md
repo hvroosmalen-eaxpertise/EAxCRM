@@ -4,9 +4,11 @@
 **Purpose**: BPMN 2.0 process model for the EAxCRM system
 **Version**: 1.0
 
-## BPMN Collaboration—eaxcrmprocessarchitecture
-- Name: EAxCRM Process Architecture
+## BPMN Collaboration—eaxcrmsalesprocessarchitecture
+- Name: EAxCRM Sales Process Architecture
 - GUID: {6ACCD057-B99E-48a4-8BE0-AC1FCC601245}
+- Diagram Name: Sales Process Architecture
+- Diagram GUID: {A8CAE468-7CBC-46c0-9DCE-C695E50C1F36}
 - Is Closed: false
 - Description: BPMN 2.0 collaboration model covering the end-to-end sales process at EAxpertise, from customer RFQ through delivery and payment.
 
@@ -90,6 +92,32 @@
   - Task Type: Manual
   - Description: Customer pays the sales invoice via bank transfer.
 
+#### Activity—rejectoffer
+  - Name: Reject Offer
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {F443524E-4717-4e31-9D4D-D01A05B478B6}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: User
+  - Description: Customer reject the Offer and decides not to go with Purchase.
+
+#### Activity—requestrevisedoffer
+  - Name: Request Revised Offer
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {A1BAB8A5-7D52-47e6-9E90-4440D5D6EE88}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: User
+  - Description: Customer request a revised offer
+
 #### Activity—reviewoffer
   - Name: Review Offer
   - Type: Activity
@@ -158,6 +186,12 @@
   - Task Type: User
   - Description: Services can be resold from Vendor or provided by EAxpertise.
 
+#### EndEvent—endrejectedsales
+  - Name: End Rejected Sales
+  - Type: Event
+  - Stereotype: EndEvent
+  - GUID: {32ADEDC2-2890-40b6-A489-51A28FA5AC67}
+
 #### EndEvent—endsales
   - Name: End Sales
   - Type: Event
@@ -191,6 +225,32 @@
   - Task Type: User
   - Description: Receive the accepted offer and initiate procurement of licenses and services.
 
+#### Activity—handlerejectedoffer
+  - Name: Handle Rejected Offer
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {CC8DB595-33FA-423a-A7BB-E2C32C478029}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: User
+  - Description: Close the sales process.
+
+#### Activity—preparerevisedoffer
+  - Name: Prepare (Revised) Offer
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {9C3B3106-2A1F-46ef-818F-374EC58FC6FB}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: User
+  - Description: EAxpertise prepares a sales offer based on the customer's RFQ requirements.
+
 #### Activity—preparedelivery
   - Name: Prepare Delivery
   - Type: Activity
@@ -203,32 +263,6 @@
   - Start Quantity: 1
   - Task Type: User
   - Description: Create the formal handover package and delivery note for the customer.
-
-#### Activity—preparedelivery
-  - Name: Prepare Delivery
-  - Type: Activity
-  - Stereotype: Activity
-  - GUID: {02D29D4F-2E65-4f18-B3F2-3FDF90679BBD}
-  - Completion Quantity: 1
-  - Is Called Activity: false
-  - Is For Compensation: false
-  - Loop: None
-  - Start Quantity: 1
-  - Task Type: User
-  - Description: Create the formal handover package and delivery note for the customer.
-
-#### Activity—prepareoffer
-  - Name: Prepare Offer
-  - Type: Activity
-  - Stereotype: Activity
-  - GUID: {9C3B3106-2A1F-46ef-818F-374EC58FC6FB}
-  - Completion Quantity: 1
-  - Is Called Activity: false
-  - Is For Compensation: false
-  - Loop: None
-  - Start Quantity: 1
-  - Task Type: User
-  - Description: EAxpertise prepares a sales offer based on the customer's RFQ requirements.
 
 #### Activity—preparesalesinvoice
   - Name: Prepare SalesInvoice
@@ -333,7 +367,8 @@
   - Is For Compensation: false
   - Loop: None
   - Start Quantity: 1
-  - Task Type: Abstract
+  - Task Type: User
+  - Description: Vendor provides Service pricing.
 
 #### Activity—providelicenses
   - Name: Provide Licenses
@@ -346,7 +381,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: User
-  - Description: Determination of the lineitem prices and deliver license files.
+  - Description: Vendor delivers license files.
 
 #### Activity—provideservices
   - Name: Provide Service(s)
@@ -365,8 +400,8 @@
 
 - Start RFQ → Create RFQ
 - Create RFQ → Register RFQ [email]
-- Register RFQ → Prepare Offer
-- Prepare Offer → Determine Licenses
+- Register RFQ → Prepare (Revised) Offer
+- Prepare (Revised) Offer → Determine Licenses
 - Determine Licenses → Prepare License Quote [email license request]
 - Prepare License Quote → Determine Licenses [email license pricing]
 - Determine Licenses → services required
@@ -375,7 +410,7 @@
 - services required → Finalise Version of Offer [no]
 - Review Offer → accept offer
 - Finalise Version of Offer → Review Offer [email offer]
-- accept offer → Accept Offer
+- accept offer → Accept Offer [yes]
 - Handle Approved Offer → Request Licenses
 - Handle Approved Offer → Request Services
 - Accept Offer → Handle Approved Offer [email acceptance and invoice details]
@@ -387,8 +422,7 @@
 - Provide Service(s) → Prepare Delivery
 - Provide Licenses → Prepare Delivery
 - Accept Delivery → Activate Delivery
-- Activate Delivery → Prepare Delivery [delivery activated]
-- Prepare Delivery → Prepare SalesInvoice
+- Activate Delivery → Prepare SalesInvoice [delivery activated]
 - Prepare SalesInvoice → Pay SalesInvoice
 - Pay SalesInvoice → Validate Payment
 - Validate Payment → check payment
@@ -396,4 +430,9 @@
 - check payment → Pay SalesInvoice [payment not received]
 - Determine Services → Prepare Service Quote [email service request]
 - Prepare Service Quote → Determine Services [email service pricing]
+- accept offer → Request Revised Offer [partial acceptance]
+- accept offer → Reject Offer [no]
+- Request Revised Offer → Prepare (Revised) Offer
+- Handle Rejected Offer → End Rejected Sales
+- Reject Offer → Handle Rejected Offer
 
