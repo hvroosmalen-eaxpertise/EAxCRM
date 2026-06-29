@@ -92,10 +92,20 @@ def main():
     conn = sqlite3.connect(args.qea)
     c = conn.cursor()
 
-    c.execute("SELECT Package_ID FROM t_package WHERE Name=?", (PACKAGE_NAME,))
+    # Find parent "Process Architecture" package
+    c.execute("SELECT Package_ID FROM t_package WHERE Name='Process Architecture' AND Parent_ID=1")
+    parent_row = c.fetchone()
+    if not parent_row:
+        print("FAIL: 'Process Architecture' package not found under Model")
+        sys.exit(1)
+    parent_pkg_id = parent_row[0]
+
+    # Find newsletter sub-package within Process Architecture
+    c.execute("SELECT Package_ID FROM t_package WHERE Name=? AND Parent_ID=?",
+              (PACKAGE_NAME, parent_pkg_id))
     row = c.fetchone()
     if not row:
-        print(f"FAIL: '{PACKAGE_NAME}' package not found")
+        print(f"FAIL: '{PACKAGE_NAME}' sub-package not found under Process Architecture")
         sys.exit(1)
     pkg_id = row[0]
 

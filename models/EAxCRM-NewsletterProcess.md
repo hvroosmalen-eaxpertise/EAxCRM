@@ -6,159 +6,159 @@
 
 ## BPMN Collaboration—eaxcrmnewsletterprocessarchitecture
 - Name: EAxCRM Newsletter Process Architecture
-- GUID: {487E5134F92043139F6D96CEEE406AB8}
+- GUID: {041CB75251274077AD901B60A22113C9}
 - Diagram Name: Newsletter Process Architecture
-- Diagram GUID: {88D3D1AB8684491DAE9FCE26A0E8BD74}
+- Diagram GUID: {2B166076863746D7A07013B7637711AB}
 
 ### Lane—eaxpertise
 - Name: EAxpertise
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {BC700F36BCBF4871B48D7C8A28E13663}
+- GUID: {BB939AA635654B1987BF869B9BA324C3}
 
 #### Gateway—6weekselapsed
   - Name: 6 weeks elapsed?
   - Type: Decision
   - Stereotype: Gateway
-  - GUID: {3B7CDA4C242F4A9D93A03C1F4D81E5F3}
+  - GUID: {DAA2F889E90F49A38457057A6660F0DD}
 
 #### DataObject—approvednewsletter
   - Name: Approved Newsletter
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {EA24972B56994800807158FF58D8937E}
+  - GUID: {322856D49A484978B70D4C1B5A7C8C8E}
 
 #### Activity—browseavailablearticles
   - Name: Browse Available Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {FD1177A4D7C443DE83C5C9F03E8BE559}
+  - GUID: {0620E7F5D356404F802FAB9DF640A20C}
 
 #### Activity—checkcadence
   - Name: Check Cadence
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {87990E1ED3504B91B3D5D3487B9F355B}
+  - GUID: {D515606735D84D819E179FA37E928766}
 
 #### Activity—composenewsletter
   - Name: Compose Newsletter
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {8A66CED5BB49445B9A80B558BE1E9B01}
+  - GUID: {2C8D4690C80F4CAA9AB9BE21311AB0B4}
 
 #### DataObject—contactlist
   - Name: Contact List
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {23F54B5888664D8180554D4223CD03F1}
+  - GUID: {E873BDE49CAD4413A0DCB8FFDA6C82B1}
 
 #### DataObject—newsletterdraft
   - Name: Newsletter Draft
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {B87B55DEF1CB4A75AA1096903E144C71}
+  - GUID: {C2E06FCE066D48689E27DB327BBA504F}
 
 #### EndEvent—newslettersent
   - Name: Newsletter Sent
   - Type: Event
   - Stereotype: EndEvent
-  - GUID: {F3E60B4E236540CA8CE22BAB9CF40A57}
+  - GUID: {6CC7D7BF28214C228A7EC6D008B1AE67}
 
 #### Gateway—reviewapproved
   - Name: Review Approved?
   - Type: Decision
   - Stereotype: Gateway
-  - GUID: {9AA96B992C5043C9A0A7D841962CC7E5}
+  - GUID: {F66024AAD2DF4D4DBAB18A50DF26FA26}
 
 #### Activity—selectarticles
   - Name: Select Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {61D20ABAB1014D3AA75CE4FE24C169A8}
+  - GUID: {F56539EDC4574F5EA4E9852E55C17231}
 
 #### DataObject—selectedarticles
   - Name: Selected Articles
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {4F077E96468B4AF0B6B876FB5F96B191}
+  - GUID: {089BF9BB84C442F9BD40D6280DE855A6}
 
 #### Activity—sendnewsletter
   - Name: Send Newsletter
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {1C80A24E13D944E8B4A61CF9EA41226F}
+  - GUID: {A1BF55B0B23D4A7690F69127A46C1A0D}
 
 #### DataObject—sentnewsletter
   - Name: Sent Newsletter
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {FEF859324F25467A8CB0B0921748C836}
+  - GUID: {F25026769A444585A92227C0AB2B0074}
 
 #### StartEvent—startnewsletter
   - Name: Start Newsletter
   - Type: Event
   - Stereotype: StartEvent
-  - GUID: {41B5327A88A744B1B7801A86CB9DC672}
+  - GUID: {C302821497694DE8A8EF8CE07404105B}
 
 #### Activity—submitforreview
   - Name: Submit for Review
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {EF4CFC0F0CA74D31B80FBC84469E0136}
+  - GUID: {B73FDEBEA3C04D7A876236E83D5B3D9B}
 
 ### Lane—newssource
 - Name: News Source
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {CD21E59C9F6143B1BF79E34C90D7F3ED}
+- GUID: {B5747F80D0EF4CCCBDA12F6DC4E955E2}
 
 #### DataObject—articlepool
   - Name: Article Pool
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {9B722FF0F13E4B23A54CC6C0C10D0C3B}
+  - GUID: {131C2E96AC68490594F4D09955D1426F}
 
 #### Activity—extractheadingsandsummaries
   - Name: Extract Headings and Summaries
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {48B9D5AB75A04FA3B25B469F6337F473}
+  - GUID: {20E4F1B59DAE478E940FA07475C9B8DE}
 
 #### Activity—fetchurllist
   - Name: Fetch URL List
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {782FF756CC9F401D88AC5B19366456F1}
+  - GUID: {76A337017BBE442B89E33F6C1F673553}
 
 #### StartEvent—scheduledscrape
   - Name: Scheduled Scrape
   - Type: Event
   - Stereotype: StartEvent
-  - GUID: {9BF1BE57183C490B9139E846F75BE241}
+  - GUID: {A137C0CB3E8F4043BB20EB7FE0AB0D8C}
 
 #### Activity—scrapearticles
   - Name: Scrape Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {0CDB0CE460614EADBAECC8B05CCAE380}
+  - GUID: {F9BF305AE0EC40EAB11313E298726CA3}
 
 #### EndEvent—scrapecomplete
   - Name: Scrape Complete
   - Type: Event
   - Stereotype: EndEvent
-  - GUID: {58CC762B14364BF7BA70E43B85DF4CDE}
+  - GUID: {393E5B57C0644F488CC8F0578519B8C0}
 
 #### Activity—storenewarticles
   - Name: Store New Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {86E55904469F432A9906E252EA035FE6}
+  - GUID: {75F2DB0F3A1847DDB6FB545F6D1F5944}
 
 #### DataObject—urllist
   - Name: URL List
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {20B1BC48CA7248BBBDD718DA7314890D}
+  - GUID: {C2CD373DA8064CF7A7A34F470FEE38B8}
 
 ### Sequence Flows
 

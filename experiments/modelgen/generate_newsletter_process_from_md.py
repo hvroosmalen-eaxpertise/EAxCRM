@@ -216,21 +216,29 @@ def main():
     conn = sqlite3.connect(DEFAULT_QEA)
     c = conn.cursor()
 
-    # Find "Newsletter Process Architecture" package or create it
-    c.execute("SELECT Package_ID FROM t_package WHERE Name='Newsletter Process Architecture'")
+    # Find parent "Process Architecture" package
+    c.execute("SELECT Package_ID FROM t_package WHERE Name='Process Architecture' AND Parent_ID=1")
+    parent_row = c.fetchone()
+    if not parent_row:
+        print("FAIL: 'Process Architecture' package not found under Model")
+        sys.exit(1)
+    parent_pkg_id = parent_row[0]
+
+    # Find or create "Newsletter Process Architecture" as a sub-package
+    c.execute("SELECT Package_ID FROM t_package WHERE Name='Newsletter Process Architecture' AND Parent_ID=?",
+              (parent_pkg_id,))
     row = c.fetchone()
     if row:
         pkg_id = row[0]
-        print(f"Found package 'Newsletter Process Architecture' (ID {pkg_id})")
+        print(f"Found sub-package 'Newsletter Process Architecture' (ID {pkg_id}) under Process Architecture")
     else:
-        # Create package under root
         c.execute("SELECT MAX(Package_ID) FROM t_package")
         max_pkg = c.fetchone()[0] or 0
         pkg_id = max_pkg + 1
-        c.execute("INSERT INTO t_package (Package_ID, Name, Parent_ID) VALUES (?, ?, 0)",
-                  (pkg_id, "Newsletter Process Architecture"))
+        c.execute("INSERT INTO t_package (Package_ID, Name, Parent_ID) VALUES (?, ?, ?)",
+                  (pkg_id, "Newsletter Process Architecture", parent_pkg_id))
         conn.commit()
-        print(f"Created package 'Newsletter Process Architecture' (ID {pkg_id})")
+        print(f"Created sub-package 'Newsletter Process Architecture' (ID {pkg_id}) under Process Architecture")
 
     # Parse MD
     elements, sequence_flows = parse_md(DEFAULT_MD)

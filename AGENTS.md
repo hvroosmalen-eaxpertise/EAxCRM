@@ -299,7 +299,7 @@ Full delete/recreate orphan test passed:
 - EA's `memo` type is a structured tag artifact, not used — all text attributes use `string` in both EA and MD
 
 ## Newsletter Process Model
-- Separate package in EA: "Newsletter Process Architecture" (Package_ID 18)
+- Sub-package of "Process Architecture": "Newsletter Process Architecture" (Package_ID 18, Parent_ID 17)
 - `EAxCRM-NewsletterProcess.md` holds the BPMN spec (1 CollaborationModel, 2 Lanes, 27 elements, 16 SequenceFlows)
 - `generate_newsletter_process_from_md.py` — MD → EA generator (direct SQLite, no COM API)
 - `sync_newsletter_process_from_ea.py` — EA → MD sync (reads Newsletter Process Architecture package)
