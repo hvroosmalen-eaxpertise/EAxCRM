@@ -298,9 +298,20 @@ Full delete/recreate orphan test passed:
 - **EA → MD** (`sync_datamodel_from_ea.py`): `memo` → `string`
 - EA's `memo` type is a structured tag artifact, not used — all text attributes use `string` in both EA and MD
 
+## Newsletter Process Model
+- Separate package in EA: "Newsletter Process Architecture" (Package_ID 18)
+- `EAxCRM-NewsletterProcess.md` holds the BPMN spec (1 CollaborationModel, 2 Lanes, 27 elements, 16 SequenceFlows)
+- `generate_newsletter_process_from_md.py` — MD → EA generator (direct SQLite, no COM API)
+- `sync_newsletter_process_from_ea.py` — EA → MD sync (reads Newsletter Process Architecture package)
+- Uses same GUID map pattern (`newsletter_guid_map.json`) for idempotent re-runs
+- **DFS traversal**: parents created before children so `ParentID` is correctly set (critical for multi-lane models — flat depth-sort causes all depth-2 elements to inherit the last depth-1 parent)
+- **Stereotype mapping**: MD header `"BPMN Collaboration"` maps to EA Stereotype `"CollaborationModel"` via `LABEL_TO_STEREO` dict
+
+### Generator Scripts (experiments/modelgen/)
+
 ## Next Steps
 1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
 2. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
 3. Build IMAP experiment, PDF parsing experiment
 4. **Extend BPMN model** — add Pools, Lanes, Tasks, Events, Gateways to the CollaborationModel in EA, run `sync_process_from_ea.py` to verify MD output
-5. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements
+5. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements (lessons from newsletter generator: use DFS, not flat depth-sort)
