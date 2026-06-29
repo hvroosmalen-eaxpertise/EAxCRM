@@ -289,8 +289,10 @@ Full delete/recreate orphan test passed:
 - `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
 - `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD, including parent Aggregation connectors, Realisation connectors to entities, and diagram placement (idempotent, saves GUID map)
 
-## Generator Scripts (experiments/modelgen/)
-- All scripts in this directory use the **EA COM API** (win32com.client.Dispatch) exclusively
+## HARD RULE: COM API Only for Writes
+- **NEVER use SQLite to create, update, or delete anything in EA** — not elements, not connectors, not diagrams, not t_xref, not tagged values, nothing.
+- All generators use the **EA COM API** (`win32com.client.Dispatch("EA.Repository")`) exclusively
+- Sync scripts may use SQLite for **read-only** queries (EA → MD direction only)
 - Direct SQLite writes to `EAxCRM.qea` are **FORBIDDEN** — EA must always be the access layer
 
 ### Attribute Type Mapping
@@ -299,9 +301,9 @@ Full delete/recreate orphan test passed:
 - EA's `memo` type is a structured tag artifact, not used — all text attributes use `string` in both EA and MD
 
 ## Newsletter Process Model
-- Sub-package of "Process Architecture": "Newsletter Process Architecture" (Package_ID 18, Parent_ID 17)
+- Elements placed directly under "Process Architecture" package (no sub-package)
 - `EAxCRM-NewsletterProcess.md` holds the BPMN spec (1 CollaborationModel, 2 Lanes, 27 elements, 16 SequenceFlows)
-- `generate_newsletter_process_from_md.py` — MD → EA generator (direct SQLite, no COM API)
+- `generate_newsletter_process_from_md.py` — MD → EA generator (COM API only, like data model generator)
 - `sync_newsletter_process_from_ea.py` — EA → MD sync (reads Newsletter Process Architecture package)
 - Uses same GUID map pattern (`newsletter_guid_map.json`) for idempotent re-runs
 - **DFS traversal**: parents created before children so `ParentID` is correctly set (critical for multi-lane models — flat depth-sort causes all depth-2 elements to inherit the last depth-1 parent)

@@ -1,5 +1,5 @@
 {
-  "_collaboration_model": "",
+  "_collaboration_model": "{493037E688D640EB93F0ABA9CD604A27}",
   "_diagram": "{B4C63BA59F4D4E15B64550BEAC936469}",
   "elements": {
     "eaxcrmnewsletterprocessarchitecture": "{493037E688D640EB93F0ABA9CD604A27}",
@@ -28,5 +28,6 @@
     "scrapecomplete": "{A7786B7223294AB9A1C710C50DB65128}",
     "storenewarticles": "{15965C67230546C48D16CBFFD4DB6839}",
     "urllist": "{CEC76BB3E11A4C498936D895A48AA3E5}"
-  }
+  },
+  "_diagram_newsletter": "{B4C63BA59F4D4E15B64550BEAC936469}"
 }

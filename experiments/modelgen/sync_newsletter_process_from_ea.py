@@ -100,21 +100,53 @@ def main():
         sys.exit(1)
     parent_pkg_id = parent_row[0]
 
-    # Find newsletter sub-package within Process Architecture
+    # Find newsletter elements: try sub-package, then look for CollaborationModel in parent
+    pkg_id = None
     c.execute("SELECT Package_ID FROM t_package WHERE Name=? AND Parent_ID=?",
               (PACKAGE_NAME, parent_pkg_id))
     row = c.fetchone()
-    if not row:
-        print(f"FAIL: '{PACKAGE_NAME}' sub-package not found under Process Architecture")
-        sys.exit(1)
-    pkg_id = row[0]
+    if row:
+        pkg_id = row[0]
+        print(f"Found sub-package '{PACKAGE_NAME}' (ID {pkg_id})")
+        c.execute(
+            "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
+            "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
+            "FROM t_object WHERE Package_ID=? ORDER BY Name",
+            (pkg_id,)
+        )
+    else:
+        # No sub-package — look for CollaborationModel directly in parent package
+        c.execute(
+            "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
+            "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
+            "FROM t_object WHERE Package_ID=? AND Stereotype='CollaborationModel' AND Name LIKE '%Newsletter%'",
+            (parent_pkg_id,)
+        )
+        cm_row = c.fetchone()
+        if not cm_row:
+            print(f"FAIL: No newsletter CollaborationModel found in Process Architecture package")
+            sys.exit(1)
+        cm_oid = cm_row[0]
+        pkg_id = parent_pkg_id
+        print(f"Found CollaborationModel '{cm_row[1]}' (OID {cm_oid}) in Process Architecture package")
 
-    c.execute(
-        "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
-        "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
-        "FROM t_object WHERE Package_ID=? ORDER BY Name",
-        (pkg_id,)
-    )
+        # Collect all descendant OIDs (via ParentID chain)
+        all_oids = [cm_oid]
+        cursor = 0
+        while cursor < len(all_oids):
+            c.execute("SELECT Object_ID FROM t_object WHERE ParentID=?", (all_oids[cursor],))
+            for (oid,) in c.fetchall():
+                if oid not in all_oids:
+                    all_oids.append(oid)
+            cursor += 1
+
+        oid_list = ",".join(str(oid) for oid in all_oids)
+        c.execute(
+            f"SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
+            f"IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
+            f"FROM t_object WHERE Object_ID IN ({oid_list})"
+        )
+
     elements = c.fetchall()
     print(f"Found {len(elements)} elements")
 
