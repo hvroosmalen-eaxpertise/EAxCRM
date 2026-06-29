@@ -92,6 +92,22 @@
   - Task Type: Manual
   - Description: Customer pays the sales invoice via bank transfer.
 
+#### DataObject—payment
+  - Name: Payment
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {332D8643-81C6-4b64-A250-E8898028D48E}
+  - Is Collection: false
+  - Description: Payment record by Bank.
+
+#### DataObject—purchaseorder
+  - Name: Purchase Order
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {A9A7B62D-3F33-4b05-8239-DF34F4EF35FE}
+  - Is Collection: false
+  - Description: A Purchase order is the acceptance for the payment. It can come with a Customer Purchase Order code and information on invoicing.
+
 #### Activity—rejectoffer
   - Name: Reject Offer
   - Type: Activity
@@ -191,6 +207,7 @@
   - Type: Event
   - Stereotype: EndEvent
   - GUID: {32ADEDC2-2890-40b6-A489-51A28FA5AC67}
+  - Description: The sales process terminates because the customer rejected the offer.
 
 #### EndEvent—endsales
   - Name: End Sales
@@ -237,6 +254,14 @@
   - Start Quantity: 1
   - Task Type: User
   - Description: Close the sales process.
+
+#### DataObject—offer
+  - Name: Offer
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {CB5267A2-D848-4021-A26E-DDB979177C3A}
+  - Is Collection: false
+  - Description: The sales proposal document sent to the customer, containing license and service line items with pricing.
 
 #### Activity—preparerevisedoffer
   - Name: Prepare (Revised) Offer
@@ -316,6 +341,14 @@
   - Task Type: User
   - Description: Send service order request to the Vendor with the agreed service details.
 
+#### DataObject—salesinvoice
+  - Name: Sales Invoice
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {E47CCCC5-9862-4bde-A10D-7AFE0D040DFA}
+  - Is Collection: false
+  - Description: Invoice sent to Customer.
+
 #### Gateway—servicesrequired
   - Name: services required
   - Type: Decision
@@ -343,6 +376,30 @@
 - Stereotype: Lane
 - GUID: {4CE7A835-2E5A-4392-ACA7-2A54C08DA636}
 - Description: The supplier (e.g. Sparx Systems, Prolaborate, Ability Engineering) providing license and service quotes.
+
+#### DataObject—licensedocument
+  - Name: License Document
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {B5EBA936-39BC-4694-858E-2474715E89E0}
+  - Is Collection: false
+  - Description: License registration files delivered by the vendor.
+
+#### DataObject—licenseinvoice
+  - Name: License Invoice
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {C206CCD5-D481-40b3-BA1C-18FFD705326E}
+  - Is Collection: false
+  - Description: Incoming invoice from the vendor for purchased licenses.
+
+#### DataObject—licensequote
+  - Name: License Quote
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {6C0747AF-BB4C-4885-BAF6-4FC496E23590}
+  - Is Collection: false
+  - Description: Pricing quote from the vendor for requested license line items.
 
 #### Activity—preparelicensequote
   - Name: Prepare License Quote
@@ -396,6 +453,30 @@
   - Task Type: User
   - Description: Vendor activates the contracted services (support portal, training slots, SaaS tenant) and provide service agreement.
 
+#### DataObject—servicedocument
+  - Name: Service Document
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {9651C011-400C-4d72-9689-35FC5CC0DF2D}
+  - Is Collection: false
+  - Description: Service agreement document delivered by the vendor.
+
+#### DataObject—serviceinvoice
+  - Name: Service Invoice
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {D47CACA8-4CFE-44f4-829E-E9C4785A8D99}
+  - Is Collection: false
+  - Description: Incoming invoice from the vendor for procured services.
+
+#### DataObject—servicequote
+  - Name: Service Quote
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {117B4799-A108-4e69-BCF6-6BCF203A4EEC}
+  - Is Collection: false
+  - Description: Pricing quote from the vendor for requested service line items.
+
 ### Sequence Flows
 
 - Start RFQ → Create RFQ
@@ -414,8 +495,8 @@
 - Handle Approved Offer → Request Licenses
 - Handle Approved Offer → Request Services
 - Accept Offer → Handle Approved Offer [email acceptance and invoice details]
-- Request Licenses → Provide Licenses [quote acceptance]
-- Request Services → Provide Service(s) [service acceptance]
+- Request Licenses → Provide Licenses [license quote acceptance]
+- Request Services → Provide Service(s) [service quote acceptance]
 - Request Licenses → Prepare Delivery
 - Request Services → Prepare Delivery
 - Prepare Delivery → Accept Delivery
