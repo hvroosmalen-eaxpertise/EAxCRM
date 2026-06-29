@@ -5,16 +5,16 @@ This directory contains the Sparx Enterprise Architect model files for the EAxCR
 ## Files
 
 | File | Description |
-|---|---|
+|---|---|---|
 | `EAxCRM-Archimate.md` | ArchiMate model (Markdown, 44 elements, 57 relations, 1 diagram) |
 | `EAxCRM-DataModel.md` | Data model (Markdown, 19 entities, 30 relationships) |
-| `EAxCRM-Requirements.md` | Requirements model (Markdown, 33 requirements) |
-| `EAxCRM-ProcessModel.md` | BPMN 2.0 process model (Markdown, draft) |
+| `EAxCRM-Requirements.md` | Requirements model (Markdown, 34 requirements) |
+| `EAxCRM-ProcessModel.md` | BPMN 2.0 process model (Markdown, 3 lanes, 45 elements, 59 sequence flows) |
 | `EAxCRM.qea` | Sparx EA project file (ArchiMate + data model + requirements + process architecture) |
 
 ## Generators
 
-All generators (`experiments/modelgen/`) use Sparx EA's COM API (`EA.Repository`) exclusively — no direct SQLite. Each model has a **generator** (MD → EA) and a **sync** (EA → MD).
+Data model and requirements generators use Sparx EA's COM API (`EA.Repository`) exclusively. The process model sync reads via direct SQLite (COM API doesn't detect elements added by another EA session). Each model has a **generator** (MD → EA) and/or a **sync** (EA → MD).
 
 ### ArchiMate Model
 ```
@@ -30,12 +30,13 @@ Reads `EAxCRM-Archimate.md`, generates 44 elements and 57 relationships in an Ap
 ### Requirements Model
 - **Generate** (MD → EA): `python experiments/modelgen/generate_requirements_from_md.py`
 - **Sync** (EA → MD): `python experiments/modelgen/sync_requirements_from_ea.py`
-- 33 requirements with ID/Alias, Status, Version, parent hierarchy (Aggregation connectors), entity mappings (Realisation connectors)
+- 34 requirements with ID/Alias, Status, Version, parent hierarchy (Aggregation connectors), entity mappings (Realisation connectors)
 
 ### Process Model (BPMN 2.0)
 - **Sync** (EA → MD): `python experiments/modelgen/sync_process_from_ea.py`
-- Reads CollaborationModel elements with Pools, Lanes, Tasks, Events, Gateways and SequenceFlow connectors
-- Currently a draft (1 CollaborationModel element)
+- Reads CollaborationModel elements with Pools, Lanes, Activities, Events, Gateways, DataObjects, and SequenceFlow connectors
+- Also reads nested diagram names from `t_diagram` for each CollaborationModel
+- 1 CollaborationModel element (Sales Process Architecture) with 3 Lanes (Customer, EAxpertise, Vendor), 45 elements, 59 sequence flows
 
 ## ArchiMate Model
 
