@@ -147,6 +147,19 @@ LABEL_TO_STEREO = {
     "BPMN Collaboration": "CollaborationModel",
 }
 
+# BPMN element dimensions for diagram placement (width, height)
+ELEM_SIZE = {
+    "Activity": (100, 55),
+    "StartEvent": (50, 50),
+    "EndEvent": (50, 50),
+    "Gateway": (60, 60),
+    "ExclusiveGateway": (60, 60),
+    "ParallelGateway": (60, 60),
+    "InclusiveGateway": (60, 60),
+    "DataObject": (70, 50),
+    "Lane": (0, 0),  # computed dynamically
+}
+
 
 def safe_id(name):
     return re.sub(r"[^a-z0-9]", "", name.lower())
@@ -327,6 +340,7 @@ def main():
         create_element(eid, 0)
 
     # Create diagram
+    dia_id = None
     if collab_eid and collab_eid in object_ids:
         collab_oid = object_ids[collab_eid]
         if diag_guid:
@@ -336,17 +350,108 @@ def main():
             diag_row = None
 
         if diag_row:
+            dia_id = diag_row[0]
             c.execute("UPDATE t_diagram SET Name=?, ParentID=? WHERE Diagram_ID=?",
-                      ("Newsletter Process Architecture", collab_oid, diag_row[0]))
+                      ("Newsletter Process Architecture", collab_oid, dia_id))
         else:
             c.execute("SELECT MAX(Diagram_ID) FROM t_diagram")
             max_diag = c.fetchone()[0] or 0
-            diag_id = max_diag + 1
+            dia_id = max_diag + 1
             diag_guid = "{" + __import__("uuid").uuid4().hex.upper() + "}"
             c.execute("""INSERT INTO t_diagram 
                 (Diagram_ID, Name, ParentID, Package_ID, Diagram_Type, ea_guid, CreatedDate, ModifiedDate)
                 VALUES (?, ?, ?, ?, 'BusinessProcess', ?, datetime('now'), datetime('now'))
-            """, (diag_id, "Newsletter Process Architecture", collab_oid, pkg_id, diag_guid))
+            """, (dia_id, "Newsletter Process Architecture", collab_oid, pkg_id, diag_guid))
+
+    # Add BPMN2.0:: stereotype t_xref for all elements
+    for eid, oid in object_ids.items():
+        raw_label = elements[eid]["label"]
+        stereo = LABEL_TO_STEREO.get(raw_label, raw_label)
+        ea_guid_val = elem_guid_map.get(eid)
+        if ea_guid_val and stereo:
+            c.execute("DELETE FROM t_xref WHERE Client=? AND Name='Stereotypes' AND Type='element property'",
+                      (ea_guid_val,))
+            xref_id = "{" + _uuid.uuid4().hex.upper() + "}"
+            c.execute("""INSERT INTO t_xref 
+                (XrefID, Name, Type, Visibility, Partition, Description, Client)
+                VALUES (?, 'Stereotypes', 'element property', 'Public', '', ?, ?)
+            """, (xref_id, f"@STEREO;Name={stereo};FQName=BPMN2.0::{stereo};@ENDSTEREO;", ea_guid_val))
+
+    # Place elements on the diagram with a grid layout (two lanes)
+    if dia_id:
+        c.execute("DELETE FROM t_diagramobjects WHERE Diagram_ID=?", (dia_id,))
+        c.execute("SELECT MAX(Instance_ID) FROM t_diagramobjects")
+        next_iid = (c.fetchone()[0] or 0) + 1
+
+        def elem_dim(stereo):
+            w, h = ELEM_SIZE.get(stereo, (100, 55))
+            return w, h
+
+        # Define per-eid positions (left, top, right, bottom)
+        lane_y_top = 0
+        lane_y_bot = 120
+
+        pos = {
+            # EAxpertise Lane
+            "eaxpertise": (0, 0, 2200, 130),
+            # Main flow row
+            "startnewsletter":  (30, 30, 80, 80),
+            "checkcadence":     (140, 30, 240, 85),
+            "6weekselapsed":    (300, 20, 360, 80),
+            "browseavailablearticles": (430, 30, 530, 85),
+            "selectarticles":   (600, 30, 700, 85),
+            "selectedarticles": (770, 30, 840, 80),
+            "composenewsletter": (910, 30, 1010, 85),
+            "newsletterdraft":  (1080, 30, 1150, 80),
+            "submitforreview":  (1220, 30, 1320, 85),
+            "reviewapproved":   (1390, 20, 1450, 80),
+            "approvednewsletter": (1520, 30, 1590, 80),
+            "sendnewsletter":   (1660, 30, 1760, 85),
+            "contactlist":      (1830, 30, 1900, 80),
+            "sentnewsletter":   (1970, 30, 2040, 80),
+            "newslettersent":   (2110, 30, 2160, 80),
+            # News Source Lane
+            "newssource":       (0, 350, 1200, 480),
+            "scheduledscrape":  (30, 380, 80, 430),
+            "fetchurllist":     (150, 380, 250, 435),
+            "urllist":          (320, 380, 390, 430),
+            "scrapearticles":   (460, 380, 560, 435),
+            "extractheadingsandsummaries": (630, 380, 730, 435),
+            "articlepool":      (800, 380, 870, 430),
+            "storenewarticles": (940, 380, 1040, 435),
+            "scrapecomplete":   (1110, 380, 1160, 430),
+        }
+
+        # Draw order: Lanes first, then flow elements in process order
+        draw_order = [
+            "eaxpertise", "newssource",
+            "startnewsletter", "checkcadence", "6weekselapsed",
+            "browseavailablearticles", "selectarticles", "selectedarticles",
+            "composenewsletter", "newsletterdraft", "submitforreview",
+            "reviewapproved", "approvednewsletter", "sendnewsletter", "contactlist",
+            "sentnewsletter", "newslettersent",
+            "scheduledscrape", "fetchurllist", "urllist",
+            "scrapearticles", "extractheadingsandsummaries", "articlepool",
+            "storenewarticles", "scrapecomplete",
+        ]
+
+        seq = 0
+        for eid in draw_order:
+            if eid not in object_ids:
+                continue
+            oid = object_ids[eid]
+            if eid not in pos:
+                continue
+            l, t, r, b = pos[eid]
+            duid = _uuid.uuid4().hex[:8].upper()
+            style = f"DUID={duid};HideIcon=0;"
+            c.execute("""INSERT INTO t_diagramobjects 
+                (Diagram_ID, Object_ID, RectTop, RectLeft, RectRight, RectBottom,
+                 Sequence, ObjectStyle, Instance_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (dia_id, oid, t, l, r, b, seq, style, next_iid))
+            seq += 1
+            next_iid += 1
 
     # Create connectors (sequence flows)
     conn_count = 0
