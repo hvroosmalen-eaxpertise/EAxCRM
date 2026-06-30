@@ -81,7 +81,7 @@ BPMN_TAGGED_VALUES = {
 }
 
 def safe_id(name):
-    return re.sub(r"[^a-z0-9]", "", name.lower())
+    return re.sub(r"[^a-zA-Z0-9]", "", name)
 
 def main():
     parser = argparse.ArgumentParser(description=f"Sync {PACKAGE_NAME} from EA to Markdown")

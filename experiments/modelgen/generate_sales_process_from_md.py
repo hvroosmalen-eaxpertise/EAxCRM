@@ -114,11 +114,11 @@ CONNECTOR_STEREOTYPES_SHORT = {
     "DataInputAssociation": "DataInputAssociation",
 }
 
-LANE_IDS = {"customer", "eaxpertise", "vendor"}
+# LANE_IDS built dynamically from parse_md output (see after parse_md call)
 
 
 def safe_id(name):
-    return re.sub(r"[^a-z0-9]", "", name.lower())
+    return re.sub(r"[^a-zA-Z0-9]", "", name)
 
 
 def parse_md(path):
@@ -230,7 +230,7 @@ def parse_md(path):
 
         if section and section in connectors and stripped.startswith("- "):
             line_flow = stripped[2:].strip()
-            m = re.match(r"(.+?)\s*[->]\s*(.+?)(\s*\[(.+?)\])?$", line_flow)
+            m = re.match(r"(.+?)\s*[->→➡]\s*(.+?)(\s*\[(.+?)\])?$", line_flow)
             if m:
                 src = safe_id(m.group(1).strip())
                 tgt = safe_id(m.group(2).strip())
@@ -297,6 +297,12 @@ def main():
     elements, connectors = parse_md(args.md)
     total_conns = sum(len(v) for v in connectors.values())
     print(f"Parsed {len(elements)} elements, {total_conns} connectors ({', '.join(f'{k}: {len(v)}' for k, v in connectors.items() if v)})")
+
+    LANE_IDS = {eid for eid, edata in elements.items() if edata.get("label") == "Lane"}
+    if not LANE_IDS:
+        # Fallback (should not happen with correct MD)
+        LANE_IDS = {"Customer", "EAxpertise", "Vendor"}
+    print(f"  Lane IDs: {LANE_IDS}")
 
     guid_map = {}
     if os.path.exists(GUID_MAP_FILE):
@@ -415,25 +421,11 @@ def main():
                 if parent_elem:
                     new_elem.ParentID = parent_elem.ElementID
                 new_elem.Update()
-                proc_arch.Elements.Refresh()
-                for i in range(proc_arch.Elements.Count):
-                    e = proc_arch.Elements.GetAt(i)
-                    if e.ElementGUID == new_elem.ElementGUID:
-                        elem_guid_map[eid] = e.ElementGUID
-                        object_ids[eid] = e.ElementID
-                        pkg_elems_by_name[e.Name] = e
-                        break
+                elem_guid_map[eid] = new_elem.ElementGUID
+                object_ids[eid] = new_elem.ElementID
+                pkg_elems_by_name[new_elem.Name] = new_elem
                 created_count += 1
                 return new_elem
-
-        # DFS: parents before children
-        children_of = {}
-        for eid, elem_data in elements.items():
-            parent_text = elem_data["fields"].get("Parent", "")
-            if parent_text:
-                pid = safe_id(parent_text)
-                if pid in elements:
-                    children_of.setdefault(pid, []).append(eid)
 
         collab_eid = None
         for eid, elem_data in elements.items():
@@ -443,17 +435,43 @@ def main():
 
         if collab_eid:
             collab_elem = create_element(collab_eid, None)
-            if collab_elem:
-                def dfs(parent_eid, parent_elem):
-                    for child_eid in children_of.get(parent_eid, []):
-                        child_elem = create_element(child_eid, parent_elem)
-                        if child_elem:
-                            dfs(child_eid, child_elem)
-                dfs(collab_eid, collab_elem)
 
-        for eid in elements:
-            if eid not in object_ids:
-                create_element(eid, collab_elem if collab_elem else None)
+        if collab_elem:
+            # First pass: create all Lane elements under CM
+            for eid, elem_data in elements.items():
+                if eid not in object_ids and elem_data.get("label") == "Lane":
+                    create_element(eid, collab_elem)
+            # Second pass: non-Lane elements, assign to correct lane parent
+            for eid, elem_data in elements.items():
+                if eid in object_ids:
+                    continue
+                lane = diagram_utils.get_lane_from_fields(elem_data.get("fields", {}))
+                if lane and lane in object_ids:
+                    parent = repo.GetElementByID(object_ids[lane])
+                else:
+                    parent = collab_elem
+                create_element(eid, parent)
+            # Third pass: any missed elements
+            for eid in elements:
+                if eid not in object_ids:
+                    create_element(eid, collab_elem)
+
+        # Fix parentage on re-runs (so lanes parent their children)
+        for eid, elem_data in elements.items():
+            if elem_data.get("label") == "Lane" or eid == collab_eid:
+                continue
+            lane = diagram_utils.get_lane_from_fields(elem_data.get("fields", {}))
+            if lane and lane in object_ids:
+                oid = object_ids.get(eid)
+                if oid:
+                    try:
+                        ea_elem = repo.GetElementByID(oid)
+                        lane_oid = object_ids[lane]
+                        if ea_elem and ea_elem.ParentID != lane_oid:
+                            ea_elem.ParentID = lane_oid
+                            ea_elem.Update()
+                    except:
+                        pass
 
         # Tagged values
         for eid, elem_oid in object_ids.items():
@@ -553,23 +571,45 @@ def main():
                     except:
                         pass
 
-        if not diag:
-            for i in range(proc_arch.Diagrams.Count):
-                d = proc_arch.Diagrams.GetAt(i)
+        if not diag and collab_elem:
+            collab_elem.Diagrams.Refresh()
+            for i in range(collab_elem.Diagrams.Count):
+                d = collab_elem.Diagrams.GetAt(i)
                 if d.Name == "Sales Process Architecture":
                     diag = d
                     break
 
-        if not diag:
-            diag = proc_arch.Diagrams.AddNew("Sales Process Architecture", "BusinessProcess")
+        if not diag and collab_elem:
+            diag = collab_elem.Diagrams.AddNew("Sales Process Architecture", "BusinessProcess")
             diag.Update()
-            proc_arch.Update()
+            collab_elem.Update()
             guid_map[diag_guid_key] = diag.DiagramGUID
-            print("  Created new diagram")
+            print("  Created new diagram under CollaborationModel")
 
         if diag:
+            diag.Stereotype = "Collaboration"
             diag.StereotypeEx = "BPMN2.0::Collaboration"
             diag.Update()
+            import sqlite3 as _sqlite3
+            import uuid as _uuid
+            _qea_path = args.qea
+            _dg_guid = diag.DiagramGUID
+            if _dg_guid:
+                _db = _sqlite3.connect(_qea_path)
+                _c = _db.cursor()
+                _c.execute("SELECT COUNT(*) FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
+                          (_dg_guid,))
+                if _c.fetchone()[0] == 0:
+                    _xref_id = f"{{{str(_uuid.uuid4())}}}"
+                    _c.execute(
+                        "INSERT INTO t_xref (XrefID, Client, Type, Visibility, Namespace, Description) "
+                        "VALUES (?, ?, 'Stereotypes', 'diagram property', 'BPMN2_0', ?)",
+                        (_xref_id, _dg_guid,
+                         "@STEREO;Name=Collaboration;FQName=BPMN2.0::Collaboration;@ENDSTEREO;")
+                    )
+                    _db.commit()
+                    print(f"  Added BPMN stereotype xref for diagram")
+                _db.close()
 
         if diag:
             diag.DiagramObjects.Refresh()

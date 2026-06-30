@@ -23,7 +23,7 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 
 ## Data Model
 
-**19 entities**, **30 relationships**, **34 requirements**, **1 BPMN process** (3 lanes, 45 elements, 59 flows) — maintained in Sparx EA as the canonical source.
+**19 entities**, **30 relationships**, **34 requirements**, **2 BPMN processes** (newsletter: 26 elements, 2 lanes, 16 flows; sales: 45 elements, 3 lanes, 59 flows) — maintained in Sparx EA as the canonical source.
 
 | Procurement Flow | Sales Flow |
 |---|---|
@@ -31,7 +31,7 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 | | Service → Offer / SalesInvoice (optional) |
 | | Delivery → Customer / SalesInvoice |
 
-See `models/EAxCRM-DataModel.md` for the full entity list, `models/EAxCRM-Requirements.md` for requirements, and `AGENTS.md` for design context.
+See `models/EAxCRM-DataModel.md` for the full entity list, `models/EAxCRM-Requirements.md` for requirements, `models/EAxCRM-NewsletterProcess.md` and `models/EAxCRM-SalesProcess.md` for BPMN specs, and `AGENTS.md` for design context.
 
 ## Setup
 

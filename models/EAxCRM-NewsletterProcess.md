@@ -4,210 +4,255 @@
 **Purpose**: BPMN 2.0 newsletter process model for the EAxCRM system
 **Version**: 1.0
 
-## BPMN Collaboration—eaxcrmnewsletterprocessarchitecture
+## BPMN Collaboration—EAxCRMNewsletterProcessArchitecture
 - Name: EAxCRM Newsletter Process Architecture
-- GUID: {493037E688D640EB93F0ABA9CD604A27}
-- Diagram Name: Newsletter Process Architecture
-- Diagram GUID: {B4C63BA59F4D4E15B64550BEAC936469}
+- GUID: {9488855B-5E6D-4910-877D-F4704A4D97D4}
+- Is Closed: false
 - Description: BPMN 2.0 collaboration model for the EAxCRM newsletter process, covering automated article scraping from news sources, manual newsletter composition, internal review workflow, and targeted distribution to opted-in contacts.
 
-### Lane—eaxpertise
+### Lane—EAxpertise
 - Name: EAxpertise
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {A9AA6847F0E040D791A3DE4AF1691F7A}
+- GUID: {F607A12D-DF35-4e94-B4D4-4685A6636134}
 - Description: EAxpertise team managing the newsletter lifecycle from scheduling through review and distribution.
 
-### Lane—newssource
+#### Gateway—6weekselapsed
+  - Name: 6 weeks elapsed?
+  - Type: Decision
+  - Stereotype: Gateway
+  - GUID: {0DFCA552-352D-461f-B5A1-CD426917926D}
+  - Gateway Type: Exclusive
+  - Description: Gateway checking if 6 weeks have elapsed since the last newsletter was sent.
+
+#### DataObject—ApprovedNewsletter
+  - Name: Approved Newsletter
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {B2CC93C4-32BC-4f54-98D0-BE8EFA70B3E0}
+  - Is Collection: false
+  - Description: DataObject for the final reviewed and approved newsletter ready to send.
+
+#### Activity—BrowseAvailableArticles
+  - Name: Browse Available Articles
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {2FDCB0FE-164B-4e4d-85C2-FA804FBEA7CD}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to browse the article pool and identify suitable content for the newsletter.
+
+#### Activity—CheckCadence
+  - Name: Check Cadence
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {3218BB8A-2F73-4b89-9F0B-8CCECB306E0D}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity checking whether 6 weeks have elapsed since the last newsletter was sent, ensuring the target cadence is maintained.
+
+#### Activity—ComposeNewsletter
+  - Name: Compose Newsletter
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {94905D88-3711-440a-8C43-69421780BEF8}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to write and format the newsletter content using selected articles and the standard EAxNewsletter template (logo + article pointers).
+
+#### DataObject—ContactList
+  - Name: Contact List
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {06DF44D0-7E1E-4175-93CF-68EE9428D156}
+  - Is Collection: false
+  - Description: DataObject storing the list of opted-in contacts to receive the newsletter.
+
+#### DataObject—NewsletterDraft
+  - Name: Newsletter Draft
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {D59C5A81-90BC-40b1-8EBA-C53B2108A33A}
+  - Is Collection: false
+  - Description: DataObject for the work-in-progress newsletter draft before submission.
+
+#### EndEvent—NewsletterSent
+  - Name: Newsletter Sent
+  - Type: Event
+  - Stereotype: EndEvent
+  - GUID: {BE7228CB-6384-4099-8E85-4A6EF2F9D093}
+  - Description: EndEvent marking successful newsletter distribution to all recipients.
+
+#### Gateway—ReviewApproved
+  - Name: Review Approved?
+  - Type: Decision
+  - Stereotype: Gateway
+  - GUID: {C7A531A7-161B-46e0-BCAA-37F3226973B6}
+  - Gateway Type: Exclusive
+  - Description: Gateway checking whether the newsletter review was approved or needs revision.
+
+#### Activity—SelectArticles
+  - Name: Select Articles
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {09089596-99C5-4155-BBB3-1A2D5E8DD36C}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to pick specific articles from the pool, typically 5 article pointers (heading + summary + link).
+
+#### DataObject—SelectedArticles
+  - Name: Selected Articles
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {3874679B-8E5C-4560-96AD-4C7974D93B2D}
+  - Is Collection: false
+  - Description: DataObject storing the curated selection of articles for the newsletter.
+
+#### Activity—SendNewsletter
+  - Name: Send Newsletter
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {A124D465-171A-403d-94DA-3843285943B2}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to dispatch the approved newsletter to all opted-in contacts via email.
+
+#### DataObject—SentNewsletter
+  - Name: Sent Newsletter
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {BDC58A19-F164-4453-9C14-1B7CDD00018C}
+  - Is Collection: false
+  - Description: DataObject storing the archive of the sent newsletter for audit and reference.
+
+#### StartEvent—StartNewsletter
+  - Name: Start Newsletter
+  - Type: Event
+  - Stereotype: StartEvent
+  - GUID: {A2F3FEB2-4559-4a4b-ABC7-E7BCB4E23E2C}
+  - Description: StartEvent triggering the newsletter composition process.
+
+#### Activity—SubmitforReview
+  - Name: Submit for Review
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {39581342-E38D-4ba7-ACB5-498A99416EEC}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to submit the completed newsletter draft for internal review before sending.
+
+### Lane—NewsSource
 - Name: News Source
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {EF5F8879F40340D7B0F24F3F626C161E}
+- GUID: {4989F926-0A9F-46a3-ABF1-2D7FFF4E31F2}
 - Description: Automated news sources (SparxSystems.com, sparxsystems.eu) providing articles for the newsletter via scheduled scraping.
 
-### Gateway—6weekselapsed
-- Name: 6 weeks elapsed?
-- Type: Decision
-- Stereotype: Gateway
-- GUID: {DF4184869BB9446B91D2D483980E8C5E}
-- Lane: eaxpertise
-- Description: Gateway checking if 6 weeks have elapsed since the last newsletter was sent.
+#### DataObject—ArticlePool
+  - Name: Article Pool
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {D3C404A9-C323-4cfa-9029-42BF63A5B33B}
+  - Is Collection: false
+  - Description: DataObject storing all scraped article metadata (heading, summary, source URL) for selection.
 
-### DataObject—approvednewsletter
-- Name: Approved Newsletter
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {BFF99CE86F0E4E19976F716D462AA6CC}
-- Lane: eaxpertise
-- Description: DataObject for the final reviewed and approved newsletter ready to send.
+#### Activity—ExtractHeadingsandSummaries
+  - Name: Extract Headings and Summaries
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {3507D125-D007-4124-82D0-934D20FD422E}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to parse scraped article content and extract headings and summaries for newsletter use.
 
-### DataObject—articlepool
-- Name: Article Pool
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {4C989ABD027C4183BEC4748FF71A3383}
-- Lane: newssource
-- Description: DataObject storing all scraped article metadata (heading, summary, source URL) for selection.
+#### Activity—FetchURLList
+  - Name: Fetch URL List
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {8C0F5662-6269-4a57-AD6E-A7C20CE51414}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to retrieve the configured list of news source URLs to scrape.
 
-### Activity—browseavailablearticles
-- Name: Browse Available Articles
-- Type: Activity
-- Stereotype: Activity
-- GUID: {74650264C8CC48A39C70C25A659AD454}
-- Lane: eaxpertise
-- Description: Activity to browse the article pool and identify suitable content for the newsletter.
+#### StartEvent—ScheduledScrape
+  - Name: Scheduled Scrape
+  - Type: Event
+  - Stereotype: StartEvent
+  - GUID: {2E951233-9FA6-47fc-9545-B0B924229E9A}
+  - Description: StartEvent triggering the automated scraping process on a scheduled basis.
 
-### Activity—checkcadence
-- Name: Check Cadence
-- Type: Activity
-- Stereotype: Activity
-- GUID: {77F028F9AB654487A85E1231B8A47238}
-- Lane: eaxpertise
-- Description: Activity checking whether 6 weeks have elapsed since the last newsletter was sent, ensuring the target cadence is maintained.
+#### Activity—ScrapeArticles
+  - Name: Scrape Articles
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {963DDAE6-6090-479f-B533-7BE3D9BA7446}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to fetch article HTML content from news source URLs using requests and BeautifulSoup.
 
-### Activity—composenewsletter
-- Name: Compose Newsletter
-- Type: Activity
-- Stereotype: Activity
-- GUID: {7187A777FB0142AFADB3139A9D430976}
-- Lane: eaxpertise
-- Description: Activity to write and format the newsletter content using selected articles and the standard EAxNewsletter template (logo + article pointers).
+#### EndEvent—ScrapeComplete
+  - Name: Scrape Complete
+  - Type: Event
+  - Stereotype: EndEvent
+  - GUID: {C6B4F238-4005-4950-B30F-387F059D03F9}
+  - Description: EndEvent marking successful completion of the article scraping cycle.
 
-### DataObject—contactlist
-- Name: Contact List
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {11A5924B5BE54CBEB2D12F81973325CF}
-- Lane: eaxpertise
-- Description: DataObject storing the list of opted-in contacts to receive the newsletter.
+#### Activity—StoreNewArticles
+  - Name: Store New Articles
+  - Type: Activity
+  - Stereotype: Activity
+  - GUID: {4FE6A127-F6BB-468b-8439-569A21863021}
+  - Completion Quantity: 1
+  - Is Called Activity: false
+  - Is For Compensation: false
+  - Loop: None
+  - Start Quantity: 1
+  - Task Type: Abstract
+  - Description: Activity to persist newly scraped articles to the database, avoiding duplicates.
 
-### Activity—extractheadingsandsummaries
-- Name: Extract Headings and Summaries
-- Type: Activity
-- Stereotype: Activity
-- GUID: {B696E5D0BB194595A48AB9BAF7EA08D7}
-- Lane: newssource
-- Description: Activity to parse scraped article content and extract headings and summaries for newsletter use.
-
-### Activity—fetchurllist
-- Name: Fetch URL List
-- Type: Activity
-- Stereotype: Activity
-- GUID: {82813DB6227840AFBA62C2FA5407484A}
-- Lane: newssource
-- Description: Activity to retrieve the configured list of news source URLs to scrape.
-
-### DataObject—newsletterdraft
-- Name: Newsletter Draft
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {B83D2906B88F4FE68C52B8F9B91D6E19}
-- Lane: eaxpertise
-- Description: DataObject for the work-in-progress newsletter draft before submission.
-
-### EndEvent—newslettersent
-- Name: Newsletter Sent
-- Type: Event
-- Stereotype: EndEvent
-- GUID: {495E1BB97EAC4A24B9952A88D0CD1FC9}
-- Lane: eaxpertise
-- Description: EndEvent marking successful newsletter distribution to all recipients.
-
-### Gateway—reviewapproved
-- Name: Review Approved?
-- Type: Decision
-- Stereotype: Gateway
-- GUID: {B69F543B265F436EBFF8DA3AA4C14CBF}
-- Lane: eaxpertise
-- Description: Gateway checking whether the newsletter review was approved or needs revision.
-
-### StartEvent—scheduledscrape
-- Name: Scheduled Scrape
-- Type: Event
-- Stereotype: StartEvent
-- GUID: {78CC3E5BFF7A45B3979FCB311D74141F}
-- Lane: newssource
-- Description: StartEvent triggering the automated scraping process on a scheduled basis.
-
-### Activity—scrapearticles
-- Name: Scrape Articles
-- Type: Activity
-- Stereotype: Activity
-- GUID: {7C704A3C623B4CF99CC701CBC58FB3D8}
-- Lane: newssource
-- Description: Activity to fetch article HTML content from news source URLs using requests and BeautifulSoup.
-
-### EndEvent—scrapecomplete
-- Name: Scrape Complete
-- Type: Event
-- Stereotype: EndEvent
-- GUID: {A7786B7223294AB9A1C710C50DB65128}
-- Lane: newssource
-- Description: EndEvent marking successful completion of the article scraping cycle.
-
-### Activity—selectarticles
-- Name: Select Articles
-- Type: Activity
-- Stereotype: Activity
-- GUID: {87D437B13D024169BC69B4DEEE00BDFC}
-- Lane: eaxpertise
-- Description: Activity to pick specific articles from the pool, typically 5 article pointers (heading + summary + link).
-
-### DataObject—selectedarticles
-- Name: Selected Articles
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {3E0B3D007F314C7A9F0D819C1BB69B97}
-- Lane: eaxpertise
-- Description: DataObject storing the curated selection of articles for the newsletter.
-
-### Activity—sendnewsletter
-- Name: Send Newsletter
-- Type: Activity
-- Stereotype: Activity
-- GUID: {10B37700801243C2A155A78322CCFCB7}
-- Lane: eaxpertise
-- Description: Activity to dispatch the approved newsletter to all opted-in contacts via email.
-
-### DataObject—sentnewsletter
-- Name: Sent Newsletter
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {180D9BC621314D72960A461767AD7E32}
-- Lane: eaxpertise
-- Description: DataObject storing the archive of the sent newsletter for audit and reference.
-
-### StartEvent—startnewsletter
-- Name: Start Newsletter
-- Type: Event
-- Stereotype: StartEvent
-- GUID: {FC9AAF21A9C6483A920FCD355F1FE53C}
-- Lane: eaxpertise
-- Description: StartEvent triggering the newsletter composition process.
-
-### Activity—storenewarticles
-- Name: Store New Articles
-- Type: Activity
-- Stereotype: Activity
-- GUID: {15965C67230546C48D16CBFFD4DB6839}
-- Lane: newssource
-- Description: Activity to persist newly scraped articles to the database, avoiding duplicates.
-
-### Activity—submitforreview
-- Name: Submit for Review
-- Type: Activity
-- Stereotype: Activity
-- GUID: {EDC1DD7F5F3D42F8A006DAA3E91C1DE2}
-- Lane: eaxpertise
-- Description: Activity to submit the completed newsletter draft for internal review before sending.
-
-### DataObject—urllist
-- Name: URL List
-- Type: Artifact
-- Stereotype: DataObject
-- GUID: {CEC76BB3E11A4C498936D895A48AA3E5}
-- Lane: newssource
-- Description: DataObject storing the configured list of news source URLs to scrape periodically.
+#### DataObject—URLList
+  - Name: URL List
+  - Type: Artifact
+  - Stereotype: DataObject
+  - GUID: {DF204F41-0D18-4abe-B0B8-780A2A9E7482}
+  - Is Collection: false
+  - Description: DataObject storing the configured list of news source URLs to scrape periodically.
 
 ### Sequence Flows
 

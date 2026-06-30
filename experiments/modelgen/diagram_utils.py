@@ -1,6 +1,16 @@
 """Shared diagram layout utilities for EA COM API generators."""
 
 
+# EA DiagramObject coordinate conventions:
+#   - left, right: standard X (left < right, increases rightward)
+#   - top, bottom: CARTESIAN Y (top > bottom, Y increases UPWARD)
+#     Visual top of element = higher Y value, visual bottom = lower Y value
+#     Height = top - bottom (always positive)
+# Position tuples returned by layout functions use screen convention:
+#   (left, visual_top, right, visual_bottom) with visual_top < visual_bottom
+# These are SWAPPED at COM API assignment time for EA's Cartesian convention.
+
+
 def compute_bpmn_lane_positions(lanes, lane_height=500, lane_width=1000, gap=250):
     positions = {}
     y = 30
@@ -62,13 +72,13 @@ def add_missing_elements(diag, element_ids, object_ids, positions):
         pos = positions.get(eid)
         if pos is None:
             continue
-        l, t, r, b = pos
+        l, vt, r, vb = pos  # vt=visual_top, vb=visual_bottom (screen: vt < vb)
         dobj = diag.DiagramObjects.AddNew("", "")
         dobj.ElementID = oid
         dobj.left = l
-        dobj.top = t
+        dobj.top = vb      # EA Cartesian: top = higher Y = visual bottom
         dobj.right = r
-        dobj.bottom = b
+        dobj.bottom = vt   # EA Cartesian: bottom = lower Y = visual top
         dobj.Update()
         added += 1
     if added:
@@ -86,13 +96,13 @@ def create_diagram_objects(diag, element_ids, object_ids, positions):
         pos = positions.get(eid)
         if pos is None:
             continue
-        l, t, r, b = pos
+        l, vt, r, vb = pos  # vt=visual_top, vb=visual_bottom (screen: vt < vb)
         dobj = diag.DiagramObjects.AddNew("", "")
         dobj.ElementID = oid
         dobj.left = l
-        dobj.top = t
+        dobj.top = vb      # EA Cartesian: top = higher Y = visual bottom
         dobj.right = r
-        dobj.bottom = b
+        dobj.bottom = vt   # EA Cartesian: bottom = lower Y = visual top
         dobj.Update()
         count += 1
     if count:
@@ -103,4 +113,8 @@ def create_diagram_objects(diag, element_ids, object_ids, positions):
 def get_lane_from_fields(fields):
     if fields is None:
         return None
-    return fields.get("Lane") or fields.get("lane") or None
+    lane = fields.get("Lane") or fields.get("lane")
+    if lane:
+        return lane
+    # Fallback: #### nesting stores parent eid in "Parent" field
+    return fields.get("Parent") or None

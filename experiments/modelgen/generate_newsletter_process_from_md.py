@@ -103,7 +103,7 @@ ELEM_SIZE = {
 }
 
 def safe_id(name):
-    return re.sub(r"[^a-z0-9]", "", name.lower())
+    return re.sub(r"[^a-zA-Z0-9]", "", name)
 
 def parse_md(path):
     elements = {}
@@ -390,26 +390,18 @@ def main():
                 if parent_elem:
                     new_elem.ParentID = parent_elem.ElementID
                 new_elem.Update()
+                # Capture GUID/ID BEFORE Refresh() (Reference may break after Refresh)
+                elem_guid = new_elem.ElementGUID
+                elem_id = new_elem.ElementID
+                elem_nm = new_elem.Name
+                print(f"  [DEBUG] Created '{name}' -> ID={elem_id}, GUID={elem_guid}")
                 proc_arch.Elements.Refresh()
-                # Find the actual ElementID after refresh
-                for i in range(proc_arch.Elements.Count):
-                    e = proc_arch.Elements.GetAt(i)
-                    if e.ElementGUID == new_elem.ElementGUID:
-                        elem_guid_map[eid] = e.ElementGUID
-                        object_ids[eid] = e.ElementID
-                        pkg_elems_by_name[e.Name] = e
-                        break
+                # Use captured values instead of potentially stale reference
+                elem_guid_map[eid] = elem_guid
+                object_ids[eid] = elem_id
+                pkg_elems_by_name[elem_nm] = new_elem  # Keep ref for later updates
                 created_count += 1
                 return new_elem
-
-        # DFS: parents before children
-        children_of = {}
-        for eid, elem_data in elements.items():
-            parent_text = elem_data["fields"].get("Parent", "")
-            if parent_text:
-                pid = safe_id(parent_text)
-                if pid in elements:
-                    children_of.setdefault(pid, []).append(eid)
 
         # Root = CollaborationModel
         collab_eid = None
@@ -420,19 +412,55 @@ def main():
 
         if collab_eid:
             collab_elem = create_element(collab_eid, None)
-            if collab_elem:
-                # DFS create children
-                def dfs(parent_eid, parent_elem):
-                    for child_eid in children_of.get(parent_eid, []):
-                        child_elem = create_element(child_eid, parent_elem)
-                        if child_elem:
-                            dfs(child_eid, child_elem)
-                dfs(collab_eid, collab_elem)
 
-        # Handle free elements (no parent relationship in MD)
-        for eid in elements:
-            if eid not in object_ids:
-                create_element(eid, collab_elem if collab_elem else None)
+        # Lane-aware parent assignment: lanes under CM, elements under their lane
+        if collab_elem:
+            # First pass: create all Lane elements under CM
+            print("  [DEBUG] FIRST PASS: creating lanes")
+            for eid, elem_data in elements.items():
+                if eid not in object_ids and elem_data.get("label") == "Lane":
+                    create_element(eid, collab_elem)
+            print(f"  [DEBUG] After first pass: {len(object_ids)} elements in object_ids")
+            # Second pass: non-Lane elements, assign to correct lane parent
+            print("  [DEBUG] SECOND PASS: creating non-lane elements")
+            pass2_count = 0
+            for eid, elem_data in elements.items():
+                if eid in object_ids:
+                    continue
+                pass2_count += 1
+                lane = diagram_utils.get_lane_from_fields(elem_data.get("fields", {}))
+                if lane and lane in object_ids:
+                    parent = repo.GetElementByID(object_ids[lane])
+                else:
+                    parent = collab_elem
+                create_element(eid, parent)
+            print(f"  [DEBUG] After second pass: {len(object_ids)} elements in object_ids")
+            # Third pass: any missed elements (no Lane field)
+            print("  [DEBUG] THIRD PASS: checking for missed elements")
+            pass3_count = 0
+            for eid in elements:
+                if eid not in object_ids:
+                    pass3_count += 1
+                    create_element(eid, collab_elem)
+            print(f"  [DEBUG] After third pass: {len(object_ids)} elements, {pass3_count} created in third pass")
+
+        # Update parentage for all elements on re-runs (so lanes parent their children)
+        for eid, elem_data in elements.items():
+            if elem_data.get("label") == "Lane" or eid == collab_eid:
+                continue
+            lane = diagram_utils.get_lane_from_fields(elem_data.get("fields", {}))
+            if lane and lane in object_ids:
+                oid = object_ids.get(eid)
+                if oid:
+                    try:
+                        ea_elem = repo.GetElementByID(oid)
+                        lane_oid = object_ids[lane]
+                        if ea_elem and ea_elem.ParentID != lane_oid:
+                            ea_elem.ParentID = lane_oid
+                            ea_elem.Update()
+                            print(f"  [DEBUG] Fixed parentage: {eid} → lane {lane}")
+                    except:
+                        pass
 
         # Set tagged values (must be done after elements exist)
         for eid, elem_oid in object_ids.items():
@@ -518,37 +546,65 @@ def main():
                     except:
                         pass
 
-        if not diag:
-            for i in range(proc_arch.Diagrams.Count):
-                d = proc_arch.Diagrams.GetAt(i)
+        if not diag and collab_elem:
+            collab_elem.Diagrams.Refresh()
+            for i in range(collab_elem.Diagrams.Count):
+                d = collab_elem.Diagrams.GetAt(i)
                 if d.Name == "Newsletter Process Architecture":
                     diag = d
                     break
 
-        if not diag:
-            diag = proc_arch.Diagrams.AddNew("Newsletter Process Architecture", "BusinessProcess")
+        if not diag and collab_elem:
+            diag = collab_elem.Diagrams.AddNew("Newsletter Process Architecture", "BusinessProcess")
             diag.Update()
-            proc_arch.Update()
+            collab_elem.Update()
             guid_map[diag_guid_key] = diag.DiagramGUID
-            print("  Created new diagram")
+            print("  Created new diagram under CollaborationModel")
 
         # Set diagram stereotype for BPMN2.0 rendering
         if diag:
+            diag.Stereotype = "Collaboration"
             diag.StereotypeEx = "BPMN2.0::Collaboration"
             diag.Update()
+            # Ensure t_xref for diagram stereotype (COM API may not persist it)
+            import sqlite3 as _sqlite3
+            import uuid as _uuid
+            _qea_path = args.qea
+            _dg_guid = diag.DiagramGUID
+            if _dg_guid:
+                _db = _sqlite3.connect(_qea_path)
+                _c = _db.cursor()
+                _c.execute("SELECT COUNT(*) FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
+                          (_dg_guid,))
+                if _c.fetchone()[0] == 0:
+                    _xref_id = f"{{{str(_uuid.uuid4())}}}"
+                    _c.execute(
+                        "INSERT INTO t_xref (XrefID, Client, Type, Visibility, Namespace, Description) "
+                        "VALUES (?, ?, 'Stereotypes', 'diagram property', 'BPMN2_0', ?)",
+                        (_xref_id, _dg_guid,
+                         "@STEREO;Name=Collaboration;FQName=BPMN2.0::Collaboration;@ENDSTEREO;")
+                    )
+                    _db.commit()
+                    print(f"  Added BPMN stereotype xref for diagram")
+                _db.close()
 
         # Place diagram objects — BPMN lane layout
         if diag:
+            # Derive lane info from elements dict (case-preserved)
+            lane_ids = {eid for eid, edata in elements.items() if edata.get("label") == "Lane"}
+            lane_order = sorted(lane_ids)
+            lanes_config = [{"id": lid} for lid in lane_order]
+
             diag.DiagramObjects.Refresh()
             existing_count = diag.DiagramObjects.Count
             if existing_count > 0:
                 print(f"  Diagram has {existing_count} objects, preserving positions")
                 # Add new elements not yet placed on the diagram
                 placed = diagram_utils.get_placed_ids(diag)
-                lane_ids = {"eaxpertise", "newssource"}
                 new_ids = [eid for eid, oid in object_ids.items()
                            if eid not in lane_ids and oid not in placed]
                 if new_ids:
+                    print(f"  [DEBUG] {len(new_ids)} new element(s) need diagram placement")
                     # Group new elements by lane
                     new_by_lane = {}
                     for eid in new_ids:
@@ -556,8 +612,7 @@ def main():
                         if lane and lane in lane_ids:
                             new_by_lane.setdefault(lane, []).append(eid)
                     if new_by_lane:
-                        lane_bounds = diagram_utils.compute_bpmn_lane_positions(
-                            [{"id": "eaxpertise"}, {"id": "newssource"}])
+                        lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
                         # Find existing elements already in each lane for append offset
                         all_by_lane = {}
                         for eid, edata in elements.items():
@@ -579,7 +634,6 @@ def main():
                             print(f"  Added {added} new element(s) to existing diagram")
             else:
                 print("  Placing elements on diagram (first time)")
-                lanes_config = [{"id": "eaxpertise"}, {"id": "newssource"}]
                 lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
                 # Group non-lane elements by lane
                 elements_by_lane = {}
@@ -588,19 +642,20 @@ def main():
                     if edata.get("label") == "Lane":
                         continue
                     lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
-                    if lane and lane in lane_bounds:
+                    if lane and lane in lane_ids and lane in lane_bounds:
                         elements_by_lane.setdefault(lane, []).append(eid)
                     else:
                         unassigned.append(eid)
                 if unassigned:
                     print(f"  Warning: {len(unassigned)} element(s) have no Lane field")
                 # Compute positions
-                positions = dict(lane_bounds)  # Lane positions
+                positions = dict(lane_bounds)
                 elem_pos = diagram_utils.compute_bpmn_element_positions(elements_by_lane, lane_bounds)
                 positions.update(elem_pos)
-                all_ids = list(lane_bounds.keys()) + [
+                all_ids = list(lane_ids) + [
                     eid for eid in elements
-                    if diagram_utils.get_lane_from_fields(elements[eid].get("fields", {})) in lane_bounds]
+                    if eid not in lane_ids
+                    and diagram_utils.get_lane_from_fields(elements[eid].get("fields", {})) in lane_ids]
                 count = diagram_utils.create_diagram_objects(diag, all_ids, object_ids, positions)
                 if count:
                     diag.Update()

@@ -277,6 +277,17 @@ Full delete/recreate orphan test passed:
 3. Remove relationship from MD → sync → 1 orphan deleted, back to 16 ✓
 4. Final EA→MD sync → clean MD, no remnants ✓
 
+## Bugfix: safe_id Case Collision (2026-06-30)
+All four BPMN scripts (`sync_sales_process_from_ea.py`, `sync_newsletter_process_from_ea.py`, `generate_sales_process_from_md.py`, `generate_newsletter_process_from_md.py`) had `safe_id()` lowercasing names via `name.lower()`, causing distinct elements with same name but different capitalization (e.g. Gateway "Accept Offer" vs Activity "Accept Offer") to collide to the same dict key.
+
+**Fix**: Changed `safe_id()` from `re.sub(r"[^a-z0-9]", "", name.lower())` to `re.sub(r"[^a-zA-Z0-9]", "", name)` — preserves case so `"AcceptOffer"` and `"acceptoffer"` produce different keys.
+
+**Collision handling in sync_sales_process_from_ea.py**: When two elements generate the same `safe_id(name)`, append `_TypeSuffix` for uniqueness. The eid is used in both `### Type—eid` headers AND flow references for consistent round-trip. Flow references now use eids (not element names) throughout the sales MD. This affected 2 of 45 elements (Gateway and Activity both named "Accept Offer").
+
+**Side effect**: The underscore `_` in suffixed eids (`AcceptOffer_Activity`) is stripped by `safe_id()`, so dict keys become `AcceptOfferActivity` — resolves correctly against flow text.
+
+**Impact**: Sales GUID map had 86 stale entries from earlier buggy runs. Reset to empty, generator ran clean with 0 created, 45 updated (all via name-based fallback since GUID map was empty). Idempotent re-run confirmed.
+
 ## Process Architecture
 - `EAxCRM-ProcessModel.md` holds the combined BPMN 2.0 process model (71 elements, 98 connectors)
 - Process Architecture package is at root level in the EA project
