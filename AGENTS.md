@@ -135,6 +135,11 @@ Attachment → Delivery (included_in)
 - Newsletter process parser fixed: `### ` handler now captures elements (was resetting `current=None`, losing all `### ` items)
 - Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) — removed 16 duplicate flow lines from MD
 - Newsletter model complete: 26 elements, 2 Lanes, 16 SequenceFlows, 39 total connectors, 7 scraping pipeline elements added
+- Sales process model complete: 45 elements (incl CM), 3 Lanes, 24 activities, 4 events, 2 gateways, 10 DataObjects, 20 SequenceFlows, 17 MessageFlows, 11 DataIO associations each
+- `diagram_utils.py` created: shared module for BPMN lane layout and diagonal layout across all generators
+- `generate_sales_process_from_md.py` created: full connector support (SequenceFlow, MessageFlow, DataInput/OutputAssoc), BPMN lane layout via diagram_utils
+- `EAxCRM-SalesProcess.md` created: flat `### ` structure with `- Lane:` fields on all 41 non-lane elements
+- Connector duplicate detection fixed: checks both short-form (SequenceFlow) and long-form (BPMN2.0::SequenceFlow) stereotypes
 
 ## Generator Scripts (experiments/modelgen/)
 - `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
@@ -273,14 +278,12 @@ Full delete/recreate orphan test passed:
 4. Final EA→MD sync → clean MD, no remnants ✓
 
 ## Process Architecture
-- `EAxCRM-ProcessModel.md` holds the BPMN 2.0 process model (1 CollaborationModel, 32 elements, 35 SequenceFlows)
+- `EAxCRM-ProcessModel.md` holds the combined BPMN 2.0 process model (71 elements, 98 connectors)
 - Process Architecture package is at root level in the EA project
 - `<<CollaborationModel>>` elements (Activity with CollaborationModel stereotype) describe logical processes
 - `sync_process_from_ea.py` — reads BPMN 2.0 elements and SequenceFlow connectors from EA → MD (direct SQLite, since COM API doesn't detect elements added by another EA session)
-- Sales process modelled: 3 Lanes (Customer, EAxpertise, Vendor), 21 Activities, 4 Events, 2 Gateways, 1 DataObject
 - BPMN adornments mapped: taskType (Abstract/User/Manual), gatewayType, loopCharacteristics, etc. (see BPMN_TAGGED_VALUES dict)
-- All 32 elements have descriptions
-- Future: create `generate_process_from_md.py` for bidirectional sync
+- Dedicated process models: `EAxCRM-NewsletterProcess.md` and `EAxCRM-SalesProcess.md` with individual generators
 
 ## Requirements Model
 - `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
@@ -315,10 +318,18 @@ Full delete/recreate orphan test passed:
 - **Flow deduplication**: Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) to avoid duplicate flow lines from duplicate connectors in EA (32→16 after fix).
 - **7 scraping elements**: Scheduled Scrape, Fetch URL List, Scrape Articles, Extract Headings and Summaries, Store New Articles, URL List, Scrape Complete — completing the full newsletter pipeline from scraping through review and distribution.
 
+## Sales Process Model
+- `EAxCRM-SalesProcess.md` holds the BPMN spec (1 CollaborationModel, 3 Lanes, 45 elements, 20 SequenceFlows, 17 MessageFlows, 11 DataOutputAssoc, 11 DataInputAssoc)
+- `generate_sales_process_from_md.py` — MD → EA generator (COM API only, full connector support)
+- `sales_guid_map.json` — GUID map for idempotent re-runs
+- Flat `### ` structure (all elements at same level, Lane field on each element indicates membership)
+- Lane fields used for diagram placement via diagram_utils BPMN lane layout
+- Connector existence check matches both short-form ("SequenceFlow") and long-form ("BPMN2.0::SequenceFlow") stereotypes
+
 ### Generator Scripts (experiments/modelgen/)
 
 ## Next Steps
 1. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
 2. Build IMAP experiment, PDF parsing experiment
-3. **Extend BPMN model** — add Pools, Lanes, Tasks, Events, Gateways to the CollaborationModel in EA, run `sync_process_from_ea.py` to verify MD output
-4. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements (lessons from newsletter generator: use DFS, not flat depth-sort)
+3. **Add Pools, Lanes, Tasks, Events, Gateways** to existing CollaborationModels in EA, run sync scripts to verify MD output
+4. **Extend BPMN generators** — add support for CallActivity, SubProcess, ChoreographyTask, Message, and other BPMN 2.0 element types
