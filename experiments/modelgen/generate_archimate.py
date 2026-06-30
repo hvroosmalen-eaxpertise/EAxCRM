@@ -7,6 +7,7 @@ Idempotent: stores a JSON mapping of MD-GUID -> EA-GUID after first run.
 Re-run to update names, descriptions, or add new elements/relations.
 """
 import sys, os, argparse, json, subprocess, time
+import diagram_utils
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -378,6 +379,19 @@ def main():
         print("\n--- Relationships ---")
         sync_relations(repo, relations, elements, guid_map)
 
+        # Build object_ids: el["id"] -> numeric EA ElementID
+        object_ids = {}
+        for el in elements:
+            ea_guid = guid_map.get(el["guid"])
+            if not ea_guid:
+                continue
+            try:
+                ea_elem = repo.GetElementByGuid(ea_guid)
+            except:
+                continue
+            if ea_elem:
+                object_ids[el["id"]] = ea_elem.ElementID
+
         # Phase 3: Diagram
         diag_guid_key = "_diagram_eax_archimate"
         existing_diag_guid = guid_map.get(diag_guid_key)
@@ -407,45 +421,25 @@ def main():
             save_guid_map(guid_map)
             print("  Created diagram — element layout will be auto-generated")
 
-            # Place elements with grid layout
-            LAYER_Y = {"Business": 20, "Application": 340, "Technology": 660, "Composite": 980}
-            W, H = 180, 100
-            GAP = 30
-            layer_counters = {}
-            added = 0
-
-            for el in elements:
-                ea_guid = guid_map.get(el["guid"])
-                if not ea_guid:
-                    continue
-                try:
-                    ea_elem = repo.GetElementByGuid(ea_guid)
-                except:
-                    continue
-                if not ea_elem:
-                    continue
-
-                layer = el.get("layer", "Business")
-                y = LAYER_Y.get(layer, 20)
-                idx = layer_counters.get(layer, 0)
-                x = idx * (W + GAP) + 20
-                layer_counters[layer] = idx + 1
-
-                dobj = diag.DiagramObjects.AddNew("", "")
-                dobj.ElementID = ea_elem.ElementID
-                dobj.left = x
-                dobj.top = y
-                dobj.right = x + W
-                dobj.bottom = y + H
-                dobj.Update()
-                added += 1
-
-            diag.Update()
-            print(f"  Placed {added} elements in diagram")
+            eid_list = [el["id"] for el in elements]
+            positions = diagram_utils.compute_diagonal_positions(eid_list,
+                per_row=8, step=200, row_gap=200, elem_width=180, elem_height=100)
+            count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
+            print(f"  Placed {count} elements on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
-            print("  Diagram already exists — preserving manual layout")
+            placed = diagram_utils.get_placed_ids(diag)
+            new_els = [el for el in elements if object_ids.get(el["id"]) not in placed]
+            if new_els:
+                new_ids = [el["id"] for el in new_els]
+                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
+                    start_index=len(placed), per_row=8, step=200, row_gap=200,
+                    elem_width=180, elem_height=100)
+                added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                print(f"  Added {added} new element(s) to existing diagram")
+            else:
+                print("  Diagram already has all elements — preserving manual layout")
 
         diag.StereotypeEx = "ArchiMate3::ArchiMate_ArchimateDiagram"
         diag.Update()

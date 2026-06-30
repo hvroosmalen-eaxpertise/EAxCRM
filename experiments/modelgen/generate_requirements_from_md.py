@@ -4,6 +4,7 @@ Usage:
     python generate_requirements_from_md.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-Requirements.md]
 """
 import sys, os, argparse, json, re, subprocess
+import diagram_utils
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -343,67 +344,39 @@ def main():
             save_guid_map(guid_map)
             print("  Created diagram — placing all requirements")
 
-            W, H = 220, 100
-            GAP = 30
-            cols = 5
-            for idx, req in enumerate(requirements):
-                ea_elem = resolve_element(req)
-                if not ea_elem:
-                    continue
+            object_ids = {}
+            for req in requirements:
+                el = resolve_element(req)
+                if el:
+                    object_ids[req["id"]] = el.ElementID
 
-                col = idx % cols
-                row = idx // cols
-                x = col * (W + GAP) + 20
-                y = row * (H + GAP) + 20
-
-                dobj = diag.DiagramObjects.AddNew("", "")
-                dobj.ElementID = ea_elem.ElementID
-                dobj.left = x
-                dobj.top = y
-                dobj.right = x + W
-                dobj.bottom = y + H
-                dobj.Update()
-
-            diag.Update()
-            print(f"  Placed {len(requirements)} requirements on diagram")
+            eid_list = [req["id"] for req in requirements]
+            positions = diagram_utils.compute_diagonal_positions(eid_list,
+                per_row=8, step=200, row_gap=200, elem_width=220, elem_height=100)
+            count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
+            print(f"  Placed {count} requirements on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
 
             # Build set of element IDs already on the diagram
             diag.DiagramObjects.Refresh()
-            placed_ids = set()
-            for i in range(diag.DiagramObjects.Count):
-                dobj = diag.DiagramObjects.GetAt(i)
-                placed_ids.add(dobj.ElementID)
+            placed = diagram_utils.get_placed_ids(diag)
 
-            # Add missing requirements to the diagram
-            W, H = 220, 100
-            GAP = 30
-            cols = 5
-            new_count = 0
-            for idx, req in enumerate(requirements):
-                ea_elem = resolve_element(req)
-                if not ea_elem or ea_elem.ElementID in placed_ids:
-                    continue
+            object_ids = {}
+            for req in requirements:
+                el = resolve_element(req)
+                if el:
+                    object_ids[req["id"]] = el.ElementID
 
-                col = idx % cols
-                row = idx // cols
-                x = col * (W + GAP) + 20
-                y = row * (H + GAP) + 20
-
-                dobj = diag.DiagramObjects.AddNew("", "")
-                dobj.ElementID = ea_elem.ElementID
-                dobj.left = x
-                dobj.top = y
-                dobj.right = x + W
-                dobj.bottom = y + H
-                dobj.Update()
-                new_count += 1
-
-            if new_count:
-                diag.Update()
-                print(f"  Added {new_count} new requirement(s) to existing diagram")
+            new_reqs = [req for req in requirements if object_ids.get(req["id"]) not in placed]
+            if new_reqs:
+                new_ids = [req["id"] for req in new_reqs]
+                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
+                    start_index=len(placed), per_row=8, step=200, row_gap=200,
+                    elem_width=220, elem_height=100)
+                added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                print(f"  Added {added} new requirement(s) to existing diagram")
             else:
                 print("  Diagram already has all requirements — preserving manual layout")
 

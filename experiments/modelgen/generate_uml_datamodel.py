@@ -7,6 +7,7 @@ Idempotent: stores a GUID mapping after first run.
 Re-run to update names, descriptions, attribute types, or add new entities/relations.
 """
 import sys, os, argparse, json, subprocess, re
+import diagram_utils
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -509,6 +510,18 @@ def main():
                     break
         print(f"  Set cardinality on {cardinality_ok} connector(s)")
 
+        # Build object_ids dict: entity id → EA ElementID
+        object_ids = {}
+        for ent in entities:
+            ea_guid = guid_map.get(ent["guid"])
+            if ea_guid:
+                try:
+                    ea_elem = repo.GetElementByGuid(ea_guid)
+                    if ea_elem:
+                        object_ids[ent["id"]] = ea_elem.ElementID
+                except:
+                    pass
+
         # Phase 3: Diagram
         print("\n--- Diagram ---")
         diag_guid_key = "_diagram_eax_datamodel"
@@ -536,79 +549,24 @@ def main():
             save_guid_map(guid_map)
             print("  Created diagram — placing all entities")
 
-            W, H = 200, 120
-            GAP = 40
-            cols = 4
-            for idx, ent in enumerate(entities):
-                ea_guid = guid_map.get(ent["guid"])
-                if not ea_guid:
-                    continue
-                try:
-                    ea_elem = repo.GetElementByGuid(ea_guid)
-                except:
-                    continue
-                if not ea_elem:
-                    continue
-
-                col = idx % cols
-                row = idx // cols
-                x = col * (W + GAP) + 20
-                y = row * (H + GAP) + 20
-
-                dobj = diag.DiagramObjects.AddNew("", "")
-                dobj.ElementID = ea_elem.ElementID
-                dobj.left = x
-                dobj.top = y
-                dobj.right = x + W
-                dobj.bottom = y + H
-                dobj.Update()
-
-            diag.Update()
-            print(f"  Placed {len(entities)} entities on diagram")
+            eid_list = [ent["id"] for ent in entities]
+            positions = diagram_utils.compute_diagonal_positions(eid_list,
+                per_row=8, step=200, row_gap=200, elem_width=200, elem_height=120)
+            count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
+            print(f"  Placed {count} entities on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
 
-            # Build set of element IDs already on the diagram
-            diag.DiagramObjects.Refresh()
-            placed_ids = set()
-            for i in range(diag.DiagramObjects.Count):
-                dobj = diag.DiagramObjects.GetAt(i)
-                placed_ids.add(dobj.ElementID)
-
-            # Add missing entities to the diagram
-            W, H = 200, 120
-            GAP = 40
-            cols = 4
-            new_count = 0
-            for idx, ent in enumerate(entities):
-                ea_guid = guid_map.get(ent["guid"])
-                if not ea_guid:
-                    continue
-                try:
-                    ea_elem = repo.GetElementByGuid(ea_guid)
-                except:
-                    continue
-                if not ea_elem or ea_elem.ElementID in placed_ids:
-                    continue
-
-                col = idx % cols
-                row = idx // cols
-                x = col * (W + GAP) + 20
-                y = row * (H + GAP) + 20
-
-                dobj = diag.DiagramObjects.AddNew("", "")
-                dobj.ElementID = ea_elem.ElementID
-                dobj.left = x
-                dobj.top = y
-                dobj.right = x + W
-                dobj.bottom = y + H
-                dobj.Update()
-                new_count += 1
-
-            if new_count:
-                diag.Update()
-                print(f"  Added {new_count} new entit(ies) to existing diagram")
+            placed = diagram_utils.get_placed_ids(diag)
+            new_ents = [ent for ent in entities if object_ids.get(ent["id"]) not in placed]
+            if new_ents:
+                new_ids = [ent["id"] for ent in new_ents]
+                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
+                    start_index=len(placed), per_row=8, step=200, row_gap=200,
+                    elem_width=200, elem_height=120)
+                added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                print(f"  Added {added} new entit(ies) to existing diagram")
             else:
                 print("  Diagram already has all entities — preserving manual layout")
 
