@@ -283,7 +283,12 @@ def main():
     if flow_connectors:
         lines.append("### Sequence Flows")
         lines.append("")
+        seen = set()
         for src_id, tgt_id, stereo, name, notes, guid in flow_connectors:
+            key = (src_id, tgt_id, name.strip())
+            if key in seen:
+                continue
+            seen.add(key)
             src_name = elem_by_id.get(src_id, {}).get("name", f"ID:{src_id}")
             tgt_name = elem_by_id.get(tgt_id, {}).get("name", f"ID:{tgt_id}")
             cond = f" [{name}]" if name.strip() else ""

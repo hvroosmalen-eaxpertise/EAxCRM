@@ -132,6 +132,9 @@ Attachment → Delivery (included_in)
 - New entities: Vendor, Delivery; expanded: Service (+5 attributes then -2), Attachment (+delivery_id)
 - New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
 - `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
+- Newsletter process parser fixed: `### ` handler now captures elements (was resetting `current=None`, losing all `### ` items)
+- Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) — removed 16 duplicate flow lines from MD
+- Newsletter model complete: 26 elements, 2 Lanes, 16 SequenceFlows, 39 total connectors, 7 scraping pipeline elements added
 
 ## Generator Scripts (experiments/modelgen/)
 - `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
@@ -302,18 +305,20 @@ Full delete/recreate orphan test passed:
 
 ## Newsletter Process Model
 - Elements placed directly under "Process Architecture" package (no sub-package)
-- `EAxCRM-NewsletterProcess.md` holds the BPMN spec (1 CollaborationModel, 2 Lanes, 27 elements, 16 SequenceFlows)
+- `EAxCRM-NewsletterProcess.md` holds the BPMN spec (1 CollaborationModel, 2 Lanes, 26 elements, 16 SequenceFlows, 39 total connectors incl DataAssociations)
 - `generate_newsletter_process_from_md.py` — MD → EA generator (COM API only, like data model generator)
 - `sync_newsletter_process_from_ea.py` — EA → MD sync (reads Newsletter Process Architecture package)
 - Uses same GUID map pattern (`newsletter_guid_map.json`) for idempotent re-runs
 - **DFS traversal**: parents created before children so `ParentID` is correctly set (critical for multi-lane models — flat depth-sort causes all depth-2 elements to inherit the last depth-1 parent)
 - **Stereotype mapping**: MD header `"BPMN Collaboration"` maps to EA Stereotype `"CollaborationModel"` via `LABEL_TO_STEREO` dict
+- **Flat MD support**: Sync outputs all descendants of CollaborationModel at `### ` level (flat hierarchy). Parser `### ` handler captures these as proper elements (bugfix 2026-06-29: was setting `current=None`, losing all `### ` elements).
+- **Flow deduplication**: Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) to avoid duplicate flow lines from duplicate connectors in EA (32→16 after fix).
+- **7 scraping elements**: Scheduled Scrape, Fetch URL List, Scrape Articles, Extract Headings and Summaries, Store New Articles, URL List, Scrape Complete — completing the full newsletter pipeline from scraping through review and distribution.
 
 ### Generator Scripts (experiments/modelgen/)
 
 ## Next Steps
-1. **TOMORROW: Test bidirectional sync** — make changes in EA, run `sync_datamodel_from_ea.py`, verify MD updates with correct notes/types/attributes; then run `generate_uml_datamodel.py` to push back, verify EA reflects changes
-2. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
-3. Build IMAP experiment, PDF parsing experiment
-4. **Extend BPMN model** — add Pools, Lanes, Tasks, Events, Gateways to the CollaborationModel in EA, run `sync_process_from_ea.py` to verify MD output
-5. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements (lessons from newsletter generator: use DFS, not flat depth-sort)
+1. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
+2. Build IMAP experiment, PDF parsing experiment
+3. **Extend BPMN model** — add Pools, Lanes, Tasks, Events, Gateways to the CollaborationModel in EA, run `sync_process_from_ea.py` to verify MD output
+4. **Create `generate_process_from_md.py`** — MD → EA generator for BPMN 2.0 process elements (lessons from newsletter generator: use DFS, not flat depth-sort)

@@ -111,6 +111,7 @@ def parse_md(path):
     section = None
     fields = {}
     label = ""
+    parent_eid = None  # most recent ### element, used as parent for #### children
 
     with open(path, encoding="utf-8") as f:
         lines = f.readlines()
@@ -139,6 +140,7 @@ def parse_md(path):
                 eid_part = eid_part.strip()
                 current = eid_part
                 fields = {}
+                parent_eid = safe_id(current)
             continue
 
         if section != "flows" and stripped.startswith("#### "):
@@ -148,12 +150,13 @@ def parse_md(path):
                     "fields": dict(fields),
                 }
             parts = stripped[5:].strip()
-            if "—" in parts:
-                label, eid_part = parts.split("—", 1)
-                label = label.strip()
-                eid_part = eid_part.strip()
-            elif "–" in parts:
-                label, eid_part = parts.split("–", 1)
+            sep_char = None
+            for s in ("—", "–"):
+                if s in parts:
+                    sep_char = s
+                    break
+            if sep_char:
+                label, eid_part = parts.split(sep_char, 1)
                 label = label.strip()
                 eid_part = eid_part.strip()
             else:
@@ -161,6 +164,8 @@ def parse_md(path):
                 eid_part = parts
             current = eid_part
             fields = {}
+            if parent_eid:
+                fields["Parent"] = parent_eid
             continue
         if stripped.startswith("### "):
             if current and label:
@@ -168,9 +173,22 @@ def parse_md(path):
                     "label": label,
                     "fields": dict(fields),
                 }
-            current = None
-            label = ""
+            parts_after = stripped[4:].strip()
+            sep_char = None
+            for s in ("—", "–"):
+                if s in parts_after:
+                    sep_char = s
+                    break
+            if sep_char:
+                label, eid_part = parts_after.split(sep_char, 1)
+                label = label.strip()
+                eid_part = eid_part.strip()
+            else:
+                label = parts_after
+                eid_part = parts_after
+            current = eid_part
             fields = {}
+            parent_eid = safe_id(current)
             continue
 
         if current and stripped.startswith("- "):
