@@ -7,6 +7,7 @@ Idempotent: uses GUID map for re-runs. Only creates new elements/connectors/diag
 on first run. Updates existing ones on subsequent runs. Preserves manual diagram layout.
 """
 import sys, os, argparse, re, json, subprocess, win32com.client, pythoncom
+import diagram_utils
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -536,73 +537,74 @@ def main():
             diag.StereotypeEx = "BPMN2.0::Collaboration"
             diag.Update()
 
-        # Place diagram objects only if this is a fresh diagram (no objects yet)
+        # Place diagram objects — BPMN lane layout
         if diag:
             diag.DiagramObjects.Refresh()
             existing_count = diag.DiagramObjects.Count
             if existing_count > 0:
-                print(f"  Diagram has {existing_count} objects, preserving manual layout")
+                print(f"  Diagram has {existing_count} objects, preserving positions")
+                # Add new elements not yet placed on the diagram
+                placed = diagram_utils.get_placed_ids(diag)
+                lane_ids = {"eaxpertise", "newssource"}
+                new_ids = [eid for eid, oid in object_ids.items()
+                           if eid not in lane_ids and oid not in placed]
+                if new_ids:
+                    # Group new elements by lane
+                    new_by_lane = {}
+                    for eid in new_ids:
+                        lane = diagram_utils.get_lane_from_fields(elements[eid].get("fields", {}))
+                        if lane and lane in lane_ids:
+                            new_by_lane.setdefault(lane, []).append(eid)
+                    if new_by_lane:
+                        lane_bounds = diagram_utils.compute_bpmn_lane_positions(
+                            [{"id": "eaxpertise"}, {"id": "newssource"}])
+                        # Find existing elements already in each lane for append offset
+                        all_by_lane = {}
+                        for eid, edata in elements.items():
+                            if edata.get("label") == "Lane":
+                                continue
+                            lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
+                            if lane and lane in lane_ids:
+                                all_by_lane.setdefault(lane, []).append(eid)
+                        new_positions = {}
+                        for lane_id, eids in new_by_lane.items():
+                            combined = all_by_lane.get(lane_id, [])
+                            all_epos = diagram_utils.compute_bpmn_element_positions(
+                                {lane_id: combined}, lane_bounds)
+                            for eid in eids:
+                                if eid in all_epos:
+                                    new_positions[eid] = all_epos[eid]
+                        added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                        if added:
+                            print(f"  Added {added} new element(s) to existing diagram")
             else:
                 print("  Placing elements on diagram (first time)")
-                lane_y_top = 0
-                lane_y_bot = 120
-
-                pos = {
-                    "eaxpertise": (0, 0, 2200, 130),
-                    "startnewsletter":  (30, 30, 80, 80),
-                    "checkcadence":     (140, 30, 240, 85),
-                    "6weekselapsed":    (300, 20, 360, 80),
-                    "browseavailablearticles": (430, 30, 530, 85),
-                    "selectarticles":   (600, 30, 700, 85),
-                    "selectedarticles": (770, 30, 840, 80),
-                    "composenewsletter": (910, 30, 1010, 85),
-                    "newsletterdraft":  (1080, 30, 1150, 80),
-                    "submitforreview":  (1220, 30, 1320, 85),
-                    "reviewapproved":   (1390, 20, 1450, 80),
-                    "approvednewsletter": (1520, 30, 1590, 80),
-                    "sendnewsletter":   (1660, 30, 1760, 85),
-                    "contactlist":      (1830, 30, 1900, 80),
-                    "sentnewsletter":   (1970, 30, 2040, 80),
-                    "newslettersent":   (2110, 30, 2160, 80),
-                    "newssource":       (0, 350, 1200, 480),
-                    "scheduledscrape":  (30, 380, 80, 430),
-                    "fetchurllist":     (150, 380, 250, 435),
-                    "urllist":          (320, 380, 390, 430),
-                    "scrapearticles":   (460, 380, 560, 435),
-                    "extractheadingsandsummaries": (630, 380, 730, 435),
-                    "articlepool":      (800, 380, 870, 430),
-                    "storenewarticles": (940, 380, 1040, 435),
-                    "scrapecomplete":   (1110, 380, 1160, 430),
-                }
-
-                draw_order = [
-                    "eaxpertise", "newssource",
-                    "startnewsletter", "checkcadence", "6weekselapsed",
-                    "browseavailablearticles", "selectarticles", "selectedarticles",
-                    "composenewsletter", "newsletterdraft", "submitforreview",
-                    "reviewapproved", "approvednewsletter", "sendnewsletter", "contactlist",
-                    "sentnewsletter", "newslettersent",
-                    "scheduledscrape", "fetchurllist", "urllist",
-                    "scrapearticles", "extractheadingsandsummaries", "articlepool",
-                    "storenewarticles", "scrapecomplete",
-                ]
-
-                for eid in draw_order:
-                    dobj_oid = object_ids.get(eid)
-                    if not dobj_oid or eid not in pos:
+                lanes_config = [{"id": "eaxpertise"}, {"id": "newssource"}]
+                lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
+                # Group non-lane elements by lane
+                elements_by_lane = {}
+                unassigned = []
+                for eid, edata in elements.items():
+                    if edata.get("label") == "Lane":
                         continue
-                    l, t, r, b = pos[eid]
-                    dobj = diag.DiagramObjects.AddNew("", "")
-                    dobj.ElementID = dobj_oid
-                    dobj.left = l
-                    dobj.top = t
-                    dobj.right = r
-                    dobj.bottom = b
-                    dobj.Update()
-                    diag.DiagramObjects.Refresh()
-
-                diag.Update()
-                print(f"  Placed {len(draw_order)} elements on diagram")
+                    lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
+                    if lane and lane in lane_bounds:
+                        elements_by_lane.setdefault(lane, []).append(eid)
+                    else:
+                        unassigned.append(eid)
+                if unassigned:
+                    print(f"  Warning: {len(unassigned)} element(s) have no Lane field")
+                # Compute positions
+                positions = dict(lane_bounds)  # Lane positions
+                elem_pos = diagram_utils.compute_bpmn_element_positions(elements_by_lane, lane_bounds)
+                positions.update(elem_pos)
+                all_ids = list(lane_bounds.keys()) + [
+                    eid for eid in elements
+                    if diagram_utils.get_lane_from_fields(elements[eid].get("fields", {})) in lane_bounds]
+                count = diagram_utils.create_diagram_objects(diag, all_ids, object_ids, positions)
+                if count:
+                    diag.Update()
+                    print(f"  Placed {count} elements on diagram")
 
         # Save GUID map
         guid_map["_collaboration_model"] = collab_elem.ElementGUID if collab_elem else ""
