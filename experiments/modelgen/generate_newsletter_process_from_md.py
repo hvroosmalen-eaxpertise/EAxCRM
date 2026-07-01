@@ -92,16 +92,6 @@ BPMN_TAGGED_VALUES = {
         "isCollection": "Is Collection",
     },
 }
-
-ELEM_SIZE = {
-    "Activity": (100, 55),
-    "StartEvent": (50, 50),
-    "EndEvent": (50, 50),
-    "Gateway": (60, 60),
-    "DataObject": (30, 50),
-    "Lane": (400, 120),
-}
-
 def safe_id(name):
     return re.sub(r"[^a-zA-Z0-9]", "", name)
 
@@ -268,6 +258,8 @@ def main():
 
     elements, sequence_flows = parse_md(args.md)
     print(f"Parsed {len(elements)} elements, {len(sequence_flows)} sequence flows")
+    elem_types = {eid: data["label"] for eid, data in elements.items()
+                  if data.get("label") and data["label"] != "Lane"}
 
     guid_map = {}
     if os.path.exists(GUID_MAP_FILE):
@@ -621,11 +613,15 @@ def main():
                             lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
                             if lane and lane in lane_ids:
                                 all_by_lane.setdefault(lane, []).append(eid)
+                        # Sort by process flow order so new elements get correct positions
+                        for lane_id in all_by_lane:
+                            all_by_lane[lane_id] = diagram_utils.sort_by_flow_order(
+                                all_by_lane[lane_id], sequence_flows)
                         new_positions = {}
                         for lane_id, eids in new_by_lane.items():
                             combined = all_by_lane.get(lane_id, [])
                             all_epos = diagram_utils.compute_bpmn_element_positions(
-                                {lane_id: combined}, lane_bounds)
+                                 {lane_id: combined}, lane_bounds, elem_types=elem_types)
                             for eid in eids:
                                 if eid in all_epos:
                                     new_positions[eid] = all_epos[eid]
@@ -648,9 +644,13 @@ def main():
                         unassigned.append(eid)
                 if unassigned:
                     print(f"  Warning: {len(unassigned)} element(s) have no Lane field")
+                # Sort elements within each lane by process flow order
+                for lane_id in elements_by_lane:
+                    elements_by_lane[lane_id] = diagram_utils.sort_by_flow_order(
+                        elements_by_lane[lane_id], sequence_flows)
                 # Compute positions
                 positions = dict(lane_bounds)
-                elem_pos = diagram_utils.compute_bpmn_element_positions(elements_by_lane, lane_bounds)
+                elem_pos = diagram_utils.compute_bpmn_element_positions(elements_by_lane, lane_bounds, elem_types=elem_types)
                 positions.update(elem_pos)
                 all_ids = list(lane_ids) + [
                     eid for eid in elements

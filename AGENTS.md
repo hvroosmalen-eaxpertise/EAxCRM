@@ -14,6 +14,13 @@ Without this sync, any conversation about the model is based on stale data. The 
 
 **After any sync that changes the model, you MUST update this AGENTS.md** to document new entities, renamed entities, new attributes, and new relationships. Review the diff of `EAxCRM-DataModel.md` and update the "Data Model Summary" section below.
 
+## 🚫 MANDATORY: NEVER Kill EA Processes
+**You must NEVER kill or stop any EA.exe process.** Not external tools, not PowerShell, not taskkill, not Stop-Process, nothing. The user has EA open and may have unsaved diagram layout work.
+
+The generator scripts (`generate_*.py`) have their own safe cleanup: they track PIDs that existed *before* the script started via `before_pids`, and only kill new PIDs that their own EA COM API invocation created. That is the ONLY acceptable EA process cleanup mechanism.
+
+**Rule**: If you need to clear a lock on `EAxCRM.qea`, ask the user to close EA. Never touch EA processes yourself.
+
 ## Modelling vs Implementation Level
 Unless I say "implement in Django" or "update the models.py", we stay at **modelling level** — only the EA data model (`EAxCRM.qea`) and `EAxCRM-DataModel.md` are changed. No Django code, no database migrations, no Python model files. This avoids premature coupling between the logical model and the implementation.
 
@@ -287,6 +294,28 @@ All four BPMN scripts (`sync_sales_process_from_ea.py`, `sync_newsletter_process
 **Side effect**: The underscore `_` in suffixed eids (`AcceptOffer_Activity`) is stripped by `safe_id()`, so dict keys become `AcceptOfferActivity` — resolves correctly against flow text.
 
 **Impact**: Sales GUID map had 86 stale entries from earlier buggy runs. Reset to empty, generator ran clean with 0 created, 45 updated (all via name-based fallback since GUID map was empty). Idempotent re-run confirmed.
+
+## BPMN Element Sizing: Type-Appropriate Bounds (2026-07-01)
+
+**Approach**: All four bounds (`left`, `top`, `right`, `bottom`) are set on every diagram object (matching the Sales Process generator convention). EA renders each BPMN stereotype at its native visual shape within these bounds.
+
+**BPMN element dimensions** in `BPMN_ELEMENT_SIZES` (`diagram_utils.py`):
+
+| BPMN Type | Width | Height |
+|-----------|-------|--------|
+| Activity/Task | 110 | 60 |
+| StartEvent/EndEvent/IntermediateEvent | 30 | 30 |
+| Gateway (all variants) | 42 | 42 |
+| DataObject/DataStore/Artifact | 35 | 50 |
+| TextAnnotation | 80 | 50 |
+
+**Grid**: Elements are arranged left-to-right in rows within each lane, centered within uniform grid cells (using `elem_width + h_gap` spacing, default 180+30=210). Each element uses its own width/height for the bounding box, not the grid cell size. Smaller types are visually centered within their cell.
+
+**Two key changes**:
+1. `_place_diagram_object()` sets `right` and `bottom` (was left/top-only on 2026-06-30)
+2. `compute_bpmn_element_positions()` now accepts `elem_types` parameter — a dict of `{eid: label_string}` — to look up per-element sizes from `BPMN_ELEMENT_SIZES`. Falls back to uniform `elem_width`/`elem_height` if `elem_types` is None.
+
+**Sorting**: `sort_by_flow_order()` applied to newsletter generator (first-time and re-run placement). Uses DFS pre-order traversal from flow-participant elements with no incoming edges. DataObjects append at end. Cycles handled by visited-element skip.
 
 ## Process Architecture
 - `EAxCRM-ProcessModel.md` holds the combined BPMN 2.0 process model (71 elements, 98 connectors)
