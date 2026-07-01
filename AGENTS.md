@@ -368,6 +368,19 @@ All four BPMN scripts (`sync_sales_process_from_ea.py`, `sync_newsletter_process
 
 ### Generator Scripts (experiments/modelgen/)
 
+## Cross-Session Memory
+- `opencode-memory` plugin (`@mathew-cf/opencode-memory@1.0.1`) installed in `~\.config\opencode\opencode.jsonc`
+- Memory directory at `_opencode_memory/` in the repo root (tracked by git, pushed to GitHub)
+- Environment variable `OPENCODE_MEMORY_DIR` set permanently to the repo path
+- 7 category subdirs: `preferences/`, `repos/`, `technical/`, `people/`, `workflows/`, `snippets/`, `notes/`
+- **Keyword search** via ripgrep: available (Windows x64 supported)
+- **Semantic search** via rag-cli: unavailable on Windows (no prebuilt binary; would need Rust/cargo)
+- Skill auto-registered at `~/.agents/skills/opencode-memory/`
+- Tools: `memory_search`, `memory_list`, `memory_save`, `memory_access`, `memory_setup`
+- Session tools: `session_search`, `session_read`, `session_list`
+- To re-bootstrap (e.g. after model download fix): `bunx @mathew-cf/opencode-memory init --skip-skills` (remove the re-created `.git` afterward)
+- `.gitignore` excludes `_opencode_memory/.git/` to prevent nested repo issues if init is re-run
+
 ## Next Steps
 1. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
 2. Build IMAP experiment, PDF parsing experiment
