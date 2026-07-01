@@ -223,9 +223,9 @@ with open(GUID_MAP_PATH, "w") as f:
     json.dump(guid_map, f, indent=2)
 ```
 
-### Re-run Position Preservation
+### Re-run Position Management
 
-On re-runs, only place NEW diagram objects. Skip elements already in the diagram:
+On re-runs, the **Newsletter generator** repositions ALL diagram objects using flow layout (see "BPMN Lane Layout → Re-run Position Management" above). Other generators only place NEW diagram objects:
 
 ```python
 placed = diagram_utils.get_placed_ids(diag)
@@ -264,6 +264,50 @@ conn.StereotypeEx = "BPMN2.0::SequenceFlow"
 conn.Update()
 ```
 
+### Connector EDGE Fix (Center-Edge Attachment)
+
+After element positions are set, force each connector's EDGE to the correct edge and add a midpoint waypoint at center-Y:
+
+```python
+diag.DiagramLinks.Refresh()
+diag.DiagramObjects.Refresh()
+pos_map = {}
+for di in range(diag.DiagramObjects.Count):
+    dobj = diag.DiagramObjects.GetAt(di)
+    pos_map[dobj.ElementID] = (dobj.left, dobj.top, dobj.right, dobj.bottom)
+
+for i in range(diag.DiagramLinks.Count):
+    dl = diag.DiagramLinks.GetAt(i)
+    dl.LineStyle = 5  # Orthogonal Rounded
+    conn = repo.GetConnectorByID(dl.ConnectorID)
+    src = pos_map.get(conn.ClientID)
+    tgt = pos_map.get(conn.SupplierID)
+    if src and tgt:
+        srcl, srct, srcr, srcb = src
+        tgtl, tgtt, tgtr, tgtb = tgt
+        src_cy = (srct + srcb) / 2
+        tgt_cy = (tgtt + tgtb) / 2
+        if srcr <= tgtl:  # forward flow
+            edge = "2"     # right edge of source
+            mx = int((srcr + tgtl) / 2)
+            dl.Path = f"{mx}:{int(src_cy)};"  # single midpoint at center-Y
+        else:  # backward flow
+            edge = "4"     # left edge of source
+            mx = int((srcl + tgtr) / 2)
+            dl.Path = f"{mx}:{int(src_cy)};"
+        geo = dl.Geometry
+        new_geo = re.sub(r'EDGE=\d', f'EDGE={edge}', geo)
+        if new_geo != geo:
+            dl.Geometry = new_geo
+    dl.Update()
+```
+
+Key points:
+- EDGE=2 means right edge, EDGE=4 means left edge (source side only)
+- A single midpoint waypoint at center-Y guides EA to attach at edge centers on both ends
+- LineStyle=5 = Orthogonal Rounded
+- The EDGE field in Geometry is set AFTER positions so EA uses correct relative positions
+
 ## Diagram Object Management
 
 ### Deleting Existing Objects Before Re-Place
@@ -283,24 +327,59 @@ Note: `DiagramObjects.Delete()` is 1-indexed. You cannot delete the last remaini
 
 ## BPMN Lane Layout
 
-For BPMN diagrams with lanes, see `diagram_utils.py:16-42`:
+For BPMN diagrams with lanes, see `diagram_utils.py`.
 
-- **Lane dimensions**: 500px height, 1000px width, 250px gap between lanes
-- **BPMN element dimensions** (from `diagram_utils.BPMN_ELEMENT_SIZES`):
+### BPMN Element Sizes
 
-  | BPMN Type | Width | Height |
-  |-----------|-------|--------|
-  | Activity/Task | 110 | 60 |
-  | StartEvent/EndEvent/IntermediateEvent | 30 | 30 |
-  | Gateway (all variants) | 42 | 42 |
-  | DataObject/DataStore/Artifact | 35 | 50 |
-  | TextAnnotation | 80 | 50 |
+From `diagram_utils.BPMN_ELEMENT_SIZES`:
 
-- **Grid cell** (for spacing): Uses `elem_width + h_gap` (default 180+30=210). Small element types are visually centered within their grid cell.
-- **Elements per row**: Computed dynamically from lane width
-- **Element spacing**: 30px horizontal, 30px vertical
-- **Elements start at** {20, 40} within their lane (computed as `lane_left + 20`, `lane_top + 40`)
-- Each lane starts at y=30 with `lane_height + gap` between them
+| BPMN Type | Width | Height |
+|-----------|-------|--------|
+| Activity/Task | 110 | 60 |
+| StartEvent/EndEvent/IntermediateEvent | 30 | 30 |
+| Gateway (all variants) | 42 | 42 |
+| DataObject/DataStore/Artifact | 35 | 50 |
+| TextAnnotation | 80 | 50 |
+
+### Flow Layout (`compute_bpmn_flow_layout`)
+
+Replaces the old grid-based layout. Uses longest-path DFS placement:
+
+1. **Row 0**: Longest acyclic path in each lane — elements placed in a straight horizontal line
+2. **Row 1**: Remaining flow elements (side branches) — below their predecessor
+3. **Row 2**: DataObjects — below all flow elements
+
+**Parameters:**
+- `h_gap = 60` (horizontal space between elements)
+- `v_gap = 30` (vertical space between rows)
+- Elements start at `lane_left + 70` (clears lane+pool double border)
+- Lane width = widest lane's content width (`max_width = tw + 90` for 70px left + 20px right margin)
+- All lanes are expanded to the widest lane's width so they share a uniform right edge
+
+**Longest path algorithm (`find_longest_path`):**
+- DFS with visited-set, handles cycles
+- Starts from nodes with no incoming edges (and at least one outgoing)
+- Returns node IDs in traversal order
+
+### Re-run Position Management
+
+On re-run (existing diagram), ALL elements are repositioned using flow layout, not just new ones:
+
+```python
+computing positions via compute_bpmn_flow_layout
+elem_pos, updated_bounds = compute_bpmn_flow_layout(...)
+for each existing diagram object:
+    if eid in elem_pos:
+        dobj.left = int(l)
+        dobj.top = int(-t)       # Y coordinate negation
+        dobj.right = int(r)
+        dobj.bottom = int(-b)    # Y coordinate negation
+        dobj.Update()
+    elif eid in updated_bounds:
+        # Also update lane bounds (width may have expanded)
+```
+
+New elements (not yet in diagram) are added after repositioning existing ones.
 
 ## Non-BPMN Layout (Diagonal Cascade — Legacy)
 
@@ -319,7 +398,8 @@ Wrap after 8: reset X to column 0, continue Y with row offset
 ## Platform-Specific Gotchas
 
 ### Python 64-bit + EA 32-bit COM Bridge
-- Python 3.13 64-bit can call EA's 32-bit COM server via `win32com.client.Dispatch("EA.Repository")`
+- Python 3.13 64-bit can call EA's 32-bit COM server via COM API
+- Use `win32com.client.Dispatch("EA.App")` + `.Repository` instead of `Dispatch("EA.Repository")` — avoids hangs when many zombie EA processes exist
 - `repo.OpenFile()` can hang if EA is in a bad state. Use try/finally with `except: pass`.
 - EA processes accumulate between runs — track pre-existing PIDs and only kill your own zombies.
 
@@ -346,7 +426,7 @@ After placing diagram objects, verify coordinate correctness:
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/diagram_utils.py` | Shared layout functions (118 lines) |
+| `experiments/modelgen/diagram_utils.py` | Shared layout functions — diagonal cascade, BPMN lane grid, BPMN flow layout (`compute_bpmn_flow_layout`, `find_longest_path`), connector helpers |
 | `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator |
 | `experiments/modelgen/generate_uml_datamodel.py` | UML Data Model diagram generator |
 | `experiments/modelgen/generate_sales_process_from_md.py` | Sales Process BPMN generator |
