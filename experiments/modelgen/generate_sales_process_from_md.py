@@ -671,6 +671,19 @@ def main():
                     diag.Update()
                     print(f"  Placed {count} elements on diagram")
 
+        # Set Orthogonal Rounded line style for all connector links on this diagram
+        try:
+            diag.DiagramLinks.Refresh()
+            link_count = diag.DiagramLinks.Count
+            for i in range(link_count):
+                dl = diag.DiagramLinks.GetAt(i)
+                dl.LineStyle = 5  # Orthogonal Rounded
+                dl.Update()
+            if link_count:
+                print(f"  Set Orthogonal Rounded linestyle on {link_count} connector(s)")
+        except Exception as e:
+            print(f"  [linestyle] Failed: {e}")
+
         # Save GUID map
         if collab_elem:
             guid_map["_collaboration_model"] = collab_elem.ElementGUID
