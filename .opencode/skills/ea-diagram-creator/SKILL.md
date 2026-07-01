@@ -433,13 +433,24 @@ Wrap after 8: reset X to column 0, continue Y with row offset
 - `repo.OpenFile()` can hang if EA is in a bad state. Use try/finally with `except: pass`.
 - EA processes accumulate between runs — track pre-existing PIDs and only kill your own zombies.
 
-### NEVER Kill EA Processes Externally
+### Zombie EA Process Cleanup (MANDATORY)
+
+EA zombie processes accumulate after every generator run. If left unchecked, they lock the `.qea` file, preventing EA from starting.
+
+**Always clean up zombie processes AFTER each generator run** (but NEVER during a run — the generator needs EA):
+
+```powershell
+# After generator completes:
+Get-Process -Name EA -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+**Exception:** Only skip cleanup if the user has indicated they have a real EA session open (not a zombie). Ask if unsure.
+
+**Inside generators**, the scripts track pre-existing PIDs and only kill their own zombies:
 ```python
 before_pids = set(p.Id for p in psutil.process_iter() if p.name() == "EA.exe")
 # Later, only kill PIDs not in before_pids
 ```
-
-Never use `Get-Process -Name EA | Stop-Process` — the user may have EA open.
 
 ## Checking Your Work
 

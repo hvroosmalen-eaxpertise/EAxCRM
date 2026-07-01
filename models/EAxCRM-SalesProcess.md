@@ -47,13 +47,6 @@
 - Task Type: User
 - Description: Customer confirms receipt of license files and/or service access credentials.
 
-### Gateway—AcceptOffer_Gateway
-- Name: Accept Offer
-- Type: Decision
-- GUID: {48A6D2C0-48A8-41c7-9B44-28B014D9A5E4}
-- Lane: Customer
-- Description: Customer formally accepts the offer, triggering the fulfillment phase.
-
 ### Activity—AcceptOffer_Activity
 - Name: Accept Offer
 - Type: Activity
@@ -66,6 +59,15 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
+- Description: Customer formally accepts the offer, triggering the fulfillment phase.
+
+### Gateway—AcceptOffer_Gateway
+- Name: Accept Offer?
+- Type: Decision
+- Stereotype: Gateway
+- GUID: {48A6D2C0-48A8-41c7-9B44-28B014D9A5E4}
+- Lane: Customer
+- Gateway Type: Exclusive
 - Description: Customer formally accepts the offer, triggering the fulfillment phase.
 
 ### Activity—ActivateDelivery
@@ -216,6 +218,15 @@
 - Lane: Vendor
 - Is Collection: false
 - Description: Pricing quote from the vendor for requested license line items.
+
+### Gateway—licensesrequired
+- Name: licenses required?
+- Type: Decision
+- Stereotype: Gateway
+- GUID: {137E4E47-AE30-4019-AFB4-F5848F6C75E7}
+- Lane: EAxpertise
+- Gateway Type: Exclusive
+- Description: Does the customer require Sparx EA license entitlements (new or renewal) as part of this purchase? If yes, route to license quote request. If no, proceed to finalize the offer.
 
 ### DataObject—Offer
 - Name: Offer
@@ -384,6 +395,34 @@
 - Task Type: User
 - Description: Customer reject the Offer and decides not to go with Purchase.
 
+### Activity—RemindPayment
+- Name: Remind Payment
+- Type: Activity
+- Stereotype: Activity
+- GUID: {6133EFAA-E2BB-4e3e-ACBF-5DC7BA76353F}
+- Lane: EAxpertise
+- Completion Quantity: 1
+- Is Called Activity: false
+- Is For Compensation: false
+- Loop: None
+- Start Quantity: 1
+- Task Type: Abstract
+- Description: Notify the Customer that Payment is not received. Reasons for non-payments could be wrong email address, bounced email, ...
+
+### Activity—RequestLicenseQuote
+- Name: Request License Quote
+- Type: Activity
+- Stereotype: Activity
+- GUID: {54201F7E-AA1B-49bb-AB58-CE578A450AE4}
+- Lane: EAxpertise
+- Completion Quantity: 1
+- Is Called Activity: false
+- Is For Compensation: false
+- Loop: None
+- Start Quantity: 1
+- Task Type: Abstract
+- Description: Send a formal request to the vendor (Sparx Systems) for a pricing quote on the required license line items. The vendor responds with a LicenseQuote.
+
 ### Activity—RequestLicenses
 - Name: Request Licenses
 - Type: Activity
@@ -411,6 +450,20 @@
 - Start Quantity: 1
 - Task Type: User
 - Description: Customer request a revised offer
+
+### Activity—RequestServiceQuote
+- Name: Request Service Quote
+- Type: Activity
+- Stereotype: Activity
+- GUID: {71C21043-6571-451e-BFD8-B8901AA0EB81}
+- Lane: EAxpertise
+- Completion Quantity: 1
+- Is Called Activity: false
+- Is For Compensation: false
+- Loop: None
+- Start Quantity: 1
+- Task Type: Abstract
+- Description: Send a formal request to the vendor for a pricing quote on the required service line items (SaaS, training, support). The vendor responds with a ServiceQuote.
 
 ### Activity—RequestServices
 - Name: Request Services
@@ -486,7 +539,7 @@
 - Description: Pricing quote from the vendor for requested service line items.
 
 ### Gateway—servicesrequired
-- Name: services required
+- Name: services required?
 - Type: Decision
 - Stereotype: Gateway
 - GUID: {4DDEC500-6564-4478-BEF0-982F04F01488}
@@ -520,10 +573,9 @@
 
 - StartRFQ → CreateRFQ
 - RegisterRFQ → PrepareRevisedOffer
-- PrepareRevisedOffer → DetermineLicenses
-- DetermineLicenses → servicesrequired
-- servicesrequired → DetermineServices [yes]
-- DetermineServices → FinaliseVersionofOffer
+- PrepareRevisedOffer → DetermineServices
+- DetermineLicenses → licensesrequired
+- servicesrequired → RequestServiceQuote [yes]
 - servicesrequired → FinaliseVersionofOffer [no]
 - ReviewOffer → AcceptOffer_Gateway [yes]
 - AcceptOffer_Gateway → AcceptOffer_Activity [yes]
@@ -538,12 +590,16 @@
 - AcceptOffer_Gateway → RejectOffer [no]
 - RequestRevisedOffer → PrepareRevisedOffer
 - HandleRejectedOffer → EndRejectedSales
+- PrepareRevisedOffer → DetermineLicenses
+- checkpayment → RemindPayment
+- DetermineServices → servicesrequired
+- licensesrequired → FinaliseVersionofOffer [no]
+- licensesrequired → RequestLicenseQuote [yes]
 
 ### Message Flows
 
 - CreateRFQ → RegisterRFQ [email]
-- DetermineLicenses → PrepareLicenseQuote [email license request]
-- PrepareLicenseQuote → DetermineLicenses [email license pricing]
+- PrepareLicenseQuote → RequestLicenseQuote [email license pricing]
 - FinaliseVersionofOffer → ReviewOffer [email offer]
 - AcceptOffer_Activity → HandleApprovedOffer [email acceptance and invoice details]
 - RequestLicenses → ProvideLicenses [license quote acceptance]
@@ -553,19 +609,20 @@
 - ProvideLicenses → PrepareDelivery
 - ActivateDelivery → PrepareSalesInvoice [delivery activated]
 - PrepareSalesInvoice → PaySalesInvoice
-- PaySalesInvoice → ValidatePayment
-- checkpayment → PaySalesInvoice [payment not received]
-- DetermineServices → PrepareServiceQuote [email service request]
-- PrepareServiceQuote → DetermineServices [email service pricing]
+- PaySalesInvoice → ValidatePayment [payment by bank]
+- RemindPayment → PaySalesInvoice [email payment not received]
+- RequestServiceQuote → PrepareServiceQuote [email service request]
+- PrepareServiceQuote → RequestServiceQuote [email service pricing]
 - RejectOffer → HandleRejectedOffer
+- RequestLicenseQuote → PrepareLicenseQuote [email license request]
 
 ### Data Input Associations
 
 - RFQ → RegisterRFQ
 - Offer → ReviewOffer
-- LicenseQuote → DetermineLicenses
+- LicenseQuote → RequestLicenseQuote
 - PurchaseOrder → HandleApprovedOffer
-- ServiceQuote → DetermineServices
+- ServiceQuote → RequestServiceQuote
 - LicenseDocument → PrepareDelivery
 - ServiceDocument → PrepareDelivery
 - LicenseInvoice → PrepareSalesInvoice

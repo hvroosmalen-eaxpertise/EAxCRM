@@ -220,7 +220,9 @@ Controls the UML base type shape in Sparx EA. Set via `ELEMENT_BASE_TYPE` in the
   - Phase 1b: Fix `Object_Type` and `t_xref.Description` via SQLite (COM API `AddNew` doesn't always set the right base type, and `StereotypeEx` leaves `t_xref.Description` NULL for elements)
 - `repo.CloseFile()` can hang; use try/finally with except: pass
 - EA processes (EA.exe) accumulate between runs — script tracks pre-existing PIDs and only kills its own zombie EA processes after each phase
-- **NEVER kill EA processes externally** (e.g. `Get-Process -Name EA | Stop-Process`). The user has EA open. Only the scripts' `kill_new_ea_processes()` may kill zombie processes, and it only kills PIDs that didn't exist before the script started.
+- **Zombie cleanup is MANDATORY** after every generator run: run `Get-Process -Name EA | Stop-Process -Force` to clean up zombie EA processes that the generator created. Zombies lock the `.qea` file and prevent EA from starting.
+- **Exception:** Always ask the user first if they have a real EA session open. Never kill if the user is actively working in EA.
+- The generator scripts' `kill_new_ea_processes()` handles intra-run cleanup safely (only kills PIDs that didn't exist before the script started).
 - GUID map file: `experiments/modelgen/archimate_guid_map.json`
 
 ## Markdown Model File Format

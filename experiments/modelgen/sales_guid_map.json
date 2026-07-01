@@ -46,6 +46,10 @@
     "ServiceQuote": "{117B4799-A108-4e69-BCF6-6BCF203A4EEC}",
     "servicesrequired": "{4DDEC500-6564-4478-BEF0-982F04F01488}",
     "StartRFQ": "{94A14FAC-00B9-43fc-B10E-9FABE868C74C}",
-    "ValidatePayment": "{6BF00CC4-39CF-4db4-A20B-06D3A43AC93F}"
+    "ValidatePayment": "{6BF00CC4-39CF-4db4-A20B-06D3A43AC93F}",
+    "licensesrequired": "{137E4E47-AE30-4019-AFB4-F5848F6C75E7}",
+    "RemindPayment": "{6133EFAA-E2BB-4e3e-ACBF-5DC7BA76353F}",
+    "RequestLicenseQuote": "{54201F7E-AA1B-49bb-AB58-CE578A450AE4}",
+    "RequestServiceQuote": "{71C21043-6571-451e-BFD8-B8901AA0EB81}"
   }
 }
