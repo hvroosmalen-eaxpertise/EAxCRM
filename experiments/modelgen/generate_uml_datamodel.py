@@ -572,6 +572,11 @@ def main():
 
     finally:
         try:
+            repo.RefreshModelView(0)  # Full model tree refresh
+            repo.RefreshOpenDiagrams(True)
+        except Exception as e:
+            print(f"  [refresh] RefreshModelView(0) failed: {e}")
+        try:
             repo.CloseFile()
         except:
             pass
