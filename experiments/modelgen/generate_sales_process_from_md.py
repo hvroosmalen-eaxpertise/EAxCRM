@@ -677,7 +677,7 @@ def main():
             link_count = diag.DiagramLinks.Count
             for i in range(link_count):
                 dl = diag.DiagramLinks.GetAt(i)
-                dl.LineStyle = 5  # Orthogonal Rounded
+                dl.LineStyle = 9  # Orthogonal Rounded
                 dl.Update()
             if link_count:
                 print(f"  Set Orthogonal Rounded linestyle on {link_count} connector(s)")

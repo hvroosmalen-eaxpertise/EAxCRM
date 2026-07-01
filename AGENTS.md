@@ -295,6 +295,12 @@ All four BPMN scripts (`sync_sales_process_from_ea.py`, `sync_newsletter_process
 
 **Impact**: Sales GUID map had 86 stale entries from earlier buggy runs. Reset to empty, generator ran clean with 0 created, 45 updated (all via name-based fallback since GUID map was empty). Idempotent re-run confirmed.
 
+## Bugfix: LineStyle 5 is Tree Horizontal, not Orthogonal Rounded (2026-07-01)
+
+Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `# Orthogonal Rounded`. EA's `LineStyle=5` is actually **Tree Horizontal**. Orthogonal Rounded is `LineStyle = 9`.
+
+**Fix**: Changed both generators to `dl.LineStyle = 9`. Updated `ea-diagram-creator` skill with the full LineStyle enum table to prevent recurrence.
+
 ## BPMN Element Sizing: Type-Appropriate Bounds (2026-07-01)
 
 **Approach**: All four bounds (`left`, `top`, `right`, `bottom`) are set on every diagram object (matching the Sales Process generator convention). EA renders each BPMN stereotype at its native visual shape within these bounds.

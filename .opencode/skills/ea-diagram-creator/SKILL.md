@@ -278,7 +278,7 @@ for di in range(diag.DiagramObjects.Count):
 
 for i in range(diag.DiagramLinks.Count):
     dl = diag.DiagramLinks.GetAt(i)
-    dl.LineStyle = 5  # Orthogonal Rounded
+    dl.LineStyle = 9  # Orthogonal Rounded (NOT 5 — that's Tree Horizontal!)
     conn = repo.GetConnectorByID(dl.ConnectorID)
     src = pos_map.get(conn.ClientID)
     tgt = pos_map.get(conn.SupplierID)
@@ -305,7 +305,7 @@ for i in range(diag.DiagramLinks.Count):
 Key points:
 - EDGE=2 means right edge, EDGE=4 means left edge (source side only)
 - A single midpoint waypoint at center-Y guides EA to attach at edge centers on both ends
-- LineStyle=5 = Orthogonal Rounded
+- Uses `LineStyle=9` (Orthogonal Rounded) — see §Diagram Object Management → Connector Rendering for the full enum
 - The EDGE field in Geometry is set AFTER positions so EA uses correct relative positions
 
 ## Diagram Object Management
@@ -324,6 +324,36 @@ for i in range(diag.DiagramObjects.Count - 1, -1, -1):
 ```
 
 Note: `DiagramObjects.Delete()` is 1-indexed. You cannot delete the last remaining diagram object (usually a lane survives).
+
+### Connector Rendering (DiagramLink)
+
+Applies to all diagram types (BPMN, ArchiMate, UML, etc.). Set on every `DiagramLink` after placing diagram objects:
+
+```python
+diag.DiagramLinks.Refresh()
+for i in range(diag.DiagramLinks.Count):
+    dl = diag.DiagramLinks.GetAt(i)
+    dl.LineStyle = 9  # Orthogonal Rounded
+    dl.Update()
+```
+
+**`LineStyle` enum values:**
+
+| Value | Style |
+|-------|-------|
+| 1 | Direct |
+| 2 | Auto Routing |
+| 3 | Custom Line |
+| 4 | Tree Vertical |
+| 5 | **Tree Horizontal** (not Orthogonal Rounded — common mistake) |
+| 6 | Lateral Vertical |
+| 7 | Lateral Horizontal |
+| 8 | Orthogonal Square |
+| 9 | **Orthogonal Rounded** |
+
+**CAUTION:** `LineStyle = 5` is Tree Horizontal, not Orthogonal Rounded. Always use `9` for Orthogonal Rounded.
+
+Separate from `LineStyle`, the `EDGE` attribute in the Geometry string and the `Path` property control which element edge the connector attaches to (see BPMN → Connector EDGE Fix).
 
 ## BPMN Lane Layout
 

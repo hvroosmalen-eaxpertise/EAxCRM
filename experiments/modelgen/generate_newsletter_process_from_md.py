@@ -691,7 +691,7 @@ def main():
             link_count = diag.DiagramLinks.Count
             for i in range(link_count):
                 dl = diag.DiagramLinks.GetAt(i)
-                dl.LineStyle = 5  # Orthogonal Rounded
+                dl.LineStyle = 9  # Orthogonal Rounded
                 conn = repo.GetConnectorByID(dl.ConnectorID)
                 src = pos_map.get(conn.ClientID)
                 tgt = pos_map.get(conn.SupplierID)
