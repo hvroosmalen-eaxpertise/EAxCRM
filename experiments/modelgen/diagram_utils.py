@@ -191,3 +191,164 @@ def sort_by_flow_order(lane_element_ids, sequence_flows):
             result.append(eid)
 
     return result
+
+
+def find_longest_path(adj, start_nodes):
+    """Find the longest acyclic path in a directed graph via DFS.
+
+    adj: {node: [neighbor, ...]}
+    start_nodes: list of nodes with no incoming edges (and at least one outgoing)
+    Returns list of node IDs in longest path, in traversal order.
+    """
+    best = []
+
+    def dfs(node, path, visited):
+        nonlocal best
+        if len(path) > len(best):
+            best = list(path)
+        for n in adj.get(node, []):
+            if n not in visited:
+                visited.add(n)
+                dfs(n, path + [n], visited)
+                visited.remove(n)
+
+    for s in start_nodes:
+        dfs(s, [s], {s})
+
+    return best
+
+
+def compute_bpmn_flow_layout(elements_by_lane, lane_bounds, sequence_flows,
+                             elem_types, h_gap=60, v_gap=30):
+    """BPMN flow layout: longest path in straight line, side branches below.
+
+    elements_by_lane: {lane_id: [eid, ...]}
+    lane_bounds: {lane_id: (left, top, right, bottom)}
+    sequence_flows: [{"source": eid, "target": eid}, ...]
+    elem_types: {eid: label_string}
+
+    Returns: (positions dict {eid: (l,t,r,b)}, updated_lane_bounds)
+    """
+    elem_to_lane = {}
+    for lid, eids in elements_by_lane.items():
+        for eid in eids:
+            elem_to_lane[eid] = lid
+
+    lane_adj = {}
+    lane_inc = {}
+    for lid in elements_by_lane:
+        lane_adj[lid] = {}
+        lane_inc[lid] = {}
+        for eid in elements_by_lane[lid]:
+            lane_adj[lid][eid] = []
+            lane_inc[lid][eid] = []
+
+    for fl in sequence_flows:
+        s, t = fl["source"], fl["target"]
+        sl = elem_to_lane.get(s)
+        tl = elem_to_lane.get(t)
+        if sl and sl == tl:
+            lane_adj[sl][s].append(t)
+            lane_inc[sl][t].append(s)
+
+    # Find longest path and compute needed width per lane
+    longest_paths = {}
+    max_width = {}
+    for lid, eids in elements_by_lane.items():
+        adj = lane_adj[lid]
+        inc = lane_inc[lid]
+        starts = [e for e in eids if not inc.get(e, []) and adj.get(e, [])]
+        lp = find_longest_path(adj, starts)
+        longest_paths[lid] = lp
+        if lp:
+            tw = 0
+            for i, e in enumerate(lp):
+                t = elem_types.get(e, "Activity")
+                ew, _ = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+                tw += ew
+                if i > 0:
+                    tw += h_gap
+            max_width[lid] = tw + 90
+        else:
+            max_width[lid] = 0
+
+    # Expand all lanes to the width of the widest one
+    all_widths = [max_width.get(lid, 0) for lid in lane_bounds]
+    overall_max = max(all_widths) if all_widths else 0
+    updated_bounds = dict(lane_bounds)
+    for lid, b in lane_bounds.items():
+        nw = max(max_width.get(lid, 0), overall_max)
+        cw = b[2] - b[0]
+        if nw > cw:
+            updated_bounds[lid] = (b[0], b[1], b[0] + nw, b[3])
+
+    # Place elements
+    pos = {}
+    row_h = 70
+
+    for lid, eids in elements_by_lane.items():
+        b = updated_bounds[lid]
+        ll = b[0] + 70
+        lt = b[1] + 40
+        adj = lane_adj[lid]
+        inc = lane_inc[lid]
+        lp = longest_paths[lid]
+
+        flow_set = {e for e in eids if adj.get(e, []) or inc.get(e, [])}
+        data_objs = [e for e in eids if e not in flow_set]
+
+        if not lp:
+            xp = ll
+            for e in eids:
+                t = elem_types.get(e, "Activity")
+                ew, eh = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+                pos[e] = (xp, lt, xp + ew, lt + eh)
+                xp += ew + h_gap
+            continue
+
+        # Row 0: longest path
+        max_h = 0
+        for e in lp:
+            t = elem_types.get(e, "Activity")
+            _, eh = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+            max_h = max(max_h, eh)
+
+        xp = ll
+        for e in lp:
+            t = elem_types.get(e, "Activity")
+            ew, eh = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+            yp = lt + (max_h - eh) / 2
+            pos[e] = (xp, yp, xp + ew, yp + eh)
+            xp += ew + h_gap
+
+        # Row 1: remaining flow elements (side branches)
+        remaining = [e for e in eids if e not in lp and e in flow_set]
+        if remaining:
+            yp = lt + row_h + v_gap
+            xp = ll
+            max_rh = max((BPMN_ELEMENT_SIZES.get(elem_types.get(e, "Activity"), (110, 60))[1] for e in remaining), default=0)
+            for e in remaining:
+                t = elem_types.get(e, "Activity")
+                ew, eh = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+                preds = inc.get(e, [])
+                placed = False
+                for p in preds:
+                    if p in pos:
+                        pos[e] = (pos[p][0], yp + (max_rh - eh) / 2, pos[p][0] + ew, yp + (max_rh - eh) / 2 + eh)
+                        placed = True
+                        break
+                if not placed:
+                    pos[e] = (xp, yp + (max_rh - eh) / 2, xp + ew, yp + (max_rh - eh) / 2 + eh)
+                    xp += ew + h_gap
+
+        # Row 2: DataObjects
+        if data_objs:
+            yp = lt + 2 * (row_h + v_gap)
+            xp = ll
+            for e in data_objs:
+                t = elem_types.get(e, "Activity")
+                ew, eh = BPMN_ELEMENT_SIZES.get(t, (35, 50))
+                pos[e] = (xp, yp, xp + ew, yp + eh)
+                xp += ew + h_gap
+
+    return pos, updated_bounds

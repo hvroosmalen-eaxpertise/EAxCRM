@@ -268,7 +268,8 @@ def main():
 
     elem_guid_map = guid_map.get("elements", {})
 
-    repo = win32com.client.Dispatch("EA.Repository")
+    app = win32com.client.Dispatch("EA.App")
+    repo = app.Repository
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
 
@@ -590,44 +591,59 @@ def main():
             diag.DiagramObjects.Refresh()
             existing_count = diag.DiagramObjects.Count
             if existing_count > 0:
-                print(f"  Diagram has {existing_count} objects, preserving positions")
-                # Add new elements not yet placed on the diagram
-                placed = diagram_utils.get_placed_ids(diag)
+                print(f"  Repositioning {existing_count} diagram objects using flow layout")
+                placed_ids = diagram_utils.get_placed_ids(diag)
+                # Build reverse map: ElementID -> eid
+                eid_by_oid = {oid: eid for eid, oid in object_ids.items()}
+                lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
+                # Group all non-lane elements by lane
+                all_by_lane = {}
+                for eid, edata in elements.items():
+                    if edata.get("label") == "Lane":
+                        continue
+                    lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
+                    if lane and lane in lane_ids:
+                        all_by_lane.setdefault(lane, []).append(eid)
+                for lane_id in all_by_lane:
+                    all_by_lane[lane_id] = diagram_utils.sort_by_flow_order(
+                        all_by_lane[lane_id], sequence_flows)
+                # Compute flow layout positions for all elements
+                elem_pos, updated_bounds = diagram_utils.compute_bpmn_flow_layout(
+                    all_by_lane, lane_bounds, sequence_flows, elem_types)
+                # Update positions of existing diagram objects (elements + lanes)
+                moved = 0
+                for i in range(existing_count):
+                    dobj = diag.DiagramObjects.GetAt(i)
+                    oid = dobj.ElementID
+                    eid = eid_by_oid.get(oid)
+                    if eid and eid in elem_pos:
+                        l, t, r, b = elem_pos[eid]
+                        if dobj.left != int(l) or dobj.top != int(-t) or dobj.right != int(r) or dobj.bottom != int(-b):
+                            dobj.left = int(l)
+                            dobj.top = int(-t)
+                            dobj.right = int(r)
+                            dobj.bottom = int(-b)
+                            dobj.Update()
+                            moved += 1
+                    elif eid and eid in updated_bounds:
+                        l, t, r, b = updated_bounds[eid]
+                        if dobj.left != int(l) or dobj.top != int(-t) or dobj.right != int(r) or dobj.bottom != int(-b):
+                            dobj.left = int(l)
+                            dobj.top = int(-t)
+                            dobj.right = int(r)
+                            dobj.bottom = int(-b)
+                            dobj.Update()
+                            moved += 1
+                if moved:
+                    print(f"  Updated positions of {moved} object(s)")
+                # Add any new elements not yet in diagram
                 new_ids = [eid for eid, oid in object_ids.items()
-                           if eid not in lane_ids and oid not in placed]
+                           if eid not in lane_ids and oid not in placed_ids]
                 if new_ids:
-                    print(f"  [DEBUG] {len(new_ids)} new element(s) need diagram placement")
-                    # Group new elements by lane
-                    new_by_lane = {}
-                    for eid in new_ids:
-                        lane = diagram_utils.get_lane_from_fields(elements[eid].get("fields", {}))
-                        if lane and lane in lane_ids:
-                            new_by_lane.setdefault(lane, []).append(eid)
-                    if new_by_lane:
-                        lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
-                        # Find existing elements already in each lane for append offset
-                        all_by_lane = {}
-                        for eid, edata in elements.items():
-                            if edata.get("label") == "Lane":
-                                continue
-                            lane = diagram_utils.get_lane_from_fields(edata.get("fields", {}))
-                            if lane and lane in lane_ids:
-                                all_by_lane.setdefault(lane, []).append(eid)
-                        # Sort by process flow order so new elements get correct positions
-                        for lane_id in all_by_lane:
-                            all_by_lane[lane_id] = diagram_utils.sort_by_flow_order(
-                                all_by_lane[lane_id], sequence_flows)
-                        new_positions = {}
-                        for lane_id, eids in new_by_lane.items():
-                            combined = all_by_lane.get(lane_id, [])
-                            all_epos = diagram_utils.compute_bpmn_element_positions(
-                                 {lane_id: combined}, lane_bounds, elem_types=elem_types)
-                            for eid in eids:
-                                if eid in all_epos:
-                                    new_positions[eid] = all_epos[eid]
-                        added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
-                        if added:
-                            print(f"  Added {added} new element(s) to existing diagram")
+                    new_positions = {eid: elem_pos[eid] for eid in new_ids if eid in elem_pos}
+                    added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                    if added:
+                        print(f"  Added {added} new element(s) to existing diagram")
             else:
                 print("  Placing elements on diagram (first time)")
                 lane_bounds = diagram_utils.compute_bpmn_lane_positions(lanes_config)
@@ -648,9 +664,11 @@ def main():
                 for lane_id in elements_by_lane:
                     elements_by_lane[lane_id] = diagram_utils.sort_by_flow_order(
                         elements_by_lane[lane_id], sequence_flows)
-                # Compute positions
-                positions = dict(lane_bounds)
-                elem_pos = diagram_utils.compute_bpmn_element_positions(elements_by_lane, lane_bounds, elem_types=elem_types)
+                # Compute positions using flow layout
+                lane_bounds = dict(lane_bounds)
+                elem_pos, updated_bounds = diagram_utils.compute_bpmn_flow_layout(
+                    elements_by_lane, lane_bounds, sequence_flows, elem_types)
+                positions = dict(updated_bounds)
                 positions.update(elem_pos)
                 all_ids = list(lane_ids) + [
                     eid for eid in elements
@@ -661,17 +679,46 @@ def main():
                     diag.Update()
                     print(f"  Placed {count} elements on diagram")
 
-        # Set Orthogonal Rounded line style for all connector links on this diagram
+        # Set Orthogonal Rounded line style + fix EDGE + center-edge Path
         try:
             diag.DiagramLinks.Refresh()
+            # Build position map from current diagram objects (EA coordinate system)
+            diag.DiagramObjects.Refresh()
+            pos_map = {}
+            for di in range(diag.DiagramObjects.Count):
+                dobj = diag.DiagramObjects.GetAt(di)
+                pos_map[dobj.ElementID] = (dobj.left, dobj.top, dobj.right, dobj.bottom)
             link_count = diag.DiagramLinks.Count
             for i in range(link_count):
                 dl = diag.DiagramLinks.GetAt(i)
                 dl.LineStyle = 5  # Orthogonal Rounded
+                conn = repo.GetConnectorByID(dl.ConnectorID)
+                src = pos_map.get(conn.ClientID)
+                tgt = pos_map.get(conn.SupplierID)
+                if src and tgt:
+                    import re as _re
+                    srcl, srct, srcr, srcb = src
+                    tgtl, tgtt, tgtr, tgtb = tgt
+                    src_cy = (srct + srcb) / 2
+                    tgt_cy = (tgtt + tgtb) / 2
+                    if srcr <= tgtl:  # forward flow: right edge -> left edge
+                        edge = "2"
+                        mx = int((srcr + tgtl) / 2)
+                        dl.Path = f"{mx}:{int(src_cy)};"
+                    else:  # backward flow: left edge -> right edge
+                        edge = "4"
+                        mx = int((srcl + tgtr) / 2)
+                        dl.Path = f"{mx}:{int(src_cy)};"
+                    geo = dl.Geometry
+                    new_geo = _re.sub(r'EDGE=\d', f'EDGE={edge}', geo)
+                    if new_geo != geo:
+                        dl.Geometry = new_geo
                 dl.Update()
             if link_count:
                 print(f"  Set Orthogonal Rounded linestyle on {link_count} connector(s)")
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"  [linestyle] Failed: {e}")
 
         # Save GUID map
