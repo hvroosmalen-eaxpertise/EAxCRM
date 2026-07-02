@@ -33,6 +33,9 @@ This skill lives at **`.opencode/skills/ea-diagram-creator/SKILL.md`** in the EA
 | **No position preservation** | Layout reset on re-run | Deleted and re-placed all diagram objects instead of only placing new ones. |
 | **Only one stereotype** | Connector not matched | Checked only short-form stereotype (SequenceFlow) without also checking long form (BPMN2.0::SequenceFlow). |
 | **No design phase** | Unreadable initial layout | Placed elements in arbitrary (id) order without considering relationships or semantic groups. |
+| **Compounding row jump** | New elements placed thousands of px away | `compute_diagonal_positions`' row-jump formula multiplied by `per_row * step`, not just `elem_height`. Use `compute_grid_positions` for non-BPMN diagrams instead. |
+| **One flat size for every type** | Node/Interface/Component rendered as generic boxes | Passed one hardcoded `elem_width`/`elem_height` to every element regardless of Object_Type. Use `type_sizes=DEFAULT_ELEMENT_SIZES` with `compute_grid_positions`. |
+| **Position-only placement (no size)** | Diagram opens empty — 0×0 invisible elements, only connector lines visible | Assumed EA auto-sizes a `DiagramObject` if `right`/`bottom` are left unset. Confirmed false via a full live run + GUI check: explicit, type-appropriate bounds are always required for non-BPMN diagrams too. |
 
 ## INITIAL DIAGRAM DESIGN PHASE (CRITICAL)
 
@@ -411,46 +414,211 @@ for each existing diagram object:
 
 New elements (not yet in diagram) are added after repositioning existing ones.
 
-## Non-BPMN Layout (Diagonal Cascade — Legacy)
+## Non-BPMN Layout (Grid — `compute_grid_positions`)
 
-For non-BPMN diagrams (ArchiMate, Data Model, Requirements), `diagram_utils.py:45-55`:
+For non-BPMN diagrams (ArchiMate, Data Model, Requirements), use
+`diagram_utils.compute_grid_positions()`, **not** `compute_diagonal_positions()`
+(kept only as a legacy fallback — its old row-jump formula compounded
+`row * (per_row * step + row_gap - step)`, which for the default step/row_gap
+sprawled new elements thousands of pixels from the rest of the diagram after
+only a handful of rows; fixed 2026-07-02 but `compute_grid_positions` is
+strictly preferred going forward).
 
+```python
+positions = diagram_utils.compute_grid_positions(
+    element_ids, elem_types=elem_types,               # {eid: base_type}, optional
+    type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES,    # per-type box size, optional
+    default_size=diagram_utils.DEFAULT_ELEMENT_SIZE,   # (90, 70) -- see below
+    start_x=20, start_y=20,
+    per_row=8, cell_width=180, cell_height=100, h_gap=20, v_gap=20)
 ```
-Start position: {20, 20}
-Per row: 8 elements
-Step: 200 right, 200 down
-Row gap: 200
-Wrap after 8: reset X to column 0, continue Y with row offset
+
+Row/column advance **linearly** (no compounding) — a uniform grid cell
+(`cell_width` x `cell_height`) holds each element's own type-appropriate box,
+centered within the cell (same technique as `compute_bpmn_element_positions`
+for lanes). This keeps the layout compact and near the origin.
+
+**When adding new elements to an existing diagram**, anchor them below the
+diagram's real current content instead of continuing an index-based formula
+(which can drift arbitrarily far from where existing elements actually ended
+up, especially across re-runs with manually-adjusted layouts):
+
+```python
+_, max_bottom = diagram_utils.get_diagram_extent(diag)  # real current extent
+new_positions = diagram_utils.compute_grid_positions(
+    new_ids, elem_types=elem_types, type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES,
+    start_x=20, start_y=max_bottom + 40, per_row=8, ...)
 ```
 
-**This layout is a legacy fallback.** For new diagrams, use the Design Phase approach (see above) with zone-based layout instead.
+### Sizes Must Not Be Forced Flat Across Element Types — But Must Be Set
+
+**CONFIRMED (2026-07-02) via a full live run, verified two ways: a direct COM
+read-back after the run, and visually in EA's own GUI after refresh.** EA's
+COM API does **not** auto-size a `DiagramObject` — leaving `right`/`bottom`
+unset produces a permanent 0×0, invisible object. This was tested twice: once
+as a same-session synchronous read-back, and once end-to-end (script exits,
+file fully committed, diagram opened fresh in EA's GUI) — both showed the
+same `right=0 bottom=0` result, and the GUI rendered the diagram as an empty
+tangle of connector lines with no visible element boxes. **Do not attempt
+position-only placement for non-BPMN diagrams again** — explicit bounds are
+required.
+
+What must NOT happen is forcing one flat, identical box (e.g. 180×100) onto
+every element regardless of type — that distorts non-Class shapes badly (a
+`Node` 3D box, `Interface` circle, `Component` two-tab all render squashed
+into a generic rectangle). Use `DEFAULT_ELEMENT_SIZES` (keyed by Sparx EA base
+`Object_Type` — see `ELEMENT_BASE_TYPE`) via the `type_sizes` param of
+`compute_grid_positions` so each element gets a size appropriate to its
+actual shape.
+
+**Confirmed native default (2026-07-02):** three separate elements dragged
+fresh from the ArchiMate3 toolbox and left unresized —
+`ApplicationComponent1` (Component), `BusinessActor1` (Class), and
+`BusinessObject1` (Class) — all came back exactly **90×70**. This suggests
+this EA installation's native new-element default is uniformly 90×70
+regardless of ArchiMate stereotype/shape, not a size that varies meaningfully
+per type. `DEFAULT_ELEMENT_SIZES` currently sets every entry to `(90, 70)`
+for this reason. If a genuinely different shape (e.g. a `Node` 3D box or
+`Interface` circle) turns out to need a different size, get a fresh
+toolbox-dragged, unresized reference for that specific type before changing
+its entry — don't guess.
+
+If an existing diagram ever ends up with 0×0 objects (e.g. from re-running
+older position-only code against it), use
+`diagram_utils.repair_zero_size_objects(diag, repo, type_sizes=...)` to fix
+sizes in place without disturbing existing left/top positions.
+
+### UML Classes With Attributes Need Per-Instance Height, Not a Fixed Size
+
+The `90x70` fixed default only holds for elements that render as a plain icon
+box with no attribute compartment (ArchiMate elements: BusinessActor,
+BusinessObject, Component, etc. — confirmed above). **This does NOT apply to
+`generate_uml_datamodel.py`'s entities**, which are real UML `Class` elements
+with actual EA `Attributes` added via `sync_attributes()` — EA renders an
+attribute compartment that needs to grow with the number of attributes, or a
+fixed height clips entities with many attributes and wastes space on ones
+with few.
+
+Use `diagram_utils.compute_uml_class_height(attr_count)` (header + one row
+per attribute + padding) and `diagram_utils.compute_uml_class_width(name,
+attr_labels)` (longest of the class name or any "attrname: type" label,
+converted to a pixel estimate) to compute a per-entity size, and pass a
+`sizes={eid: (w, h)}` dict to `compute_grid_positions()` / a
+`get_elem_size(elem)` callable to `repair_zero_size_objects()` — these take
+precedence over the type-based `type_sizes`/`default_size` path. Set
+`cell_width`/`cell_height` to at least the largest computed size in the
+batch, or rows/columns will overlap. Both formulas are approximations, not
+EA-confirmed constants like the 90×70 default — tuned interactively
+(2026-07-02) against a `Sandbox` test diagram (see below) until attribute
+compartments visually fit without excess trailing whitespace:
+
+```python
+def compute_uml_class_width(name, attr_labels, char_width=5.5, min_width=120, padding=10): ...
+def compute_uml_class_height(attr_count, header_height=30, row_height=16, min_height=70, padding=6): ...
+```
+
+If these ever look off again, recalibrate the same way: drop a fresh
+toolbox-dragged Class with a matching attribute count/name length into a
+sandbox diagram (see "Use a Sandbox Package for Calibration/Testing" below),
+compare, adjust the constants — don't just guess new numbers.
+
+**Diagram Type/Stereotype/Technology do not affect sizing.** Confirmed by
+inspecting a diagram the user built by hand in EA's GUI: its `Type` was
+actually `'Logical'` (not an ArchiMate-specific type), `Stereotype`/
+`StereotypeEx` were both empty, yet a manually drag-and-dropped
+`ApplicationComponent` still got a real size (`90x70`). Auto-sizing is
+triggered by EA's interactive drag-and-drop UI action — a different internal
+code path that `DiagramObjects.AddNew()` + `Update()` (the only path
+available via COM automation) never runs, regardless of how the diagram
+itself is typed/tagged. Do not spend time trying `diag.MDGTechnology` (it's
+read-only via COM — `AttributeError: can not be set`) or passing a combined
+`"Technology::Type"` string to `Diagrams.AddNew()` (silently produces an
+invalid generic `'Logical'` diagram) — neither affects element sizing.
+
+This does **not** apply to BPMN diagrams, which already have their own
+correct type-based sizing via `BPMN_ELEMENT_SIZES` and flow layout — leave
+that untouched.
+
+### Connector LineStyle by Diagram Type
+
+Different diagram types use different `DiagramLink.LineStyle` conventions
+(see the full enum table above). Use
+`diagram_utils.set_diagram_link_style(diag, line_style)` — idempotent, safe
+to call every run, only touches connectors whose `LineStyle` doesn't already
+match:
+
+| Diagram type | LineStyle | Value |
+|---|---|---|
+| BPMN (Sales/Newsletter process) | Orthogonal Rounded | `9` |
+| UML Data Model (`generate_uml_datamodel.py`) | Orthogonal Square | `8` (set 2026-07-02, user preference) |
+| ArchiMate (`generate_archimate.py`) | not yet set | — (ask before assuming a value) |
+
+### Quick Reference: Confirmed Sizes/Settings by Diagram Type
+
+| Diagram | Element sizing | Constant/formula | Connector LineStyle |
+|---|---|---|---|
+| ArchiMate (`generate_archimate.py`) | Fixed per instance, uniform across all confirmed types | `DEFAULT_ELEMENT_SIZES` → `(90, 70)` for every entry (Class, Activity, Component, Interface, Node, Device, Requirement) | not set |
+| UML Data Model (`generate_uml_datamodel.py`) | Per-entity, scales with attribute count/name length | `compute_uml_class_width()` + `compute_uml_class_height()` | `8` (Orthogonal Square) |
+| Requirements (`generate_requirements_from_md.py`) | Fixed, same as ArchiMate default | `default_size=(90, 70)` | not set |
+| BPMN (Sales/Newsletter) | Fixed per BPMN type | `BPMN_ELEMENT_SIZES` | `9` (Orthogonal Rounded) |
+
+### Use a Sandbox Package for Calibration/Testing
+
+Never test new layout/sizing/style logic directly against a real diagram
+(`EAxCRM ArchiMate`, `EAxCRM Data Model`, etc.) — the user has manually
+adjusted layouts there that must be preserved. Instead, create/reuse a
+`Sandbox` package directly under the root Model package (same level as
+`Application Architecture`, `Data Architecture`, etc.), with its own
+sub-packages, diagrams, and — critically — its **own separate GUID map file**
+(e.g. `sandbox_datamodel_guid_map.json`) so sandbox runs can never collide
+with a real generator's GUID map. `experiments/modelgen/sandbox_size_test.py`
+and `sandbox_datamodel_demo.py` (both deleted after use, recreate as needed)
+are worked examples: the latter reuses `generate_uml_datamodel.parse_md()`
+and `sync_attributes()` against the *real* MD source but writes into
+`Sandbox` instead of `Data Architecture > EAxCRM Data Model`, so real MD data
+can be used to validate the full pipeline without any risk to production.
 
 ## Platform-Specific Gotchas
 
 ### Python 64-bit + EA 32-bit COM Bridge
-- Python 3.13 64-bit can call EA's 32-bit COM server via COM API
-- Use `win32com.client.Dispatch("EA.App")` + `.Repository` instead of `Dispatch("EA.Repository")` — avoids hangs when many zombie EA processes exist
-- `repo.OpenFile()` can hang if EA is in a bad state. Use try/finally with `except: pass`.
-- EA processes accumulate between runs — track pre-existing PIDs and only kill your own zombies.
+
+Use the shared `experiments/modelgen/ea_session.py` module (all generators
+do, as of 2026-07-02) instead of hand-rolling a COM connection:
+
+```python
+import ea_session
+with ea_session.ea_repository(qea_path, technology="ArchiMate3") as repo:
+    root = ea_session.get_model_root(repo)  # retries on transient 61704 errors
+    ...
+```
+
+- `ea_session.ea_repository()` uses `win32com.client.DispatchEx("EA.App")` +
+  `.Repository` — **`DispatchEx`, not plain `Dispatch`**. Plain `Dispatch`
+  can attach to an EA automation server already registered in COM's Running
+  Object Table (e.g. the user's own open EA instance on the same file)
+  instead of spawning an isolated one — confirmed to be the cause of EA's
+  "Internal application error 61704" on `repo.Models.GetAt(0)`.
+- `ea_session.get_model_root(repo)` retries `repo.Models.GetAt(0)` up to 5
+  times (2s apart) — this call has been observed to transiently fail right
+  after `OpenFile`/`ActivateTechnology`.
+- The context manager handles `RefreshModelView`/`RefreshOpenDiagrams`,
+  `CloseFile`, and zombie cleanup automatically on exit (see below) — no
+  need to repeat any of that per-script.
 
 ### Zombie EA Process Cleanup (MANDATORY)
 
 EA zombie processes accumulate after every generator run. If left unchecked, they lock the `.qea` file, preventing EA from starting.
 
-**Always clean up zombie processes AFTER each generator run** (but NEVER during a run — the generator needs EA):
-
-```powershell
-# After generator completes:
-Get-Process -Name EA -ErrorAction SilentlyContinue | Stop-Process -Force
-```
-
-**Exception:** Only skip cleanup if the user has indicated they have a real EA session open (not a zombie). Ask if unsure.
-
-**Inside generators**, the scripts track pre-existing PIDs and only kill their own zombies:
-```python
-before_pids = set(p.Id for p in psutil.process_iter() if p.name() == "EA.exe")
-# Later, only kill PIDs not in before_pids
-```
+`ea_session.ea_repository()` handles this automatically: it snapshots
+`ea_session.get_ea_pids()` before spawning its own EA instance, and on exit
+calls `ea_session.kill_new_ea_processes(before_pids)` — which only kills
+PIDs that appeared *after* the snapshot, so a pre-existing EA instance (the
+user's own open session) is never touched, by construction. **Never**
+manually run `Get-Process -Name EA | Stop-Process -Force` — that has no way
+to distinguish the user's real session from a zombie. If you suspect a
+genuine leaked zombie (rare — e.g. a script crashed before reaching the
+`finally` block), confirm the PID's start time lines up with the crashed
+run before asking the user for permission to kill it.
 
 ## Checking Your Work
 
@@ -467,7 +635,8 @@ After placing diagram objects, verify coordinate correctness:
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/diagram_utils.py` | Shared layout functions — diagonal cascade, BPMN lane grid, BPMN flow layout (`compute_bpmn_flow_layout`, `find_longest_path`), connector helpers |
+| `experiments/modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup. Used by every generator/sync script |
+| `experiments/modelgen/diagram_utils.py` | Shared layout functions — grid layout (`compute_grid_positions`), diagonal cascade (legacy), BPMN lane grid, BPMN flow layout (`compute_bpmn_flow_layout`, `find_longest_path`), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`) |
 | `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator |
 | `experiments/modelgen/generate_uml_datamodel.py` | UML Data Model diagram generator |
 | `experiments/modelgen/generate_sales_process_from_md.py` | Sales Process BPMN generator |

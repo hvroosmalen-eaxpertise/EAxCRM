@@ -3,8 +3,9 @@
 Usage:
     python generate_requirements_from_md.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-Requirements.md]
 """
-import sys, os, argparse, json, re, subprocess
+import sys, os, argparse, json, re
 import diagram_utils
+import ea_session
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -100,25 +101,6 @@ def find_package(parent, name):
     return None
 
 
-def get_ea_pids():
-    try:
-        result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq EA.exe", "/FO", "CSV"],
-            capture_output=True, text=True, timeout=10
-        )
-        pids = set()
-        for line in result.stdout.strip().split("\n")[1:]:
-            parts = line.strip().split(",")
-            if len(parts) >= 2:
-                try:
-                    pids.add(int(parts[1].strip('"')))
-                except ValueError:
-                    pass
-        return pids
-    except:
-        return set()
-
-
 def main():
     parser = argparse.ArgumentParser(description="Generate requirements in EAxCRM.qea from Markdown")
     parser.add_argument("--qea", default=DEFAULT_QEA)
@@ -142,17 +124,19 @@ def main():
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
 
-    before_pids = get_ea_pids()
+    before_pids = ea_session.get_ea_pids()
 
-    repo = win32com.client.Dispatch("EA.Repository")
+    app = win32com.client.DispatchEx("EA.App")
+    repo = app.Repository
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
 
-    root = repo.Models.GetAt(0)
+    root = ea_session.get_model_root(repo)
     pkg = find_package(root, "EAxCRM Requirements")
     if not pkg:
         print("FAIL: 'EAxCRM Requirements' package not found")
         repo.CloseFile()
+        ea_session.kill_new_ea_processes(before_pids)
         sys.exit(1)
 
     try:
@@ -351,13 +335,18 @@ def main():
                     object_ids[req["id"]] = el.ElementID
 
             eid_list = [req["id"] for req in requirements]
-            positions = diagram_utils.compute_diagonal_positions(eid_list,
-                per_row=8, step=200, row_gap=200, elem_width=220, elem_height=100)
+            positions = diagram_utils.compute_grid_positions(eid_list,
+                default_size=(90, 70), per_row=8, cell_width=220, cell_height=100,
+                h_gap=20, v_gap=20)
             count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
             print(f"  Placed {count} requirements on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
+
+            fixed = diagram_utils.repair_zero_size_objects(diag, repo, default_size=(90, 70))
+            if fixed:
+                print(f"  Repaired {fixed} zero-size diagram object(s)")
 
             # Build set of element IDs already on the diagram
             diag.DiagramObjects.Refresh()
@@ -372,9 +361,12 @@ def main():
             new_reqs = [req for req in requirements if object_ids.get(req["id"]) not in placed]
             if new_reqs:
                 new_ids = [req["id"] for req in new_reqs]
-                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
-                    start_index=len(placed), per_row=8, step=200, row_gap=200,
-                    elem_width=220, elem_height=100)
+                # Anchor new requirements just below the diagram's actual
+                # current content instead of a blind index continuation.
+                _, max_bottom = diagram_utils.get_diagram_extent(diag)
+                new_positions = diagram_utils.compute_grid_positions(new_ids,
+                    default_size=(90, 70), start_x=20, start_y=max_bottom + 40,
+                    per_row=8, cell_width=220, cell_height=100, h_gap=20, v_gap=20)
                 added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
                 print(f"  Added {added} new requirement(s) to existing diagram")
             else:
@@ -471,14 +463,9 @@ def main():
         except:
             pass
 
-    after_pids = get_ea_pids()
-    new_pids = after_pids - before_pids
-    if new_pids:
-        for pid in new_pids:
-            try:
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
-            except:
-                pass
+    killed = ea_session.kill_new_ea_processes(before_pids)
+    if killed:
+        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
 
 if __name__ == "__main__":

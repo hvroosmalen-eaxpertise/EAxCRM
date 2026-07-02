@@ -4,6 +4,7 @@ Usage:
     python sync_requirements_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-Requirements.md]
 """
 import sys, os, argparse, re
+import ea_session
 
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -26,27 +27,6 @@ def find_package(parent, name):
     return None
 
 
-def get_ea_pids():
-    """Return set of EA process IDs currently running."""
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq EA.exe", "/FO", "CSV"],
-            capture_output=True, text=True, timeout=10
-        )
-        pids = set()
-        for line in result.stdout.strip().split("\n")[1:]:
-            parts = line.strip().split(",")
-            if len(parts) >= 2:
-                try:
-                    pids.add(int(parts[1].strip('"')))
-                except ValueError:
-                    pass
-        return pids
-    except:
-        return set()
-
-
 def main():
     parser = argparse.ArgumentParser(description="Sync requirements from EA to Markdown")
     parser.add_argument("--qea", default=DEFAULT_QEA)
@@ -59,17 +39,19 @@ def main():
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
 
-    before_pids = get_ea_pids()
+    before_pids = ea_session.get_ea_pids()
 
-    repo = win32com.client.Dispatch("EA.Repository")
+    app = win32com.client.DispatchEx("EA.App")
+    repo = app.Repository
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
 
-    root = repo.Models.GetAt(0)
+    root = ea_session.get_model_root(repo)
     pkg = find_package(root, "EAxCRM Requirements")
     if not pkg:
         print("FAIL: 'EAxCRM Requirements' package not found")
         repo.CloseFile()
+        ea_session.kill_new_ea_processes(before_pids)
         sys.exit(1)
 
     try:
@@ -194,15 +176,9 @@ def main():
             pass
 
     # Kill zombie EA processes created by this script
-    after_pids = get_ea_pids()
-    new_pids = after_pids - before_pids
-    if new_pids:
-        import subprocess
-        for pid in new_pids:
-            try:
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
-            except:
-                pass
+    killed = ea_session.kill_new_ea_processes(before_pids)
+    if killed:
+        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
 
 if __name__ == "__main__":

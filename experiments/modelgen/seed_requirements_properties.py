@@ -5,6 +5,7 @@ Usage:
     python seed_requirements_properties.py [--qea M:\\path\\EAxCRM.qea]
 """
 import sys, os, argparse
+import ea_session
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
 
@@ -32,26 +33,6 @@ def find_package(parent, name):
     return None
 
 
-def get_ea_pids():
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq EA.exe", "/FO", "CSV"],
-            capture_output=True, text=True, timeout=10
-        )
-        pids = set()
-        for line in result.stdout.strip().split("\n")[1:]:
-            parts = line.strip().split(",")
-            if len(parts) >= 2:
-                try:
-                    pids.add(int(parts[1].strip('"')))
-                except ValueError:
-                    pass
-        return pids
-    except:
-        return set()
-
-
 def main():
     parser = argparse.ArgumentParser(description="Seed requirement properties in EA")
     parser.add_argument("--qea", default=DEFAULT_QEA)
@@ -63,20 +44,13 @@ def main():
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
 
-    before_pids = get_ea_pids()
+    with ea_session.ea_repository(args.qea) as repo:
+        root = ea_session.get_model_root(repo)
+        pkg = find_package(root, "EAxCRM Requirements")
+        if not pkg:
+            print("FAIL: 'EAxCRM Requirements' package not found")
+            sys.exit(1)
 
-    repo = win32com.client.Dispatch("EA.Repository")
-    repo.OpenFile(args.qea)
-    print(f"Connected: {repo.ConnectionString}")
-
-    root = repo.Models.GetAt(0)
-    pkg = find_package(root, "EAxCRM Requirements")
-    if not pkg:
-        print("FAIL: 'EAxCRM Requirements' package not found")
-        repo.CloseFile()
-        sys.exit(1)
-
-    try:
         pkg.Elements.Refresh()
         count = 0
         for i in range(pkg.Elements.Count):
@@ -105,22 +79,6 @@ def main():
                 print(f"  ?         {el.Name}")
 
         print(f"Processed {count} requirements.")
-
-    finally:
-        try:
-            repo.CloseFile()
-        except:
-            pass
-
-    after_pids = get_ea_pids()
-    new_pids = after_pids - before_pids
-    if new_pids:
-        import subprocess
-        for pid in new_pids:
-            try:
-                subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
-            except:
-                pass
 
 
 if __name__ == "__main__":

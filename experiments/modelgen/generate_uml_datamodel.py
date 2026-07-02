@@ -6,8 +6,9 @@ Usage:
 Idempotent: stores a GUID mapping after first run.
 Re-run to update names, descriptions, attribute types, or add new entities/relations.
 """
-import sys, os, argparse, json, subprocess, re
+import sys, os, argparse, json, re
 import diagram_utils
+import ea_session
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -232,30 +233,6 @@ def save_guid_map(mapping):
         json.dump(mapping, f, indent=2)
 
 
-def get_ea_pids():
-    try:
-        out = subprocess.check_output(
-            ["powershell", "-command",
-             "Get-Process -Name 'EA' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
-            text=True, timeout=10
-        )
-        return set(int(pid.strip()) for pid in out.strip().splitlines() if pid.strip())
-    except:
-        return set()
-
-
-def kill_new_ea_processes(before_pids):
-    after_pids = get_ea_pids()
-    new_pids = after_pids - before_pids
-    for pid in new_pids:
-        try:
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                           capture_output=True, timeout=5)
-        except:
-            pass
-    return new_pids
-
-
 def main():
     parser = argparse.ArgumentParser(description="Generate UML data model in EAxCRM.qea")
     parser.add_argument("--qea", default=DEFAULT_QEA)
@@ -274,13 +251,14 @@ def main():
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
 
-    before_pids = get_ea_pids()
+    before_pids = ea_session.get_ea_pids()
 
-    repo = win32com.client.Dispatch("EA.Repository")
+    app = win32com.client.DispatchEx("EA.App")
+    repo = app.Repository
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
 
-    root = repo.Models.GetAt(0)
+    root = ea_session.get_model_root(repo)
     data_arch = None
     for i in range(root.Packages.Count):
         p = root.Packages.GetAt(i)
@@ -541,6 +519,21 @@ def main():
                     diag = d
                     break
 
+        # UML Class boxes show an attribute compartment (unlike ArchiMate
+        # elements, which are plain icon boxes) -- both height and width must
+        # scale with each entity's own attributes, not a fixed size for all.
+        def entity_size(ent):
+            labels = [f"{a['name']}: {a['sparx_type']}" for a in ent["attributes"]]
+            w = diagram_utils.compute_uml_class_width(ent["name"], labels)
+            h = diagram_utils.compute_uml_class_height(len(ent["attributes"]))
+            return (w, h)
+
+        entity_sizes = {ent["id"]: entity_size(ent) for ent in entities}
+        # Grid cell must be at least as large as the biggest entity in this
+        # batch, or rows/columns would overlap.
+        max_entity_width = max((w for w, _ in entity_sizes.values()), default=160)
+        max_entity_height = max((h for _, h in entity_sizes.values()), default=70)
+
         if not diag:
             diag = dm_pkg.Diagrams.AddNew("EAxCRM Data Model", "Logical")
             diag.Update()
@@ -550,25 +543,43 @@ def main():
             print("  Created diagram — placing all entities")
 
             eid_list = [ent["id"] for ent in entities]
-            positions = diagram_utils.compute_diagonal_positions(eid_list,
-                per_row=8, step=200, row_gap=200, elem_width=200, elem_height=120)
+            positions = diagram_utils.compute_grid_positions(eid_list,
+                sizes=entity_sizes, per_row=8, cell_width=max_entity_width + 20,
+                cell_height=max_entity_height + 20, h_gap=20, v_gap=20)
             count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
             print(f"  Placed {count} entities on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
 
+            ent_by_elem_id = {object_ids[eid]: size for eid, size in entity_sizes.items() if eid in object_ids}
+
+            def get_elem_size(elem):
+                return ent_by_elem_id.get(elem.ElementID)
+
+            fixed = diagram_utils.repair_zero_size_objects(diag, repo, get_elem_size=get_elem_size)
+            if fixed:
+                print(f"  Repaired {fixed} zero-size diagram object(s)")
+
             placed = diagram_utils.get_placed_ids(diag)
             new_ents = [ent for ent in entities if object_ids.get(ent["id"]) not in placed]
             if new_ents:
                 new_ids = [ent["id"] for ent in new_ents]
-                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
-                    start_index=len(placed), per_row=8, step=200, row_gap=200,
-                    elem_width=200, elem_height=120)
+                # Anchor new entities just below the diagram's actual current
+                # content instead of a blind index continuation.
+                _, max_bottom = diagram_utils.get_diagram_extent(diag)
+                new_positions = diagram_utils.compute_grid_positions(new_ids,
+                    sizes=entity_sizes, start_x=20, start_y=max_bottom + 40,
+                    per_row=8, cell_width=max_entity_width + 20,
+                    cell_height=max_entity_height + 20, h_gap=20, v_gap=20)
                 added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
                 print(f"  Added {added} new entit(ies) to existing diagram")
             else:
                 print("  Diagram already has all entities — preserving manual layout")
+
+        styled = diagram_utils.set_diagram_link_style(diag, 8)  # Orthogonal Square
+        if styled:
+            print(f"  Set Orthogonal Square line style on {styled} connector(s)")
 
     finally:
         try:
@@ -581,7 +592,7 @@ def main():
         except:
             pass
 
-    killed = kill_new_ea_processes(before_pids)
+    killed = ea_session.kill_new_ea_processes(before_pids)
     if killed:
         print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 

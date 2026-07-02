@@ -6,12 +6,13 @@ This directory contains the Sparx Enterprise Architect model files for the EAxCR
 
 | File | Description |
 |---|---|---|
-| `EAxCRM-Archimate.md` | ArchiMate model (Markdown, 44 elements, 57 relations, 1 diagram) |
+| `EAxCRM-Archimate.md` | ArchiMate model (Markdown, 66 elements, 91 relations, 1 diagram) |
 | `EAxCRM-DataModel.md` | Data model (Markdown, 19 entities, 30 relationships) |
 | `EAxCRM-Requirements.md` | Requirements model (Markdown, 34 requirements) |
 | `EAxCRM-NewsletterProcess.md` | Newsletter BPMN process (Markdown, 26 elements, 2 lanes, 16 sequence flows) |
 | `EAxCRM-SalesProcess.md` | Sales BPMN process (Markdown, 45 elements, 3 lanes, 20 sequence flows, 17 message flows, 22 data associations) |
 | `EAxCRM-ProcessModel.md` | Combined process model (Markdown, 71 elements, 98 connectors) |
+| `EAxCRM-SalesProcess-CRUD.md` | Sales process CRUD matrix — maps which activities create/read/update/delete each data object, cross-referenced to data model entities |
 | `EAxCRM.qea` | Sparx EA project file (ArchiMate + data model + requirements + process architecture) |
 
 ## Generators
@@ -58,8 +59,9 @@ Two separate BPMN collaboration models, each with dedicated generators and sync 
 ## ArchiMate Model
 
 - **Layers**: Business, Application, Technology
-- **Elements**: 44 (actors, roles, processes, objects, components, services, data objects, nodes, artifacts)
-- **Relations**: 57 (composition, assignment, realization, flow, access, serving, association)
-- **Diagram**: Application Layer type with all 44 elements arranged by layer; connectors use type properties (StereotypeEx + Connector_Type) rather than display names
+- **Elements**: 66 (actors, roles, functions, processes, objects, components, services, data objects, nodes, artifacts)
+- **Relations**: 90 (composition, assignment, realization, flow, access, serving, association)
+- **Diagram**: Application Layer type with all elements arranged by layer; connectors use type properties (StereotypeEx + Connector_Type) rather than display names
+- **v2.0**: Added Sales Management function, Vendor actor, 7 new business objects (Offer, Quote, Delivery, SalesInvoice, ProcurementInvoice, Service, Vendor) with corresponding data objects, service, and processes
 
 See `AGENTS.md` for COM API interaction details, connector type mapping, and model state.

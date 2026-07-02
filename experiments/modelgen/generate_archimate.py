@@ -6,8 +6,18 @@ Usage:
 Idempotent: stores a JSON mapping of MD-GUID -> EA-GUID after first run.
 Re-run to update names, descriptions, or add new elements/relations.
 """
-import sys, os, argparse, json, subprocess, time
+import sys, os, argparse, json, time
 import diagram_utils
+import ea_session
+
+# stdout block-buffers when redirected/piped (e.g. to a log file), so nothing
+# shows up until the buffer fills or the process exits. Force line buffering
+# so progress is visible in real time if a COM call stalls.
+sys.stdout.reconfigure(line_buffering=True)
+
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -205,7 +215,8 @@ def sync_elements(repo, pkg, elements, guid_map):
         e = pkg.Elements.GetAt(j)
         pkg_elems_by_name[e.Name] = e
 
-    for el in elements:
+    for idx, el in enumerate(elements):
+        t0 = time.time()
         md_guid = el["guid"]
         if not md_guid:
             print(f"  SKIP '{el['id']}': no GUID in MD")
@@ -232,7 +243,7 @@ def sync_elements(repo, pkg, elements, guid_map):
             existing.StereotypeEx = el["sparx_stereotype"]
             existing.Update()
             guid_map[md_guid] = existing.ElementGUID
-            print(f"  Updated: '{el['name']}' ({el['type']})")
+            log(f"  [{idx + 1}/{len(elements)}] Updated: '{el['name']}' ({el['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_elem = pkg.Elements.AddNew(el["name"], base_type)
             new_elem.StereotypeEx = el["sparx_stereotype"]
@@ -247,14 +258,15 @@ def sync_elements(repo, pkg, elements, guid_map):
                     pkg_elems_by_name[e.Name] = e
                     break
 
-            print(f"  Created: '{el['name']}' ({el['type']})")
+            log(f"  [{idx + 1}/{len(elements)}] Created: '{el['name']}' ({el['type']}) [{time.time() - t0:.2f}s]")
 
 
 def sync_relations(repo, relations, elements, guid_map):
     """Create or update connectors via COM API."""
     elem_by_id = {e["id"]: e for e in elements}
 
-    for rel in relations:
+    for idx, rel in enumerate(relations):
+        t0 = time.time()
         src = elem_by_id.get(rel["source"])
         tgt = elem_by_id.get(rel["target"])
         if not src or not tgt:
@@ -288,40 +300,14 @@ def sync_relations(repo, relations, elements, guid_map):
                 break
 
         if exists:
-            print(f"  Exists rel: '{rel['id']}' ({rel['type']})")
+            log(f"  [{idx + 1}/{len(relations)}] Exists rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_conn = src_elem.Connectors.AddNew("", base_type)
             new_conn.SupplierID = tgt_elem.ElementID
             new_conn.StereotypeEx = full_stereo
             new_conn.Direction = "Source -> Destination"
             new_conn.Update()
-            print(f"  Created rel: '{rel['id']}' ({rel['type']})")
-
-
-def get_ea_pids():
-    """Return set of PIDs for all currently running EA.exe processes."""
-    try:
-        out = subprocess.check_output(
-            ["powershell", "-command",
-             "Get-Process -Name 'EA' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
-            text=True, timeout=10
-        )
-        return set(int(pid.strip()) for pid in out.strip().splitlines() if pid.strip())
-    except:
-        return set()
-
-
-def kill_new_ea_processes(before_pids):
-    """Kill EA.exe processes that started after before_pids was captured."""
-    after_pids = get_ea_pids()
-    new_pids = after_pids - before_pids
-    for pid in new_pids:
-        try:
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                           capture_output=True, timeout=5)
-        except:
-            pass
-    return new_pids
+            log(f"  [{idx + 1}/{len(relations)}] Created rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
 
 
 def main():
@@ -342,44 +328,37 @@ def main():
         print("FAIL: win32com not installed. Run: pip install pywin32")
         sys.exit(1)
 
-    # Record EA processes before we start (only kill our own later)
-    before_pids = get_ea_pids()
+    log("Opening EA session...")
+    with ea_session.ea_repository(args.qea, technology="ArchiMate3") as repo:
+        log("EA session open, resolving model root...")
+        root = ea_session.get_model_root(repo)
+        log("Model root resolved, locating Application Architecture package...")
+        app_arch = None
+        for i in range(root.Packages.Count):
+            p = root.Packages.GetAt(i)
+            if p.Name == "Application Architecture":
+                app_arch = p
+                break
+        if not app_arch:
+            app_arch = root.Packages.AddNew("Application Architecture", "Package")
+            app_arch.Update()
+            root.Update()
+        eax_pkg = get_or_create_package(app_arch, "EAxCRM")
+        log("Package resolved.")
 
-    repo = win32com.client.Dispatch("EA.Repository")
-    repo.OpenFile(args.qea)
-    print(f"Connected: {repo.ConnectionString}")
-
-    # Activate ArchiMate MDG technology
-    try:
-        repo.ActivateTechnology("ArchiMate3")
-        print("  Activated ArchiMate3 MDG technology")
-    except Exception as e:
-        print(f"  Note: ActivateTechnology failed: {e}")
-
-    root = repo.Models.GetAt(0)
-    app_arch = None
-    for i in range(root.Packages.Count):
-        p = root.Packages.GetAt(i)
-        if p.Name == "Application Architecture":
-            app_arch = p
-            break
-    if not app_arch:
-        app_arch = root.Packages.AddNew("Application Architecture", "Package")
-        app_arch.Update()
-        root.Update()
-    eax_pkg = get_or_create_package(app_arch, "EAxCRM")
-
-    try:
         # Phase 1: Elements
-        print("\n--- Elements ---")
+        log(f"--- Elements ({len(elements)}) ---")
         sync_elements(repo, eax_pkg, elements, guid_map)
         save_guid_map(guid_map)
+        log("--- Elements done ---")
 
         # Phase 2: Relationships
-        print("\n--- Relationships ---")
+        log(f"--- Relationships ({len(relations)}) ---")
         sync_relations(repo, relations, elements, guid_map)
+        log("--- Relationships done ---")
 
         # Build object_ids: el["id"] -> numeric EA ElementID
+        log("Resolving diagram object IDs...")
         object_ids = {}
         for el in elements:
             ea_guid = guid_map.get(el["guid"])
@@ -396,7 +375,7 @@ def main():
         diag_guid_key = "_diagram_eax_archimate"
         existing_diag_guid = guid_map.get(diag_guid_key)
 
-        print("\n--- Diagram ---")
+        log("--- Diagram ---")
 
         # Look up diagram by GUID (for idempotent preservation)
         diag = None
@@ -413,6 +392,8 @@ def main():
                     diag = d
                     break
 
+        elem_types = {el["id"]: ELEMENT_BASE_TYPE.get(el["type"], "Class") for el in elements}
+
         if not diag:
             diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", "Application Layer")
             diag.Update()
@@ -422,20 +403,32 @@ def main():
             print("  Created diagram — element layout will be auto-generated")
 
             eid_list = [el["id"] for el in elements]
-            positions = diagram_utils.compute_diagonal_positions(eid_list,
-                per_row=8, step=200, row_gap=200, elem_width=180, elem_height=100)
+            positions = diagram_utils.compute_grid_positions(eid_list,
+                elem_types=elem_types, type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES,
+                per_row=8, cell_width=180, cell_height=100, h_gap=20, v_gap=20)
             count = diagram_utils.create_diagram_objects(diag, eid_list, object_ids, positions)
             print(f"  Placed {count} elements on diagram")
         else:
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
+
+            fixed = diagram_utils.repair_zero_size_objects(diag, repo,
+                type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES)
+            if fixed:
+                print(f"  Repaired {fixed} zero-size diagram object(s)")
+
             placed = diagram_utils.get_placed_ids(diag)
             new_els = [el for el in elements if object_ids.get(el["id"]) not in placed]
             if new_els:
                 new_ids = [el["id"] for el in new_els]
-                new_positions = diagram_utils.compute_diagonal_positions(new_ids,
-                    start_index=len(placed), per_row=8, step=200, row_gap=200,
-                    elem_width=180, elem_height=100)
+                # Anchor new elements just below the diagram's actual current
+                # content (not a blind index continuation) so they land next
+                # to the rest of the diagram instead of far away.
+                _, max_bottom = diagram_utils.get_diagram_extent(diag)
+                new_positions = diagram_utils.compute_grid_positions(new_ids,
+                    elem_types=elem_types, type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES,
+                    start_x=20, start_y=max_bottom + 40, per_row=8,
+                    cell_width=180, cell_height=100, h_gap=20, v_gap=20)
                 added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
                 print(f"  Added {added} new element(s) to existing diagram")
             else:
@@ -444,20 +437,6 @@ def main():
         diag.StereotypeEx = "ArchiMate3::ArchiMate_ArchimateDiagram"
         diag.Update()
         print("  Set diagram stereotype to ArchiMate_ArchimateDiagram")
-    finally:
-        try:
-            repo.RefreshModelView(0)  # Full model tree refresh
-            repo.RefreshOpenDiagrams(True)
-        except Exception as e:
-            print(f"  [refresh] RefreshModelView(0) failed: {e}")
-        try:
-            repo.CloseFile()
-        except:
-            pass
-
-    killed = kill_new_ea_processes(before_pids)
-    if killed:
-        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
     print("\nDone. Open EAxCRM.qea in Sparx EA to view.")
 

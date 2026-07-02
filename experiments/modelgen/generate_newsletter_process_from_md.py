@@ -7,6 +7,7 @@ Idempotent: uses GUID map for re-runs. Only creates new elements/connectors/diag
 on first run. Updates existing ones on subsequent runs. Preserves manual diagram layout.
 """
 import sys, os, argparse, re, json, subprocess, win32com.client, pythoncom
+import ea_session
 import diagram_utils
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -231,24 +232,6 @@ def set_tagged_values(elem, stereo, fields):
             tv.Update()
 
 
-def kill_new_ea_processes(before_pids):
-    killed = []
-    try:
-        import psutil
-        current = set(p.info["pid"] for p in psutil.process_iter(["pid", "name"]) if p.info["name"] and "EA" in p.info["name"])
-        new_pids = current - before_pids
-        for pid in new_pids:
-            try:
-                p = psutil.Process(pid)
-                p.kill()
-                killed.append(pid)
-            except:
-                pass
-    except ImportError:
-        pass
-    return killed
-
-
 def main():
     pythoncom.CoInitialize()
     parser = argparse.ArgumentParser(description="Generate newsletter process model in EA")
@@ -268,17 +251,12 @@ def main():
 
     elem_guid_map = guid_map.get("elements", {})
 
-    app = win32com.client.Dispatch("EA.App")
+    before_pids = ea_session.get_ea_pids()
+
+    app = win32com.client.DispatchEx("EA.App")
     repo = app.Repository
     repo.OpenFile(args.qea)
     print(f"Connected: {repo.ConnectionString}")
-
-    before_pids = set()
-    try:
-        import psutil
-        before_pids = set(p.info["pid"] for p in psutil.process_iter(["pid", "name"]) if p.info["name"] and "EA" in p.info["name"])
-    except ImportError:
-        pass
 
     try:
         try:
@@ -287,7 +265,7 @@ def main():
         except Exception as e:
             print(f"  Note: ActivateTechnology failed: {e}")
 
-        root = repo.Models.GetAt(0)
+        root = ea_session.get_model_root(repo)
         proc_arch = None
         for i in range(root.Packages.Count):
             p = root.Packages.GetAt(i)
@@ -741,7 +719,7 @@ def main():
             pass
         pythoncom.CoUninitialize()
 
-    killed = kill_new_ea_processes(before_pids)
+    killed = ea_session.kill_new_ea_processes(before_pids)
     if killed:
         print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 

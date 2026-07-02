@@ -2,7 +2,10 @@
 
 **Model ID**: m-eacrm
 **Purpose**: Enterprise Architect Customer Relationship Manager
-**Version**: 1.0
+**Version**: 2.0
+**Elements**: 66 (was 44)
+**Relationships**: 91 (was 57)
+**Changes in v2.0**: Added Sales Management function with 5 sub-processes, Vendor actor, and 7 new business objects with corresponding data objects and services. Updated Purchase Data description for removed attributes.
 
 ## Elements
 
@@ -10,6 +13,12 @@
 - Name: Customer
 - Description: An organization that uses Sparx EA and receives services from EAxpertise.
 - GUID: {B148F708-0B53-57AF-8062-C4CA1EC8F666}
+- Layer: Business
+
+### BusinessActor — e-vendor
+- Name: Vendor
+- Description: Supplier organization (e.g. Sparx Systems, Prolaborate) that provides license and service quotes.
+- GUID: {47E9FF94-8596-4CB4-9A23-DBCBCC1BF184}
 - Layer: Business
 
 ### BusinessRole — e-role-primary
@@ -46,6 +55,12 @@
 - Name: Newsletter Management
 - Description: Create, review, and send newsletters to opted-in contacts every 6 weeks.
 - GUID: {CD9BE9D0-8CB9-583F-8F3B-BB17CFAE59B8}
+- Layer: Business
+
+### BusinessFunction — e-func-sales
+- Name: Sales Management
+- Description: Manage offers, sales invoices, purchases, vendor quotes, deliveries, and service subscriptions for customers.
+- GUID: {EC36EAFE-A71D-4B5D-800A-6B9BEB71F23C}
 - Layer: Business
 
 ### BusinessProcess — e-process-imap
@@ -88,6 +103,36 @@
 - Name: Manage Opt-in
 - Description: Mark email addresses in CRM as opted-in for newsletter delivery.
 - GUID: {2B91C473-5506-5CD4-BF43-17B60A0D82D2}
+- Layer: Business
+
+### BusinessProcess — e-process-rfq
+- Name: Handle RFQ
+- Description: Receive and register incoming customer requests for quotes.
+- GUID: {48D2A2B9-7357-4856-B27A-0424D1D8894B}
+- Layer: Business
+
+### BusinessProcess — e-process-offer
+- Name: Manage Offer
+- Description: Prepare, review, accept, or reject sales offers with license and service line items.
+- GUID: {DA0A79F5-B2A0-4D11-96BE-1250C761E275}
+- Layer: Business
+
+### BusinessProcess — e-process-procure
+- Name: Procure Licenses & Services
+- Description: Request vendor quotes, place purchase orders, and receive license files and service agreements.
+- GUID: {C0F0E339-627F-4C61-8B8A-A283816CDE56}
+- Layer: Business
+
+### BusinessProcess — e-process-deliver
+- Name: Manage Delivery
+- Description: Prepare and send delivery packages containing license files and service credentials to customers.
+- GUID: {CE6A0B79-B4CF-4C00-89D0-FE71AEB0A810}
+- Layer: Business
+
+### BusinessProcess — e-process-invoice
+- Name: Manage Invoicing & Payment
+- Description: Prepare sales invoices, handle payment validation, and remind customers of overdue payments.
+- GUID: {43EF4805-AD6E-47CE-85DA-5A759213C49B}
 - Layer: Business
 
 ### BusinessObject — e-bo-customer
@@ -134,8 +179,50 @@
 
 ### BusinessObject — e-bo-purchase
 - Name: Purchase Data
-- Description: Product purchases (quote + invoice PDFs) or Service subscriptions (name, start/expiry month). Services signal renewal via expiry month.
+- Description: Procurement event linking a quote to its procurement invoice. Can be a Product purchase (with quote/invoice PDFs) or a Service procurement.
 - GUID: {4488B57F-D62F-59BA-9589-6E2353750068}
+- Layer: Business
+
+### BusinessObject — e-bo-offer
+- Name: Offer Data
+- Description: Sales proposal document sent to a customer, containing license and service line items with pricing.
+- GUID: {FCC24A4D-3843-4C72-B149-ACCBA154E285}
+- Layer: Business
+
+### BusinessObject — e-bo-quote
+- Name: Quote Data
+- Description: Pricing quote received from a vendor in response to a license or service request.
+- GUID: {84782D32-D9F2-4D40-B68F-00A0B0A5831D}
+- Layer: Business
+
+### BusinessObject — e-bo-delivery
+- Name: Delivery Data
+- Description: Handover package containing license files, service agreements, and delivery notes sent to the customer.
+- GUID: {A05C31DD-50DB-4FDA-A5AF-CCCDF0D48B86}
+- Layer: Business
+
+### BusinessObject — e-bo-salesinvoice
+- Name: Sales Invoice Data
+- Description: Outgoing invoice sent to a customer for purchased licenses and services.
+- GUID: {F88321BE-50E7-47B8-AFA4-81EB711A0DE2}
+- Layer: Business
+
+### BusinessObject — e-bo-procurementinvoice
+- Name: Procurement Invoice Data
+- Description: Incoming invoice from a vendor for procured licenses or services.
+- GUID: {AA6C9C32-36D1-4FA4-8449-5D47B2D8E580}
+- Layer: Business
+
+### BusinessObject — e-bo-service
+- Name: Service Data
+- Description: Resold service subscriptions (SaaS, training, support) with billing frequency, start/expiry months, and renewal status.
+- GUID: {687D1D7C-683A-40AA-916A-908CD02CF0CB}
+- Layer: Business
+
+### BusinessObject — e-bo-vendor
+- Name: Vendor Data
+- Description: Supplier organization information including banking details and payment currency.
+- GUID: {D0D36D39-F5A0-4D62-892B-512D240B7337}
 - Layer: Business
 
 ### ApplicationComponent — e-app-django
@@ -172,6 +259,12 @@
 - Name: Newsletter Service
 - Description: Composes, previews, and sends the EAxNewsletter.
 - GUID: {7FACC8A1-C9D6-58AB-8C70-5BE8E9AD3426}
+- Layer: Application
+
+### ApplicationService — e-svc-sales
+- Name: Sales Management Service
+- Description: CRUD operations for offers, sales invoices, purchases, quotes, deliveries, services, and vendors.
+- GUID: {CBE22C39-BFDA-401D-94CA-E0C50C1D3617}
 - Layer: Application
 
 ### DataObject — e-data-customer
@@ -224,8 +317,50 @@
 
 ### DataObject — e-data-purchase
 - Name: Purchase Record
-- Description: Database record with type (Product/Service), purchase date, quote/invoice paths (Product), or service name, start/expiry month (Service).
+- Description: Database record with type (Product/Service), purchase date, and links to originating quote and fulfilling procurement invoice.
 - GUID: {5B3A680E-B680-5B82-83A8-EABD703B2627}
+- Layer: Application
+
+### DataObject — e-data-offer
+- Name: Offer Record
+- Description: Database record for a sales proposal with offer number, amount, currency, status, and PDF file.
+- GUID: {77F38D68-7170-4F7B-B15A-BF489FFFD66C}
+- Layer: Application
+
+### DataObject — e-data-quote
+- Name: Quote Record
+- Description: Database record for a vendor quote with quote number, amount, and PDF file.
+- GUID: {0A2721B0-C230-4596-8A0E-5C8E932259E0}
+- Layer: Application
+
+### DataObject — e-data-delivery
+- Name: Delivery Record
+- Description: Database record for a delivery handover with sent date, status, and linked attachments.
+- GUID: {C1195A6C-3853-4235-86EC-08EF707D0CF6}
+- Layer: Application
+
+### DataObject — e-data-salesinvoice
+- Name: Sales Invoice Record
+- Description: Database record for an outgoing sales invoice with invoice number, amount, currency, and paid status.
+- GUID: {E1227B80-468B-4AC6-9AA6-206C64048A56}
+- Layer: Application
+
+### DataObject — e-data-procurementinvoice
+- Name: Procurement Invoice Record
+- Description: Database record for an incoming vendor invoice with invoice number, amount, currency, and paid status.
+- GUID: {1AC9B4FD-587B-4401-9CEF-706CE833471F}
+- Layer: Application
+
+### DataObject — e-data-service
+- Name: Service Record
+- Description: Database record for a resold service with type, billing frequency, start/expiry months, and status.
+- GUID: {20CE65DE-DEAA-4742-943A-B5F54DA938E0}
+- Layer: Application
+
+### DataObject — e-data-vendor
+- Name: Vendor Record
+- Description: Database record for a supplier organization with banking details and payment currency.
+- GUID: {ED5DFFD8-4064-4C4F-BEEE-6B2FC4DCC3DF}
 - Layer: Application
 
 ### Node — e-node-nas
@@ -556,3 +691,173 @@
 - Source: e-art-dockerfile
 - Target: e-sw-container
 - GUID: {D8033287-7DC1-5A3C-823C-86825A100A73}
+
+### Composition — r-comp-sales-rfq
+- Source: e-func-sales
+- Target: e-process-rfq
+- GUID: {F0610CEC-F312-45D2-86C5-B3E74B189080}
+
+### Composition — r-comp-sales-offer
+- Source: e-func-sales
+- Target: e-process-offer
+- GUID: {E0CA4399-D2A4-4488-873D-2B8C418B33E9}
+
+### Composition — r-comp-sales-procure
+- Source: e-func-sales
+- Target: e-process-procure
+- GUID: {F9915566-31D6-4837-B66C-F03E0DDD0C4F}
+
+### Composition — r-comp-sales-deliver
+- Source: e-func-sales
+- Target: e-process-deliver
+- GUID: {F2969231-2BF3-4305-9DDF-C3FE40B53363}
+
+### Composition — r-comp-sales-invoice
+- Source: e-func-sales
+- Target: e-process-invoice
+- GUID: {3A018BD4-5BD5-478E-8B2A-7D13B456D34F}
+
+### Access — r-access-rfq-quote
+- Source: e-process-rfq
+- Target: e-bo-quote
+- GUID: {71A73B6E-D0F1-44C0-A159-AC60B4310883}
+
+### Access — r-access-offer-offer
+- Source: e-process-offer
+- Target: e-bo-offer
+- GUID: {3CA578FE-501B-4556-A938-49230CC25C89}
+
+### Access — r-access-offer-service
+- Source: e-process-offer
+- Target: e-bo-service
+- GUID: {5620769B-53CE-4F7A-BD4F-7015D0AB5813}
+
+### Access — r-access-procure-quote
+- Source: e-process-procure
+- Target: e-bo-quote
+- GUID: {1237BA52-893F-43D2-8998-79801CC3E134}
+
+### Access — r-access-procure-vendor
+- Source: e-process-procure
+- Target: e-bo-vendor
+- GUID: {3931A7E9-D9A6-42B3-BF36-157580DE2699}
+
+### Access — r-access-deliver-delivery
+- Source: e-process-deliver
+- Target: e-bo-delivery
+- GUID: {DB53B304-02CD-42BC-A486-7B3210C349B2}
+
+### Access — r-access-invoice-salesinv
+- Source: e-process-invoice
+- Target: e-bo-salesinvoice
+- GUID: {5BBD6F89-544E-44B0-9781-E60D6971B8B8}
+
+### Access — r-access-invoice-procinv
+- Source: e-process-invoice
+- Target: e-bo-procurementinvoice
+- GUID: {205609E0-1C38-4EDA-A15A-56AF942F9C7C}
+
+### Access — r-access-invoice-purchase
+- Source: e-process-invoice
+- Target: e-bo-purchase
+- GUID: {D52E9D33-3457-4C41-A389-8AEB68EE7940}
+
+### Assignment — r-assign-svc-sales
+- Source: e-app-django
+- Target: e-svc-sales
+- GUID: {3F885F37-B8E9-4935-8329-CB4B3D11885A}
+
+### Flow — r-flow-sales-offer
+- Source: e-svc-sales
+- Target: e-data-offer
+- GUID: {F0494600-CC7D-499E-A082-8F9C4A40D533}
+
+### Flow — r-flow-sales-quote
+- Source: e-svc-sales
+- Target: e-data-quote
+- GUID: {7ADC52DF-D3A7-480B-A26C-7755B5EE833D}
+
+### Flow — r-flow-sales-delivery
+- Source: e-svc-sales
+- Target: e-data-delivery
+- GUID: {0EB9C3C2-A695-40E9-B753-F1E1AC0ED08A}
+
+### Flow — r-flow-sales-salesinv
+- Source: e-svc-sales
+- Target: e-data-salesinvoice
+- GUID: {9CDA7399-C7E2-47B2-95E2-FDCA0212AF18}
+
+### Flow — r-flow-sales-procinv
+- Source: e-svc-sales
+- Target: e-data-procurementinvoice
+- GUID: {EAA0BBA3-6B31-43F5-9A6F-F67F8080B238}
+
+### Flow — r-flow-sales-service
+- Source: e-svc-sales
+- Target: e-data-service
+- GUID: {AEAFF6AB-C21B-4A20-9BE9-7CE42760AAA3}
+
+### Flow — r-flow-sales-vendor
+- Source: e-svc-sales
+- Target: e-data-vendor
+- GUID: {CD05EBCE-A3AD-4435-92F5-FCDF4271B566}
+
+### Realization — r-realize-svc-rfq
+- Source: e-svc-sales
+- Target: e-process-rfq
+- GUID: {21492691-ABF7-4F8C-AC50-11FA10D0C97B}
+
+### Realization — r-realize-svc-offer
+- Source: e-svc-sales
+- Target: e-process-offer
+- GUID: {BDB87E8E-F09C-4C57-824D-C1F0C1BB74D0}
+
+### Realization — r-realize-svc-procure
+- Source: e-svc-sales
+- Target: e-process-procure
+- GUID: {90E46CFD-A95C-4E89-9393-209CBC69F64A}
+
+### Realization — r-realize-svc-deliver
+- Source: e-svc-sales
+- Target: e-process-deliver
+- GUID: {0A155C80-66FB-43FE-8D38-6D6FA5B567F3}
+
+### Realization — r-realize-svc-invoice
+- Source: e-svc-sales
+- Target: e-process-invoice
+- GUID: {52697271-FC05-4C58-87A5-12950DD72261}
+
+### Realization — r-realize-data-offer-bo
+- Source: e-data-offer
+- Target: e-bo-offer
+- GUID: {4C9489C7-D9B1-4D30-A454-0670D89F602B}
+
+### Realization — r-realize-data-quote-bo
+- Source: e-data-quote
+- Target: e-bo-quote
+- GUID: {84228782-8D6E-4A43-8C05-45B29709F2E4}
+
+### Realization — r-realize-data-delivery-bo
+- Source: e-data-delivery
+- Target: e-bo-delivery
+- GUID: {CBDA9E65-B373-444A-8A48-E5841B65D014}
+
+### Realization — r-realize-data-salesinv-bo
+- Source: e-data-salesinvoice
+- Target: e-bo-salesinvoice
+- GUID: {76EB362E-0E4E-41B3-84C3-C7265C87D5EC}
+
+### Realization — r-realize-data-procinv-bo
+- Source: e-data-procurementinvoice
+- Target: e-bo-procurementinvoice
+- GUID: {2BA1D208-4FE2-4973-93DF-DA077D2FAAC4}
+
+### Realization — r-realize-data-service-bo
+- Source: e-data-service
+- Target: e-bo-service
+- GUID: {16C2808F-A17A-4225-BECB-7E7EEE7EEE76}
+
+### Realization — r-realize-data-vendor-bo
+- Source: e-data-vendor
+- Target: e-bo-vendor
+- GUID: {7D19D94F-D32D-4B36-B582-7F0B7164A279}

@@ -124,15 +124,15 @@ Attachment → Delivery (included_in)
 - No AI dependencies by design; optional small local LLM later if needed (ollama)
 
 ## Models (files in ../models/)
-- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 44 elements, 57 relations, 1 diagram)
+- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 66 elements, 91 relations, 1 diagram; v2.0 adds Sales Management, Vendor, and 7 new business objects)
 - `EAxCRM-Requirements.md` — Requirements model (Markdown, 33 requirements)
 - `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements)
 
 ## Active Context
-- ArchiMate model fully generated with 44 elements, 57 relationships, 1 diagram
+- ArchiMate model v2.0 **confirmed synced live in EA** (2026-07-02, after fixing the 61704 blocker) — 66 elements, 91 relationships, 1 diagram — added Sales Management function, Vendor actor, Offer/Quote/Delivery/SalesInvoice/ProcurementInvoice/Service/Vendor business objects
 - ApplicationService Object_Type fixed to 'Activity' (confirmed correct shape in EA)
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
-- GUID map has 45 entries (44 elements + 1 diagram), saved to `archimate_guid_map.json`
+- GUID map has 67 entries (66 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
 - Data model has 19 entities and 30 relationships — updated 2026-06-29
 - Requirements model expanded from 8 to 34 requirements with IDs, Status, Version — updated 2026-06-29
@@ -388,6 +388,64 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Session tools: `session_search`, `session_read`, `session_list`
 - To re-bootstrap (e.g. after model download fix): `bunx @mathew-cf/opencode-memory init --skip-skills` (remove the re-created `.git` afterward)
 - `.gitignore` excludes `_opencode_memory/.git/` to prevent nested repo issues if init is re-run
+
+## CRUD File Update Rule
+`models/EAxCRM-SalesProcess-CRUD.md` must be updated whenever:
+- Data Input/Output Associations in the sales process change
+- DataObject elements are added, renamed, or removed in the sales process
+- Data model entities that map to BPMN data objects change (rename, add, remove)
+- Run the sync/generator scripts first, then update the CRUD matrix to match
+
+## Bugfix: EA 61704 Error + Non-BPMN Diagram Sizing/Layout (2026-07-02)
+
+**61704 blocker resolved**: `generate_archimate.py` (and all other generator/
+sync scripts) previously used `win32com.client.Dispatch("EA.Repository")`,
+which can attach to an EA automation server already registered in COM's
+Running Object Table — e.g. the user's own open EA instance on the same
+file — instead of spawning an isolated one. Switched every script to
+`DispatchEx("EA.App")` via a new shared `experiments/modelgen/ea_session.py`
+module, which also retries `Models.GetAt(0)` (observed to transiently fail
+right after `OpenFile`/`ActivateTechnology`) and centralizes zombie-process
+cleanup (before/after PID diffing — never touches a pre-existing EA
+instance). This unblocked the ArchiMate v2.0 sync, now confirmed live in EA.
+
+**Two real zombie-cleanup bugs found and fixed** (both leaked an EA.exe on
+every run): `generate_sales_process_from_md.py` and
+`generate_newsletter_process_from_md.py` captured `before_pids` *after*
+`repo.OpenFile()` had already spawned the process, so their own instance was
+always excluded from the kill diff. `cleanup.py` had no cleanup logic at all.
+
+**Non-BPMN diagram layout rewritten** (`diagram_utils.py`): the old
+`compute_diagonal_positions()` row-jump formula compounded by
+`per_row * step` per row, sprawling new elements thousands of pixels from
+the rest of the diagram. Replaced with `compute_grid_positions()` — linear,
+non-compounding row/column advance, anchored below the diagram's real
+current extent (`get_diagram_extent()`) instead of a blind index
+continuation.
+
+**Element sizing**: confirmed empirically that EA's COM API does not
+auto-size a `DiagramObject` (`right`/`bottom` left unset → permanent 0×0,
+invisible — verified both via COM read-back and visually in EA's GUI).
+Diagram `Type`/`Stereotype`/`MDGTechnology` do not affect this either.
+`DEFAULT_ELEMENT_SIZES` in `diagram_utils.py` now sets every ArchiMate/
+Requirements type to a uniform `(90, 70)`, confirmed against three elements
+dragged fresh from the ArchiMate3 toolbox (`ApplicationComponent1`,
+`BusinessActor1`, `BusinessObject1`) and left unresized. UML Data Model
+entities are different — they show a real attribute compartment, so
+`compute_uml_class_width()`/`compute_uml_class_height()` scale the box with
+each entity's own attribute count/name length instead of a fixed size
+(tuned interactively against a `Sandbox` test diagram).
+
+**Connector LineStyle**: `generate_uml_datamodel.py` now sets `LineStyle = 8`
+(Orthogonal Square) on every connector via the new
+`diagram_utils.set_diagram_link_style()` — a UML Data Model-specific
+preference, distinct from BPMN's `LineStyle = 9` (Orthogonal Rounded).
+ArchiMate connectors are not yet styled this way.
+
+**Sandbox workflow**: never test new layout/sizing/style logic against a
+real diagram — use a `Sandbox` package directly under the root Model
+package, with its own GUID map file, so it can never collide with a real
+generator's state. See the `ea-diagram-creator` skill for the full pattern.
 
 ## Next Steps
 1. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
