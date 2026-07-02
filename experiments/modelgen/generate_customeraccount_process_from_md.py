@@ -1,9 +1,11 @@
-"""Generate BPMN sales process model in EAxCRM.qea from Markdown using COM API.
+"""Generate the BPMN "Manage Customer Account" process in EAxCRM.qea from Markdown using COM API.
 
 Usage:
-    python generate_sales_process_from_md.py
+    python generate_customeraccount_process_from_md.py
 
-Supports SequenceFlows, MessageFlows, DataInputAssociation, DataOutputAssociation.
+Supports SequenceFlow, MessageFlow, DataInputAssociation, DataOutputAssociation
+(the current MD only uses SequenceFlow + Data*Association -- single lane, no
+cross-participant MessageFlows).
 Idempotent: uses GUID map for re-runs. Preserves manual diagram layout.
 """
 import sys, os, argparse, re, json, subprocess, win32com.client, pythoncom
@@ -12,8 +14,8 @@ import ea_session
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
-DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-SalesProcess.md"
-GUID_MAP_FILE = os.path.join(SCRIPT_DIR, "sales_guid_map.json")
+DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-CustomerAccountProcess.md"
+GUID_MAP_FILE = os.path.join(SCRIPT_DIR, "customeraccount_guid_map.json")
 
 LABEL_TO_STEREO = {
     "BPMN Collaboration": "CollaborationModel",
@@ -120,8 +122,6 @@ CONNECTOR_STEREOTYPES_SHORT = {
     "DataInputAssociation": "DataInputAssociation",
 }
 
-# LANE_IDS built dynamically from parse_md output (see after parse_md call)
-
 
 def safe_id(name):
     return re.sub(r"[^a-zA-Z0-9]", "", name)
@@ -154,7 +154,7 @@ def parse_md(path):
             section = "header"
             parts_after = stripped[3:].strip()
             sep = None
-            for s in ("\u2014", "\u2013"):
+            for s in ("—", "–"):
                 if s in parts_after:
                     sep = s
                     break
@@ -169,32 +169,6 @@ def parse_md(path):
                 parent_eid = safe_id(current)
             continue
 
-        # Check for connector sections
-        if stripped.startswith("#### "):
-            if current and label:
-                elements[safe_id(current)] = {
-                    "label": label,
-                    "fields": dict(fields),
-                }
-            parts = stripped[5:].strip()
-            sep_char = None
-            for s in ("\u2014", "\u2013"):
-                if s in parts:
-                    sep_char = s
-                    break
-            if sep_char:
-                label, eid_part = parts.split(sep_char, 1)
-                label = label.strip()
-                eid_part = eid_part.strip()
-            else:
-                label = parts
-                eid_part = parts
-            current = eid_part
-            fields = {}
-            if parent_eid:
-                fields["Parent"] = parent_eid
-            continue
-
         if stripped.startswith("### "):
             if current and label:
                 elements[safe_id(current)] = {
@@ -202,14 +176,12 @@ def parse_md(path):
                     "fields": dict(fields),
                 }
             parts_after = stripped[4:].strip()
-            # Check if this is a connector section
             if parts_after in section_map:
                 section = section_map[parts_after]
                 current = None
                 continue
-            # Regular element
             sep_char = None
-            for s in ("\u2014", "\u2013"):
+            for s in ("—", "–"):
                 if s in parts_after:
                     sep_char = s
                     break
@@ -252,17 +224,6 @@ def parse_md(path):
     return elements, connectors
 
 
-def get_or_create_package(parent_pkg, name):
-    for i in range(parent_pkg.Packages.Count):
-        p = parent_pkg.Packages.GetAt(i)
-        if p.Name == name:
-            return p
-    new_pkg = parent_pkg.Packages.AddNew(name, "Package")
-    new_pkg.Update()
-    parent_pkg.Update()
-    return new_pkg
-
-
 def set_tagged_values(elem, stereo, fields):
     tag_defs = BPMN_TAGGED_VALUES.get(stereo, {})
     if not tag_defs:
@@ -277,7 +238,7 @@ def set_tagged_values(elem, stereo, fields):
 
 def main():
     pythoncom.CoInitialize()
-    parser = argparse.ArgumentParser(description="Generate sales process model in EA")
+    parser = argparse.ArgumentParser(description="Generate Manage Customer Account process in EA")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)
     args = parser.parse_args()
@@ -288,14 +249,11 @@ def main():
 
     LANE_IDS = {eid for eid, edata in elements.items() if edata.get("label") == "Lane"}
     if not LANE_IDS:
-        # Fallback (should not happen with correct MD)
-        LANE_IDS = {"Customer", "EAxpertise", "Vendor"}
+        LANE_IDS = {"EAxpertise"}
     print(f"  Lane IDs: {LANE_IDS}")
 
     # elem_types for type-appropriate BPMN sizing (Gateway diamonds, DataObject,
-    # StartEvent/EndEvent/IntermediateEvent circles) via diagram_utils.BPMN_ELEMENT_SIZES.
-    # Without this, compute_bpmn_element_positions falls back to one flat box
-    # for every element regardless of type.
+    # StartEvent/EndEvent circles) via diagram_utils.BPMN_ELEMENT_SIZES.
     elem_types = {eid: data["label"] for eid, data in elements.items()
                   if data.get("label") and data["label"] != "Lane"}
 
@@ -335,7 +293,7 @@ def main():
         proc_arch.Elements.Refresh()
 
         # CollaborationModel
-        collab_name = "EAxCRM Sales Process Architecture"
+        collab_name = "Manage Customer Account"
         collab_elem = None
         collab_guid = guid_map.get("_collaboration_model", "")
         if collab_guid:
@@ -351,17 +309,11 @@ def main():
                     collab_elem = e
                     break
 
-        # Build name-index of existing elements
         proc_arch.Elements.Refresh()
         pkg_elems_by_name = {}
         for i in range(proc_arch.Elements.Count):
             e = proc_arch.Elements.GetAt(i)
             pkg_elems_by_name[e.Name] = e
-            for eid, elem_data in elements.items():
-                md_guid = elem_data["fields"].get("GUID", "")
-                if md_guid and e.ElementGUID == md_guid and md_guid not in guid_map:
-                    if "_collaboration_model" not in guid_map and elem_data["label"] == "BPMN Collaboration":
-                        guid_map["_collaboration_model"] = e.ElementGUID
 
         created_count = 0
         updated_count = 0
@@ -428,11 +380,9 @@ def main():
             collab_elem = create_element(collab_eid, None)
 
         if collab_elem:
-            # First pass: create all Lane elements under CM
             for eid, elem_data in elements.items():
                 if eid not in object_ids and elem_data.get("label") == "Lane":
                     create_element(eid, collab_elem)
-            # Second pass: non-Lane elements, assign to correct lane parent
             for eid, elem_data in elements.items():
                 if eid in object_ids:
                     continue
@@ -442,12 +392,10 @@ def main():
                 else:
                     parent = collab_elem
                 create_element(eid, parent)
-            # Third pass: any missed elements
             for eid in elements:
                 if eid not in object_ids:
                     create_element(eid, collab_elem)
 
-        # Fix parentage on re-runs (so lanes parent their children)
         for eid, elem_data in elements.items():
             if elem_data.get("label") == "Lane" or eid == collab_eid:
                 continue
@@ -464,7 +412,6 @@ def main():
                     except:
                         pass
 
-        # Tagged values
         for eid, elem_oid in object_ids.items():
             elem_data = elements[eid]
             raw_label = elem_data["label"]
@@ -485,7 +432,6 @@ def main():
 
         print(f"Created {created_count} new element(s), updated {updated_count}")
 
-        # Create connectors — handle all 4 types
         conn_counts = {}
         for conn_type, conn_list in connectors.items():
             if not conn_list:
@@ -508,7 +454,6 @@ def main():
                 uml_type = CONNECTOR_TYPES[conn_type]
                 stereo_ex = CONNECTOR_STEREOTYPE_EX[conn_type]
 
-                # Check if connector already exists (match short or long form)
                 short_stereo = CONNECTOR_STEREOTYPES_SHORT.get(conn_type, conn_type)
                 exists = False
                 src_elem.Connectors.Refresh()
@@ -519,7 +464,6 @@ def main():
                     cstereo = conn.StereotypeEx or conn.Stereotype or ""
                     if cstereo in (stereo_ex, short_stereo):
                         exists = True
-                        # Upgrade to full form if needed
                         if cstereo == short_stereo:
                             conn.StereotypeEx = stereo_ex
                         if flow["condition"]:
@@ -545,7 +489,7 @@ def main():
 
         # Diagram
         diag = None
-        diag_guid_key = "_diagram_sales"
+        diag_guid_key = "_diagram_customeraccount"
         existing_diag_guid = guid_map.get(diag_guid_key)
         if existing_diag_guid:
             try:
@@ -566,12 +510,12 @@ def main():
             collab_elem.Diagrams.Refresh()
             for i in range(collab_elem.Diagrams.Count):
                 d = collab_elem.Diagrams.GetAt(i)
-                if d.Name == "Sales Process Architecture":
+                if d.Name == "Manage Customer Account":
                     diag = d
                     break
 
         if not diag and collab_elem:
-            diag = collab_elem.Diagrams.AddNew("Sales Process Architecture", "BusinessProcess")
+            diag = collab_elem.Diagrams.AddNew("Manage Customer Account", "BusinessProcess")
             diag.Update()
             collab_elem.Update()
             guid_map[diag_guid_key] = diag.DiagramGUID
@@ -581,6 +525,10 @@ def main():
             diag.Stereotype = "Collaboration"
             diag.StereotypeEx = "BPMN2.0::Collaboration"
             diag.Update()
+            # SQLite fallback for the diagram-property stereotype xref only --
+            # matches the documented exception in the ea-diagram-creator skill
+            # ("BPMN Diagram Stereotype needs 3 things"), not a general SQLite
+            # write. All element/connector writes above are COM API only.
             import sqlite3 as _sqlite3
             import uuid as _uuid
             _qea_path = args.qea
@@ -675,7 +623,6 @@ def main():
         except Exception as e:
             print(f"  [linestyle] Failed: {e}")
 
-        # Save GUID map
         if collab_elem:
             guid_map["_collaboration_model"] = collab_elem.ElementGUID
         if diag:
@@ -686,7 +633,7 @@ def main():
 
     finally:
         try:
-            repo.RefreshModelView(0)  # Full model tree refresh
+            repo.RefreshModelView(0)
             repo.RefreshOpenDiagrams(True)
         except Exception as e:
             print(f"  [refresh] RefreshModelView(0) failed: {e}")

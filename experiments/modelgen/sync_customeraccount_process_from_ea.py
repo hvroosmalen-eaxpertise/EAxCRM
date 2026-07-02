@@ -1,12 +1,12 @@
-"""Read Sales BPMN process model from EAxCRM.qea and write as Markdown (flat format).
+"""Read Manage Customer Account BPMN process model from EAxCRM.qea and write as Markdown (flat format).
 
 Usage:
-    python sync_sales_process_from_ea.py
+    python sync_customeraccount_process_from_ea.py
 """
 import sys, os, argparse, re, sqlite3
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
-DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-SalesProcess.md"
+DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-CustomerAccountProcess.md"
 
 BPMN_TYPE_LABEL = {
     "Activity": "Activity",
@@ -18,9 +18,10 @@ BPMN_TYPE_LABEL = {
     "ActivityPartition": "Lane",
 }
 
-PACKAGE_NAME = "Sales Process Architecture"
-MODEL_ID = "sp-eacrm"
-PURPOSE = "BPMN 2.0 sales process model for the EAxCRM system"
+PACKAGE_NAME = "Manage Customer Account Architecture"
+MODEL_ID = "cap-eacrm"
+PURPOSE = "BPMN 2.0 process model for creating and maintaining Customer Accounts in EAxCRM"
+COLLAB_NAME_LIKE = "%Customer Account%"
 
 BPMN_TAGGED_VALUES = {
     "Activity": {
@@ -103,12 +104,12 @@ def main():
         c.execute(
             "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
             "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
-            "FROM t_object WHERE Package_ID=? AND Stereotype='CollaborationModel' AND Name LIKE '%Sales%'",
-            (parent_pkg_id,)
+            "FROM t_object WHERE Package_ID=? AND Stereotype='CollaborationModel' AND Name LIKE ?",
+            (parent_pkg_id, COLLAB_NAME_LIKE)
         )
         cm_row = c.fetchone()
         if not cm_row:
-            print(f"FAIL: No sales CollaborationModel found in Process Architecture package")
+            print(f"FAIL: No Manage Customer Account CollaborationModel found in Process Architecture package")
             sys.exit(1)
         cm_oid = cm_row[0]
         pkg_id = parent_pkg_id
@@ -191,7 +192,7 @@ def main():
             lane_info[info["oid"]] = {"name": info["name"], "safe_id": safe_id(info["name"])}
 
     lines = []
-    header_name = PACKAGE_NAME
+    header_name = "Manage Customer Account Process"
     lines.append(f"# EAxCRM — {header_name}")
     lines.append("")
     lines.append(f"**Model ID**: {MODEL_ID}")

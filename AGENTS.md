@@ -124,9 +124,10 @@ Attachment → Delivery (included_in)
 - No AI dependencies by design; optional small local LLM later if needed (ollama)
 
 ## Models (files in ../models/)
-- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 66 elements, 91 relations, 1 diagram; v2.0 adds Sales Management, Vendor, and 7 new business objects)
-- `EAxCRM-Requirements.md` — Requirements model (Markdown, 33 requirements)
-- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements)
+- `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 71 elements, 107 relations, 1 diagram; v2.0 adds Sales Management, Vendor, and 7 new business objects; v2.1 adds Manage Customer Account function)
+- `EAxCRM-Requirements.md` — Requirements model (Markdown, 39 requirements)
+- `EAxCRM-CustomerAccountProcess.md` — Manage Customer Account BPMN process (Markdown, design-only, not yet in EA)
+- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements; Sales Process v1.1 and Manage Customer Account process still need to be generated/re-generated from MD)
 
 ## Active Context
 - ArchiMate model v2.0 **confirmed synced live in EA** (2026-07-02, after fixing the 61704 blocker) — 66 elements, 91 relationships, 1 diagram — added Sales Management function, Vendor actor, Offer/Quote/Delivery/SalesInvoice/ProcurementInvoice/Service/Vendor business objects
@@ -334,11 +335,11 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Dedicated process models: `EAxCRM-NewsletterProcess.md` and `EAxCRM-SalesProcess.md` with individual generators
 
 ## Requirements Model
-- `EAxCRM-Requirements.md` holds 33 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
+- `EAxCRM-Requirements.md` holds 39 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
 - ID stored in EA's `t_object.Alias` field, synced via COM API
 - Status and Version are standard EA `t_object` columns
 - Entity → Requirement mappings use Realisation connectors (entity is source, requirement is target)
-- 57 Realisation connectors link 29 entity mappings across all 33 requirements
+- New 2026-07-02 (**MD only, not yet generated into EA**): CRM-6 (create Customer Account from minimal data), CRM-7 (fuzzy-match duplicate detection + merge), CRM-8 (email history retrieval via IMAP scan), CRM-9 (role-gated opt-in suggestion requiring user confirmation), SAL-5 (verify/create Customer Account when an RFQ arrives from an unrecognized org) — all support the new Manage Customer Account process
 - `sync_requirements_from_ea.py` — COM API only, reads from EA → MD (outputs `- Entities:` lines)
 - `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
 - `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD, including parent Aggregation connectors, Realisation connectors to entities, and diagram placement (idempotent, saves GUID map)
@@ -367,12 +368,23 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - **7 scraping elements**: Scheduled Scrape, Fetch URL List, Scrape Articles, Extract Headings and Summaries, Store New Articles, URL List, Scrape Complete — completing the full newsletter pipeline from scraping through review and distribution.
 
 ## Sales Process Model
-- `EAxCRM-SalesProcess.md` holds the BPMN spec (1 CollaborationModel, 3 Lanes, 45 elements, 20 SequenceFlows, 17 MessageFlows, 11 DataOutputAssoc, 11 DataInputAssoc)
+- `EAxCRM-SalesProcess.md` holds the BPMN spec (1 CollaborationModel, 3 Lanes, 49 elements, 25 SequenceFlows, 17 MessageFlows, 11 DataOutputAssoc, 11 DataInputAssoc)
 - `generate_sales_process_from_md.py` — MD → EA generator (COM API only, full connector support)
 - `sales_guid_map.json` — GUID map for idempotent re-runs
 - Flat `### ` structure (all elements at same level, Lane field on each element indicates membership)
 - Lane fields used for diagram placement via diagram_utils BPMN lane layout
 - Connector existence check matches both short-form ("SequenceFlow") and long-form ("BPMN2.0::SequenceFlow") stereotypes
+- v1.1 (2026-07-02): added `ConfirmCustomerAccount` IntermediateEvent (EAxpertise lane), inserted between `CreateRFQ` and `RegisterRFQ` — `CreateRFQ → RegisterRFQ` MessageFlow replaced by `CreateRFQ → ConfirmCustomerAccount` (MessageFlow, crosses Customer/EAxpertise) + `ConfirmCustomerAccount → RegisterRFQ` (SequenceFlow, same lane). References the new Manage Customer Account process — not a literal cross-diagram BPMN link, just a design/documentation pointer plus an ArchiMate Triggering relation (`r-trigger-rfq-createaccount`)
+
+## Manage Customer Account Process (2026-07-02, design-only — not yet generated into EA)
+- `EAxCRM-CustomerAccountProcess.md` holds the BPMN spec (1 CollaborationModel, 1 Lane "EAxpertise", 12 elements, 9 SequenceFlows, 4 DataInputAssoc, 2 DataOutputAssoc). Follows the same flat `### ` + `- Lane:` format as the Sales Process.
+- Fills a real gap: no existing process created the Customer/Contact records that Sales Process/Newsletter Management/Customer Insight all assume already exist.
+- Flow: `StartAccountRequest` → `CreateCustomerAccount` (org name + exactly one Contact, role optional) → `duplicatecheck` gateway (fuzzy match on org name + Contact email) → either `MergeCustomerAccounts` (→ `EndMerged`) or `RetrieveEmailHistory` (IMAP scan across the 3 mailboxes) → `roleCheck` gateway (Primary/License Holder?) → optionally `SuggestOptIn` (system suggests, **user must explicitly confirm** — opt_in is never set automatically) → `EndAccountCreated`
+- Single Lane only (`EAxpertise`) — always staff-driven via the EAxCRM app, no self-service/Customer lane, no separate system/IMAP lane
+- No new Data Model entities/fields needed — reuses existing `Customer`/`Contact`/`Communication`
+- **No generator/sync script exists yet** (`generate_customeraccount_process_from_md.py` / `sync_customeraccount_process_from_ea.py`) — next step is to build these following the Sales Process generator pattern (COM API only, GUID map file `customeraccount_guid_map.json`, BPMN lane layout via `diagram_utils`) before this can be created in `EAxCRM.qea`
+- New requirements CRM-6 through CRM-9 and SAL-5 in `EAxCRM-Requirements.md` cover this process — see "Requirements Model" below
+- New ArchiMate additions (v2.1): BusinessFunction `Manage Customer Account` (`e-func-account`) with 4 BusinessProcesses (`e-process-createaccount`, `e-process-dedupe`, `e-process-merge`, `e-process-emailhistory`), reusing existing `Customer Data`/`Contact Data`/`Communication Data` BusinessObjects and the `Customer Management Service`/`IMAP Fetch Service` ApplicationServices; Triggering relation from `Handle RFQ` to `Create Customer Account`
 
 ### Generator Scripts (experiments/modelgen/)
 
@@ -447,8 +459,44 @@ real diagram — use a `Sandbox` package directly under the root Model
 package, with its own GUID map file, so it can never collide with a real
 generator's state. See the `ea-diagram-creator` skill for the full pattern.
 
+## Bugfix: BPMN Event tagged value was `eventType`, real EA tag is `eventDefinition` (2026-07-02)
+
+Every BPMN generator/sync script (`generate_sales_process_from_md.py`,
+`generate_newsletter_process_from_md.py`, `generate_customeraccount_process_from_md.py`,
+`sync_sales_process_from_ea.py`, `sync_newsletter_process_from_ea.py`,
+`sync_process_from_ea.py`) used the tagged-value property key `"eventType"`
+for `StartEvent`/`EndEvent` — this never matched any real EA/BPMN2.0-MDG
+property, so it silently wrote/read nothing. Confirmed via EA's own Tagged
+Values browser (screenshot of the `IntermediateEvent (from BPMN2.0)` panel):
+the real property is **`eventDefinition`**, with the standard BPMN 2.0
+vocabulary as its value list — `None, Cancel, Compensation, Conditional,
+Escalation, Error, Link, Message, Multiple, Timer, Signal, ParallelMultiple`.
+Fixed by renaming the key everywhere (the MD-facing label stays `Event Type`
+— only the internal EA property name changed, no MD syntax change needed).
+
+Also found and fixed: `IntermediateEvent` had **no tagged-value entry at
+all** in `generate_sales_process_from_md.py`, `generate_newsletter_process_from_md.py`,
+`generate_customeraccount_process_from_md.py`, and `sync_newsletter_process_from_ea.py`
+(only `sync_sales_process_from_ea.py`/`sync_process_from_ea.py` had it) —
+added `"IntermediateEvent": {"eventDefinition": "Event Type", "triggerType": "Trigger"}`
+to all four.
+
+**Not yet confirmed**: `triggerType` (labeled `Trigger`/`Result` for Start/End)
+may be equally wrong — EA's browser showed a `catchOrThrow` property
+(values `Catch`/`Throw`) for `IntermediateEvent` instead, which looks like
+the more likely real property. Left `triggerType` unchanged pending
+confirmation — don't assume it's correct just because `eventDefinition`
+was fixed.
+
+`ConfirmCustomerAccount` (Sales Process, EAxpertise lane) set to
+`Event Type: Signal` in `EAxCRM-SalesProcess.md` — a deliberate choice over
+the originally-designed Message event, made after inspecting the real
+tagged-value options in EA.
+
 ## Next Steps
 1. **Test entity → requirement Realisation connector round-trip**: delete/add entity mappings in MD, run generator, verify connectors update; modify in EA, run sync, verify MD updates
 2. Build IMAP experiment, PDF parsing experiment
 3. **Add Pools, Lanes, Tasks, Events, Gateways** to existing CollaborationModels in EA, run sync scripts to verify MD output
 4. **Extend BPMN generators** — add support for CallActivity, SubProcess, ChoreographyTask, Message, and other BPMN 2.0 element types
+5. **Build `generate_customeraccount_process_from_md.py`** (and its sync counterpart) following the Sales Process generator pattern, then run `generate_archimate.py` and `generate_sales_process_from_md.py` to push the v2.1 ArchiMate additions and Sales Process v1.1 event into `EAxCRM.qea` — test in the `Sandbox` package first per the `ea-diagram-creator` skill
+6. **Generate CRM-6..9 and SAL-5** into EA via `generate_requirements_from_md.py` once the Customer Account process is confirmed

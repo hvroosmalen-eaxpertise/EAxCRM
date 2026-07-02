@@ -50,6 +50,7 @@
     "licensesrequired": "{137E4E47-AE30-4019-AFB4-F5848F6C75E7}",
     "RemindPayment": "{6133EFAA-E2BB-4e3e-ACBF-5DC7BA76353F}",
     "RequestLicenseQuote": "{54201F7E-AA1B-49bb-AB58-CE578A450AE4}",
-    "RequestServiceQuote": "{71C21043-6571-451e-BFD8-B8901AA0EB81}"
+    "RequestServiceQuote": "{71C21043-6571-451e-BFD8-B8901AA0EB81}",
+    "ConfirmCustomerAccount": "{AD32AD89-C0CA-4001-ACFB-56C1F46601AC}"
   }
 }

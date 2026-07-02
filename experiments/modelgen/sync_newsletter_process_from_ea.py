@@ -42,16 +42,20 @@ BPMN_TAGGED_VALUES = {
         "adhocCompletionCondition": "Ad Hoc Completion Condition",
     },
     "Event": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "StartEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "EndEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Result",
+    },
+    "IntermediateEvent": {
+        "eventDefinition": "Event Type",
+        "triggerType": "Trigger",
     },
     "Gateway": {
         "gatewayType": "Gateway Type",
@@ -77,6 +81,7 @@ BPMN_TAGGED_VALUES = {
     "DataObject": {
         "dataObjectRef": "Data Object Ref",
         "isCollection": "Is Collection",
+        "dataInOut": "Data In/Out",
     },
 }
 

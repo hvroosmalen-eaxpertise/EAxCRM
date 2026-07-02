@@ -374,3 +374,58 @@
 - Parents:
   - (none — top-level)
 
+### Requirement—eaxcrmmustsupportcreatingacustomeraccountwithaminimalinitialcontact
+- Name: EAxCRM must support creating a Customer Account with a minimal initial Contact
+- ID: CRM-6
+- Description: The system shall allow an EAxCRM user to create a new Customer Account from minimal data — organisation name plus one Contact's email address — without requiring a role assignment, address, or additional contacts at creation time. Role and further contacts may be added later as the account grows.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {DAB29A35-FF08-4CF5-960F-4DAD0286538F}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—eaxcrmmustdetectandflagpotentialduplicatecustomeraccountsformergeordiscard
+- Name: EAxCRM must detect and flag potential duplicate Customer Accounts for merge or discard
+- ID: CRM-7
+- Description: When a Customer Account is created, the system shall check for similar existing accounts using fuzzy matching on organisation name and Contact email address. If a likely duplicate is found, the user shall be prompted to either merge the new account into the existing one or proceed with a separate account. After a merge, any resulting duplicate Contact records may be manually removed by the user.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {40E43C49-F0FA-4C44-B094-DAEDE5051FCD}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—eaxcrmmustretrievecustomeremailhistorybyscanningconfiguredimapmailboxes
+- Name: EAxCRM must retrieve customer email history by scanning configured IMAP mailboxes
+- ID: CRM-8
+- Description: From the Customer Account page, the system shall allow the user to trigger a scan of the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) for messages matching a Contact's email address, and link the resulting Communication records to that Customer Account.
+- Entities: Communication, Contact, Customer, ImapAccount
+- Status: Proposed
+- Version: 1.0
+- GUID: {8314D211-12F4-444E-A437-80F52BA85DED}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—eaxcrmmustsuggestnewsletteroptinforprimaryandlicenseholdercontactspendinguserconfirmation
+- Name: EAxCRM must suggest newsletter opt-in for Primary and License Holder Contacts pending user confirmation
+- ID: CRM-9
+- Description: Whenever a Contact's role is set to Primary Contact or License Holder — whether at account creation or later — the system shall suggest opting that Contact in to the newsletter. The opt-in (and opt_in_date) shall only be set after the user explicitly confirms; it shall never be applied automatically without confirmation.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {82500693-B5E8-4CDD-A45C-F372977AFE54}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—eaxcrmmustverifyorcreatethecustomeraccountwhenregisteringanrfqfromanunrecognizedorganization
+- Name: EAxCRM must verify or create the Customer Account when registering an RFQ from an unrecognized organization
+- ID: SAL-5
+- Description: When an RFQ is received from an organisation without an existing Customer Account, the sales process shall pause (via a message event) so the user can create or confirm the Customer Account — using the Manage Customer Account process — before the RFQ is registered. Account creation itself remains manual; the system provides duplicate-detection and email-history assistance but never creates an account automatically.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {7DA4557A-937C-4EA4-A6FC-ABBFA72360F3}
+- Parents:
+  - eaxcrmmustsupportthesalesprocess
+

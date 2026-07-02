@@ -2,10 +2,11 @@
 
 **Model ID**: m-eacrm
 **Purpose**: Enterprise Architect Customer Relationship Manager
-**Version**: 2.0
-**Elements**: 66 (was 44)
-**Relationships**: 91 (was 57)
+**Version**: 2.1
+**Elements**: 71 (was 66)
+**Relationships**: 107 (was 91)
 **Changes in v2.0**: Added Sales Management function with 5 sub-processes, Vendor actor, and 7 new business objects with corresponding data objects and services. Updated Purchase Data description for removed attributes.
+**Changes in v2.1**: Added Manage Customer Account function with 4 sub-processes (Create Customer Account, Flag Duplicate Accounts, Merge Customer Accounts, Retrieve Customer Email History), reusing existing Customer/Contact/Communication business objects and the Customer Management/IMAP Fetch services. Added a Triggering relation from Handle RFQ to Create Customer Account.
 
 ## Elements
 
@@ -61,6 +62,36 @@
 - Name: Sales Management
 - Description: Manage offers, sales invoices, purchases, vendor quotes, deliveries, and service subscriptions for customers.
 - GUID: {EC36EAFE-A71D-4B5D-800A-6B9BEB71F23C}
+- Layer: Business
+
+### BusinessFunction — e-func-account
+- Name: Manage Customer Account
+- Description: Create and maintain Customer Accounts and their Contacts over time — creation, duplicate detection/merge, and email history retrieval.
+- GUID: {95E0A7F8-CA0B-460C-AB79-44F5E52F9E9A}
+- Layer: Business
+
+### BusinessProcess — e-process-createaccount
+- Name: Create Customer Account
+- Description: Manually create a new Customer Account from minimal data (organisation name, one Contact email) when a new customer relationship begins.
+- GUID: {EAFD247D-8BC0-469C-BA32-09A1588697C4}
+- Layer: Business
+
+### BusinessProcess — e-process-dedupe
+- Name: Flag Duplicate Accounts
+- Description: Fuzzy-match a newly created Customer Account's organisation name and Contact email against existing accounts and flag likely duplicates for review.
+- GUID: {6670DE8C-AA82-4076-B170-4AA7FA57D2E1}
+- Layer: Business
+
+### BusinessProcess — e-process-merge
+- Name: Merge Customer Accounts
+- Description: Merge a flagged duplicate Customer Account into an existing one; resulting duplicate Contacts may be manually removed.
+- GUID: {3EB4D83C-B8D2-4E54-A57F-1C6D1D9423BB}
+- Layer: Business
+
+### BusinessProcess — e-process-emailhistory
+- Name: Retrieve Customer Email History
+- Description: Scan the configured IMAP mailboxes for a Contact's email address and link matching Communications to the Customer Account.
+- GUID: {9D6DF8A4-51AF-4718-A080-104383F7FFFC}
 - Layer: Business
 
 ### BusinessProcess — e-process-imap
@@ -582,6 +613,31 @@
 - Target: e-process-imap
 - GUID: {9D6C6F1A-B375-5069-B4F1-8925BD3CF3EF}
 
+### Realization — r-realize-svc-cust-createaccount
+- Source: e-svc-customer
+- Target: e-process-createaccount
+- GUID: {CDAF9B2A-2131-4307-8DA5-004D8CBD841F}
+
+### Realization — r-realize-svc-cust-dedupe
+- Source: e-svc-customer
+- Target: e-process-dedupe
+- GUID: {D864FBE4-C2B0-4243-A519-4EC4F50F9A97}
+
+### Realization — r-realize-svc-cust-merge
+- Source: e-svc-customer
+- Target: e-process-merge
+- GUID: {C8AAC693-AECE-43BA-9C82-7CBBD3D4D99D}
+
+### Realization — r-realize-svc-cust-emailhistory
+- Source: e-svc-customer
+- Target: e-process-emailhistory
+- GUID: {6F5F54A0-1FAC-4CBA-AE15-1351586DC6FF}
+
+### Realization — r-realize-svc-imap-emailhistory
+- Source: e-svc-imap
+- Target: e-process-emailhistory
+- GUID: {C8924ACD-247E-4BDF-A16E-DC42D0380831}
+
 ### Realization — r-realize-svc-parse-parse
 - Source: e-svc-parse
 - Target: e-process-parse
@@ -717,10 +773,65 @@
 - Target: e-process-invoice
 - GUID: {3A018BD4-5BD5-478E-8B2A-7D13B456D34F}
 
+### Composition — r-comp-account-create
+- Source: e-func-account
+- Target: e-process-createaccount
+- GUID: {C0BB2D20-76CE-43AA-85C3-572A27C617DA}
+
+### Composition — r-comp-account-dedupe
+- Source: e-func-account
+- Target: e-process-dedupe
+- GUID: {8228C976-72FE-4935-B414-6F6166A6C966}
+
+### Composition — r-comp-account-merge
+- Source: e-func-account
+- Target: e-process-merge
+- GUID: {193417F8-4992-453B-AF5B-335BD400FEF9}
+
+### Composition — r-comp-account-emailhistory
+- Source: e-func-account
+- Target: e-process-emailhistory
+- GUID: {7E11F6D1-FE23-4844-BFE7-5C3E929B1841}
+
 ### Access — r-access-rfq-quote
 - Source: e-process-rfq
 - Target: e-bo-quote
 - GUID: {71A73B6E-D0F1-44C0-A159-AC60B4310883}
+
+### Access — r-access-createaccount-customer
+- Source: e-process-createaccount
+- Target: e-bo-customer
+- GUID: {934B6BBF-77EF-4733-8CAE-18029A7F5739}
+
+### Access — r-access-createaccount-contact
+- Source: e-process-createaccount
+- Target: e-bo-contact
+- GUID: {0CC3A61E-EF0B-4E4A-8185-C2A3B87E5EA0}
+
+### Access — r-access-dedupe-customer
+- Source: e-process-dedupe
+- Target: e-bo-customer
+- GUID: {A9B5E3C7-B906-4D4D-94E9-439BB1A84D72}
+
+### Access — r-access-merge-customer
+- Source: e-process-merge
+- Target: e-bo-customer
+- GUID: {DDCB0AC8-FCB5-4B3A-8EB8-8A5918FD1FC1}
+
+### Access — r-access-merge-contact
+- Source: e-process-merge
+- Target: e-bo-contact
+- GUID: {97B25039-4728-49B1-BC6C-79EE9EA84C2E}
+
+### Access — r-access-emailhistory-communication
+- Source: e-process-emailhistory
+- Target: e-bo-communication
+- GUID: {B889D653-6167-4F59-BD4C-A6763B85A9FE}
+
+### Triggering — r-trigger-rfq-createaccount
+- Source: e-process-rfq
+- Target: e-process-createaccount
+- GUID: {0727ADBE-D5A2-472B-8343-6769E3B5A8DF}
 
 ### Access — r-access-offer-offer
 - Source: e-process-offer

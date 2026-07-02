@@ -2,7 +2,7 @@
 
 **Model ID**: sp-eacrm
 **Purpose**: BPMN 2.0 sales process model for the EAxCRM system
-**Version**: 1.0
+**Version**: 1.1 — added Confirm Customer Account message checkpoint before RegisterRFQ, referencing the Manage Customer Account process (EAxCRM-CustomerAccountProcess.md)
 
 ## BPMN Collaboration—EAxCRMSalesProcessArchitecture
 - Name: EAxCRM Sales Process Architecture
@@ -105,6 +105,15 @@
 - Start Quantity: 1
 - Task Type: User
 - Description: Customer drafts and sends a Request For Quote detailing their license and service needs.
+
+### IntermediateEvent—ConfirmCustomerAccount
+- Name: Confirm Customer Account
+- Type: Event
+- Stereotype: IntermediateEvent
+- Event Type: Signal
+- GUID: {AFB83CB9-1EDE-4D3E-BFCF-5B6FBAEA40FC}
+- Lane: EAxpertise
+- Description: Signal checkpoint before registering the RFQ — the user verifies the requesting organisation has a Customer Account, or creates one via the Manage Customer Account process (see EAxCRM-CustomerAccountProcess.md), before continuing.
 
 ### Activity—DetermineLicenses
 - Name: Determine Licenses
@@ -572,6 +581,7 @@
 ### Sequence Flows
 
 - StartRFQ → CreateRFQ
+- ConfirmCustomerAccount → RegisterRFQ
 - RegisterRFQ → PrepareRevisedOffer
 - PrepareRevisedOffer → DetermineServices
 - DetermineLicenses → licensesrequired
@@ -598,7 +608,7 @@
 
 ### Message Flows
 
-- CreateRFQ → RegisterRFQ [email]
+- CreateRFQ → ConfirmCustomerAccount [email]
 - PrepareLicenseQuote → RequestLicenseQuote [email license pricing]
 - FinaliseVersionofOffer → ReviewOffer [email offer]
 - AcceptOffer_Activity → HandleApprovedOffer [email acceptance and invoice details]

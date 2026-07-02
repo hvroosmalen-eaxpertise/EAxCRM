@@ -49,31 +49,31 @@ BPMN_TAGGED_VALUES = {
         "isACalledActivity": "Is Called Activity",
     },
     "Event": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "StartEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "EndEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Result",
     },
     "IntermediateEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "IntermediateCatchEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
     },
     "IntermediateThrowEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Result",
     },
     "BoundaryEvent": {
-        "eventType": "Event Type",
+        "eventDefinition": "Event Type",
         "triggerType": "Trigger",
         "cancelActivity": "Cancel Activity",
     },
@@ -112,6 +112,7 @@ BPMN_TAGGED_VALUES = {
     "DataObject": {
         "dataObjectRef": "Data Object Ref",
         "isCollection": "Is Collection",
+        "dataInOut": "Data In/Out",
     },
     "DataStore": {
         "capacity": "Capacity",
