@@ -8,6 +8,8 @@ Addresses [issue #3](https://github.com/hvroosmalen-eaxpertise/EAxCRM/issues/3) 
 
 `sync_process_from_ea.py` (323 lines) was found during investigation to be dead code — a generic, package-wide predecessor to the three per-process sync scripts, not imported or referenced anywhere else in the repo.
 
+**Pool support is currently partial and inconsistent.** `Pool` is valid BPMN vocabulary (a participant that can contain multiple Lanes, relevant once a process models cross-participant `MessageFlow`s — the customeraccount generate script's docstring explicitly notes its MD "has... no cross-participant MessageFlows" yet, implying Pools are anticipated). Today: `OBJECT_TYPE_MAP["Pool"] = "ActivityPartition"` exists in all 3 generate scripts, but `LABEL_TO_STEREO` never lists `"Pool"` explicitly (it only resolves via identity-fallback). `BPMN_TAGGED_VALUES["Pool"] = {"processRef": "Process Ref"}` exists **only** in `sync_newsletter_process_from_ea.py` — absent from every generate script and from the sales/customeraccount sync scripts. No current MD file instantiates a `## Pool—...` element; `diagram_utils.compute_bpmn_lane_positions`/`compute_bpmn_element_positions` treat lanes as a flat vertical stack with no concept of lanes nested inside a pool. This refactor is the point to make Pool support complete and consistent rather than carry the drift forward.
+
 ## Scope
 
 **In scope:**
@@ -17,6 +19,7 @@ Addresses [issue #3](https://github.com/hvroosmalen-eaxpertise/EAxCRM/issues/3) 
 - Migrating all 3 generate scripts and their matching sync scripts to thin config + engine-call wrappers
 - Deleting `sync_process_from_ea.py`
 - A regression check (MD-output diff + element/connector count comparison) run per process during migration
+- Making Pool a first-class, consistently-supported element type: explicit shared vocabulary entries (`LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `BPMN_TAGGED_VALUES`) and pool-aware diagram layout (lanes nested within a pool's bounding box), even though no current process MD instantiates one yet
 
 **Out of scope:**
 - ArchiMate / UML Data Model generators (`generate_archimate.py`, `generate_uml_datamodel.py`) — different, non-flat MD syntax; only continue sharing `diagram_utils.py`'s non-BPMN layout functions (`compute_grid_positions`, `compute_uml_class_*`), which they already do
@@ -48,7 +51,10 @@ class ProcessConfig:
 
 Module-level instances: `CUSTOMER_ACCOUNT`, `SALES`, `NEWSLETTER`.
 
-Also holds the shared constants currently copy-pasted 6+ times: `BPMN_TAGGED_VALUES`, `LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `CONNECTOR_TYPES`, `CONNECTOR_STEREOTYPE_EX`, `CONNECTOR_STEREOTYPES_SHORT`.
+Also holds the shared constants currently copy-pasted 6+ times: `BPMN_TAGGED_VALUES`, `LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `CONNECTOR_TYPES`, `CONNECTOR_STEREOTYPE_EX`, `CONNECTOR_STEREOTYPES_SHORT`. As part of this consolidation, `Pool` becomes explicit and complete in each:
+- `LABEL_TO_STEREO["Pool"] = "Pool"` (made explicit; today only works via identity-fallback)
+- `OBJECT_TYPE_MAP["Pool"] = "ActivityPartition"` (already present, now canonical in one place)
+- `BPMN_TAGGED_VALUES["Pool"] = {"processRef": "Process Ref"}` (promoted from newsletter-sync-only to shared, so generate scripts and all sync scripts handle a Pool's tagged value identically)
 
 ### `experiments/modelgen/bpmn_engine.py`
 
@@ -59,6 +65,8 @@ Parsing/writing logic, parameterized by `ProcessConfig` instead of module-level 
 - `sync_to_md(config, qea_path, md_path=None)` — EA→MD flow (SQLite read → MD write)
 
 Absorbs the BPMN-specific layout functions currently in `diagram_utils.py` (`compute_bpmn_lane_positions`, `compute_bpmn_element_positions`, `compute_bpmn_flow_layout`, `sort_by_flow_order`, `find_longest_path`, `get_lane_from_fields`) — consolidates "BPMN stuff" in one place. Non-BPMN layout functions (`compute_grid_positions`, `compute_uml_class_*`, `repair_zero_size_objects`, etc.) stay in `diagram_utils.py`, shared with ArchiMate/UML generators as today.
+
+**Pool-aware layout:** `compute_bpmn_lane_positions` gains an optional pool grouping — when elements declare a `Pool` field (parsed the same way `Lane` is via `get_lane_from_fields`, extended to also recognize `Pool`/`pool`), lanes belonging to the same pool are stacked together and wrapped in a pool bounding box (pool header band + enclosed lane stack), with un-pooled lanes laid out as today (flat stack, no enclosing box). `compute_bpmn_element_positions` needs no change — it already operates within a lane's bounds regardless of what encloses that lane. `get_lane_from_fields` becomes `get_lane_and_pool_from_fields`, returning both so an element can be placed under its lane while the lane itself is placed under its pool. Pool elements get their own `BPMN_ELEMENT_SIZES`-style bounding box sized to fit their child lanes, computed after lane positions are known (pool box isn't a fixed size like a Gateway diamond — it's derived from its contents, same reasoning as `compute_uml_class_height` sizing to attribute count).
 
 ### Per-process scripts shrink to config + thin CLI wrapper
 
@@ -98,5 +106,6 @@ Pilot process: **Customer Account** (smallest, simplest MD structure — flat `#
 6. The count/MD-diff comparison from steps 4–5 becomes the reusable regression check for porting the remaining processes.
 7. Port Sales and Newsletter the same way (Sandbox dry-run → real run → diff check).
 8. Delete `sync_process_from_ea.py`.
+9. Verify pool-aware layout: since no real process MD currently has a Pool, write a small synthetic MD snippet (a `## Pool—` containing two `### Lane—`s with a couple of flow elements and a cross-participant `MessageFlow`) and run it through the engine against the `Sandbox` package. Visually confirm lanes render nested inside their pool's bounding box and the pool box sizes to its contents. This snippet is a disposable test fixture (not committed as a real process), kept only long enough to validate the layout code path.
 
 Sandbox scripts stay disposable and uncommitted. Only `bpmn_config.py`, `bpmn_engine.py`, and the shrunk per-process scripts are committed.
