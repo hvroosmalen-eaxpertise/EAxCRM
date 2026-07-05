@@ -151,6 +151,7 @@
 
 ### Sequence Flows
 
+- ConfirmCustomerAccount → CreateCustomerAccount
 - NewCustomerContact → CreateCustomerAccount
 - CreateCustomerAccount → Duplicatefound
 - Duplicatefound → MergeCustomerAccounts [duplicate found]

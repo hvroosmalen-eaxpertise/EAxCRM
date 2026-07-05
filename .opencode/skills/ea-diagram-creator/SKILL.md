@@ -15,9 +15,21 @@ This skill lives at **`.opencode/skills/ea-diagram-creator/SKILL.md`** in the EA
 |--------|---------|------|--------|
 | `generate_archimate.py` | EAxCRM ArchiMate | Application Layer | Diagonal cascade |
 | `generate_uml_datamodel.py` | EAxCRM Data Model | Logical | Diagonal cascade |
-| `generate_sales_process_from_md.py` | Sales Process Architecture | BusinessProcess | BPMN lane-based |
-| `generate_newsletter_process_from_md.py` | Newsletter Process Architecture | BusinessProcess | BPMN lane-based |
+| `generate_customeraccount_process_from_md.py` | Manage Customer Account | BusinessProcess | BPMN flow layout |
+| `generate_sales_process_from_md.py` | Sales Process Architecture | BusinessProcess | BPMN flow layout |
+| `generate_newsletter_process_from_md.py` | Newsletter Process Architecture | BusinessProcess | BPMN flow layout |
 | `generate_requirements_from_md.py` | EAxCRM Requirements | Logical | Diagonal cascade |
+
+**BPMN engine refactor (2026-07-05, issue #3):** the 3 BPMN generate scripts
+and their matching `sync_*_process_from_ea.py` scripts are now thin
+config + CLI wrappers (~15 lines each) around a shared
+`experiments/modelgen/bpmn_config.py` (per-process `ProcessConfig`
+dataclass instances + shared BPMN vocabulary constants) and
+`experiments/modelgen/bpmn_engine.py` (`parse_md`, `generate`, `sync_to_md`,
+and the BPMN-only layout functions moved out of `diagram_utils.py`). See
+`docs/superpowers/specs/2026-07-03-bpmn-config-driven-engine-design.md` for
+the design. `diagram_utils.py` keeps only the non-BPMN layout functions
+(ArchiMate/UML Data Model/Requirements still use it directly).
 
 ## Known Failure Modes (RED Phase)
 
@@ -36,6 +48,10 @@ This skill lives at **`.opencode/skills/ea-diagram-creator/SKILL.md`** in the EA
 | **Compounding row jump** | New elements placed thousands of px away | `compute_diagonal_positions`' row-jump formula multiplied by `per_row * step`, not just `elem_height`. Use `compute_grid_positions` for non-BPMN diagrams instead. |
 | **One flat size for every type** | Node/Interface/Component rendered as generic boxes | Passed one hardcoded `elem_width`/`elem_height` to every element regardless of Object_Type. Use `type_sizes=DEFAULT_ELEMENT_SIZES` with `compute_grid_positions`. |
 | **Position-only placement (no size)** | Diagram opens empty — 0×0 invisible elements, only connector lines visible | Assumed EA auto-sizes a `DiagramObject` if `right`/`bottom` are left unset. Confirmed false via a full live run + GUI check: explicit, type-appropriate bounds are always required for non-BPMN diagrams too. |
+| **"Sandbox" package ≠ isolation** | A sandbox dry-run silently modified the real, live diagram instead of test data | `repo.GetElementByGuid()` resolves repo-wide, ignoring target package. Source MD embeds real GUIDs from a prior sync. Must strip `- GUID:` fields from a temp MD copy (or use synthetic data) for genuine isolation — see "Use a Sandbox Package" below. |
+| **Reflow leaves stale connector Path** | Diagonal lines cutting through the diagram after boxes move | `DiagramLink.Path` holds absolute waypoints computed for the *old* positions; EA does not recompute it when a box moves via COM. Must explicitly recompute/clear `Path` whenever positions change. |
+| **`.Geometry`'s `EDGE` field does nothing alone** | Setting `EDGE=N` in the Geometry string had zero visible effect on rendered routing | Routing is controlled by `DiagramLink.Path` (absolute waypoints), not `.Geometry`. See "Connector Routing" below. |
+| **Orphaned DiagramLink after deleting a connector** | `repo.GetConnectorByID(dl.ConnectorID)` throws EA's internal error 61704 (not transient — happens every time) while iterating `diag.DiagramLinks` | Deleting a connector via `Element.Connectors.Delete(index)` does not clean up `t_diagramlinks` rows on diagrams where that connector was rendered — the row survives with a `ConnectorID` pointing at nothing. `diag.DiagramLinks.Delete(index)` also fails to remove it (its own delete path needs to resolve the same dangling connector). Confirm via SQLite (`SELECT COUNT(*) FROM t_connector WHERE Connector_ID=?` returns 0) then delete the single orphaned row directly: `DELETE FROM t_diagramlinks WHERE DiagramID=? AND ConnectorID=?` — same accepted-exception category as the diagram-stereotype `t_xref` fallback. `bpmn_engine.py`'s linestyle/routing loop now wraps `GetConnectorByID` in try/except and skips gracefully instead of aborting the whole pass. |
 
 ## INITIAL DIAGRAM DESIGN PHASE (CRITICAL)
 
@@ -189,14 +205,17 @@ for eid, data in other_els:
 
 ## GUID Map Pattern for Idempotency
 
-Each generator has its own GUID map file (see AGENTS.md):
+Each generator has its own GUID map file (see AGENTS.md). For the 3 BPMN
+processes, the map filename lives in `bpmn_config.py`'s per-process
+`ProcessConfig.guid_map_file` field rather than a per-script constant:
 
 | Generator | GUID Map File |
 |-----------|---------------|
 | `generate_archimate.py` | `experiments/modelgen/archimate_guid_map.json` |
 | `generate_uml_datamodel.py` | `experiments/modelgen/datamodel_guid_map.json` |
-| `generate_sales_process_from_md.py` | `experiments/modelgen/sales_guid_map.json` |
-| `generate_newsletter_process_from_md.py` | `experiments/modelgen/newsletter_guid_map.json` |
+| Customer Account (`bpmn_config.CUSTOMER_ACCOUNT`) | `experiments/modelgen/customeraccount_guid_map.json` |
+| Sales (`bpmn_config.SALES`) | `experiments/modelgen/sales_guid_map.json` |
+| Newsletter (`bpmn_config.NEWSLETTER`) | `experiments/modelgen/newsletter_guid_map.json` |
 | `generate_requirements_from_md.py` | `experiments/modelgen/requirements_guid_map.json` |
 
 ### Save/Load Pattern
@@ -267,49 +286,74 @@ conn.StereotypeEx = "BPMN2.0::SequenceFlow"
 conn.Update()
 ```
 
-### Connector EDGE Fix (Center-Edge Attachment)
+### Connector Routing — Border-Centered Attachment (rewritten 2026-07-05)
 
-After element positions are set, force each connector's EDGE to the correct edge and add a midpoint waypoint at center-Y:
+**`DiagramLink.Path` controls rendered routing — `.Geometry`'s `EDGE` field
+does not, by itself.** Confirmed empirically: setting only `.Geometry`'s
+`EDGE` substring (with `Path` untouched/empty) produced zero visible change
+across several trials. All routing control happens through `Path`'s absolute
+waypoint coordinates; `Geometry` is metadata (label positions, etc.) that can
+be left alone.
+
+The general rule, verified against a user-provided manual reference edit in
+EA's GUI: **classify the relationship by Y-overlap first, not X-overlap.**
+Two boxes can end up X-disjoint (one entirely left/right of the other in raw
+coordinate terms) purely as a side effect of some other positioning choice
+(e.g. centering a branch under its logical successor) even when the
+*dominant* visual relationship is vertical (above/below). Checking X first
+misclassifies that case as a horizontal connector.
 
 ```python
+def _connector_path(src, tgt):
+    """src/tgt: (left, top, right, bottom) in EA's raw DiagramObject
+    convention (top/bottom negative, more-negative = lower on the page).
+    Returns a Path waypoint string, or None to let EA auto-route (boxes
+    overlap in both axes)."""
+    sl, st, sr, sb = src
+    tl, tt, tr, tb = tgt
+    scx, scy = (sl + sr) / 2, (st + sb) / 2
+    tcx, tcy = (tl + tr) / 2, (tt + tb) / 2
+
+    y_disjoint = tt <= sb or tb >= st
+    x_disjoint = tl >= sr or tr <= sl
+
+    if y_disjoint:
+        # Target above/below: exit source's top/bottom-center, bend at the
+        # target's own vertical center, enter its left/right-center (or
+        # straight into its top/bottom-center if horizontally aligned).
+        return f"{int(scx)}:{int(tcy)};"
+    if x_disjoint:
+        # Target beside (roughly same row): single waypoint at the source's
+        # own vertical center produces a clean side-to-side route.
+        mx = (sr + tl) / 2 if tl >= sr else (sl + tr) / 2
+        return f"{int(mx)}:{int(scy)};"
+    return None
+
+# Applied to every DiagramLink, every run:
 diag.DiagramLinks.Refresh()
 diag.DiagramObjects.Refresh()
 pos_map = {}
 for di in range(diag.DiagramObjects.Count):
     dobj = diag.DiagramObjects.GetAt(di)
     pos_map[dobj.ElementID] = (dobj.left, dobj.top, dobj.right, dobj.bottom)
-
 for i in range(diag.DiagramLinks.Count):
     dl = diag.DiagramLinks.GetAt(i)
     dl.LineStyle = 9  # Orthogonal Rounded (NOT 5 — that's Tree Horizontal!)
     conn = repo.GetConnectorByID(dl.ConnectorID)
-    src = pos_map.get(conn.ClientID)
-    tgt = pos_map.get(conn.SupplierID)
-    if src and tgt:
-        srcl, srct, srcr, srcb = src
-        tgtl, tgtt, tgtr, tgtb = tgt
-        src_cy = (srct + srcb) / 2
-        tgt_cy = (tgtt + tgtb) / 2
-        if srcr <= tgtl:  # forward flow
-            edge = "2"     # right edge of source
-            mx = int((srcr + tgtl) / 2)
-            dl.Path = f"{mx}:{int(src_cy)};"  # single midpoint at center-Y
-        else:  # backward flow
-            edge = "4"     # left edge of source
-            mx = int((srcl + tgtr) / 2)
-            dl.Path = f"{mx}:{int(src_cy)};"
-        geo = dl.Geometry
-        new_geo = re.sub(r'EDGE=\d', f'EDGE={edge}', geo)
-        if new_geo != geo:
-            dl.Geometry = new_geo
+    src, tgt = pos_map.get(conn.ClientID), pos_map.get(conn.SupplierID)
+    dl.Path = (_connector_path(src, tgt) or "") if src and tgt else ""
     dl.Update()
 ```
 
-Key points:
-- EDGE=2 means right edge, EDGE=4 means left edge (source side only)
-- A single midpoint waypoint at center-Y guides EA to attach at edge centers on both ends
-- Uses `LineStyle=9` (Orthogonal Rounded) — see §Diagram Object Management → Connector Rendering for the full enum
-- The EDGE field in Geometry is set AFTER positions so EA uses correct relative positions
+This replaces an earlier, narrower version of this fix that only handled the
+horizontal case (single waypoint at source's center-Y) and used
+`.Geometry`'s `EDGE` substring for the vertical/gateway-branch case — that
+older approach never actually worked (see above), which is how the bug
+survived until a user manually fixed one connector in the GUI and asked for
+the fix to become the default. See `bpmn_engine.py::_connector_path` for the
+canonical implementation, applied unconditionally on every `generate()` run
+(not gated behind a per-process flag — this is default BPMN diagram
+behavior, not a one-off customization).
 
 ## Diagram Object Management
 
@@ -360,7 +404,29 @@ Separate from `LineStyle`, the `EDGE` attribute in the Geometry string and the `
 
 ## BPMN Lane Layout
 
-For BPMN diagrams with lanes, see `diagram_utils.py`.
+For BPMN diagrams with lanes, see `bpmn_engine.py` (BPMN-only layout functions
+moved here from `diagram_utils.py`, 2026-07-05).
+
+### Pool Support (verified 2026-07-05, synthetic test)
+
+Pool → one or more Lanes → flow elements (a Pool never directly contains flow
+elements). A `### Lane—...` entry declares its parent Pool via `- Pool:
+<pool-eid>`, mirroring how flow elements declare `- Lane:`. Verified
+end-to-end with a synthetic 2-lane-1-pool + cross-lane MessageFlow fixture
+(no real process MD uses Pool yet):
+- `compute_bpmn_lane_positions(..., pools={pool_id: [lane_id, ...]})` groups
+  same-pool lanes into one stacked column wrapped in a pool bounding box —
+  confirmed the pool box correctly encloses both lanes.
+- The Pool/Lane stereotype-override in both MD writers (`if stereo and
+  stereo != info["type"]: label = stereo`) already round-trips a Pool as
+  `### Pool—...` correctly (not mislabeled `Lane—`, since `Pool`'s
+  stereotype differs from its base EA type `ActivityPartition`) — this was
+  suspected as a risk during design but turned out to be a non-issue; no
+  code change was needed, only the round-trip check to confirm it.
+- Cross-**lane** MessageFlow alignment (see "MessageFlow-aware alignment"
+  below) applies generally, not just cross-**pool** — a message flow between
+  two lanes of the *same* pool got the same clean vertical-alignment
+  treatment automatically, no Pool-specific code needed.
 
 ### BPMN Element Sizes
 
@@ -376,25 +442,216 @@ From `diagram_utils.BPMN_ELEMENT_SIZES`:
 
 ### Flow Layout (`compute_bpmn_flow_layout`)
 
-Replaces the old grid-based layout. Uses longest-path DFS placement:
+Now the **default layout for all 3 BPMN processes** (2026-07-05 — previously
+Newsletter-only; Customer Account/Sales used a simpler grid packer that never
+separated genuine gateway forks, silently overlapping siblings).
 
-1. **Row 0**: Longest acyclic path in each lane — elements placed in a straight horizontal line
-2. **Row 1**: Remaining flow elements (side branches) — below their predecessor
-3. **Row 2**: DataObjects — below all flow elements
+**Row-per-flow structure (2026-07-05, explicit user rule):** "A Start Event
+must be placed in the left hand column and from there sequence flows go to
+the right from activity to activity (or gateway or other elements).
+DataObjects and DataStores are always living in their own row [below or
+above the rows with activities]." Concretely, per lane:
+
+1. Find the **connected components** of the lane's sequence-flow graph
+   (undirected — a fork and its branches, or a merge and its inputs, are one
+   component even though the edges are directed). Each component is one
+   independent flow (typically rooted at its own StartEvent, though the rule
+   applies to any component with no single shared entry point too).
+2. **Each component becomes its own row**, stacked vertically in the lane, in
+   MD-declaration order: within a row, the longest acyclic path is placed in
+   a straight horizontal line **starting at the lane's left column**
+   (`lane_left + 70`) and flowing rightward — see `_place_component_row`.
+3. **Gateway forks within one row do NOT start a new row** — they stack
+   below/near the fork point within that same row's vertical space (see
+   branch handling below). The left-column rule is about independent flows,
+   not alternate paths within one flow — confirmed via explicit user
+   clarification.
+4. Branch handling *within* a row's flow (elements not on that row's own
+   longest path) — three passes, in this order because later passes may
+   depend on positions the earlier ones establish:
+   1. **Gateway-fork groups**: elements whose predecessor is on the row's
+      main path stack in one vertical column, below that row, centered under
+      the gateway's **main-path successor** (not the gateway itself — a
+      gateway diamond is narrow, so centering a wide activity box under it
+      looks cramped; centering under the wider neighboring activity looks
+      balanced). Confirmed via user feedback + visual (`SaveDiagramImageToFile`)
+      verification.
+   2. **Chain continuation (generalized 2026-07-05)**: any element — not
+      just Events, any type — that is the sole successor of a predecessor
+      which in turn has only that one child continues that predecessor's row
+      horizontally, same vertical center, immediately to its right, instead
+      of dropping to a new row below. Applied repeatedly (not just one hop),
+      so an entire multi-element branch chain flows left-to-right after its
+      first activity, matching the explicit user rule: "with a gateway split
+      the elements of the branch go down and flow left to right again after
+      the first activity." (Originally this only covered a lone Event
+      continuing a chain — "I like events in line with elements and not
+      underneath" — then generalized once the same left-to-right expectation
+      was stated for branches in general.) Restricted to elements with
+      exactly one predecessor total, so a genuine merge point (2+
+      predecessors) is never accidentally inlined off just one of its
+      incoming edges — it goes through Pass 3's merge-point handling instead.
+   3. **Chained remainder / merge points**: anything still unplaced stacks
+      below its predecessor(s)' actual bottom edge + gap (see merge-point
+      handling below for the multi-predecessor case).
+5. **DataObjects/DataStores**: always their own row, below all flow rows in
+   the lane (never a fixed row-count offset — see below).
 
 **Parameters:**
 - `h_gap = 60` (horizontal space between elements)
-- `v_gap = 30` (vertical space between rows)
+- `v_gap = 30` (vertical space between rows within one flow; `v_gap * 2`
+  between independent flow rows)
 - Elements start at `lane_left + 70` (clears lane+pool double border)
-- Lane width = widest lane's content width (`max_width = tw + 90` for 70px left + 20px right margin)
-- All lanes are expanded to the widest lane's width so they share a uniform right edge
+- Lane width = widest lane's *actual placed content* width (computed after
+  all rows are placed, not from a single longest-path estimate — a lane can
+  now have several rows of differing width)
+- All lanes are expanded to the widest lane's width so they share a uniform
+  right edge
+
+**MessageFlow-aware alignment (2026-07-05, explicit user rule):** "A
+MessageFlow normally crosses to an element in another lane... it starts in
+the middle top or bottom center of an activity and ends in the center bottom
+or top of the receiving activity — both elements are center aligned to each
+other in their own lane/pool." Pass `message_flows=[...]` (same `{"source":
+eid, "target": eid}` shape as `sequence_flows`) to `compute_bpmn_flow_layout`
+to enable this:
+- Lanes are processed **top-to-bottom** (by `lane_bounds[lid][1]`) instead of
+  input order, so a receiving lane's elements can align to an
+  already-placed sending lane's elements.
+- For each component, if its **leading element** (the first element on its
+  own longest path) is the source or target of a cross-lane MessageFlow to/
+  from an element already placed in an earlier-processed lane, the whole row
+  is horizontally shifted so that leading element is **centered** on the
+  partner's X — see `_place_component_row`'s `preferred_cx` parameter.
+- Scoped to the row's leading element only — a MessageFlow received
+  mid-chain does not reposition the row. This covers the common BPMN pattern
+  (a message-triggered start event/task) but not arbitrary mid-flow message
+  reception.
+- Verified against Sales' real `Create RFQ → Confirm Customer Account`
+  MessageFlow: both ended up with `cx=215.0` exactly.
+
+**MessageFlow connector routing is a separate rule from position, and from
+`_connector_path`'s generic vertical case** (2026-07-05, explicit user
+rule): "if a message flow starts at the bottom it should end in the
+receiving activity's top, and vice versa." Use `_message_flow_path(src,
+tgt)` instead of `_connector_path` whenever the connector's stereotype
+contains `"MessageFlow"` (checked in the line-style/routing loop via
+`conn.StereotypeEx or conn.Stereotype`):
+- Always exits/enters **top or bottom-center on both ends, never a side** —
+  unlike `_connector_path`'s generic vertical case, which enters the
+  target's *side* when the boxes aren't X-aligned (the right call for a
+  sequence-flow branch, which reads as a sideways continuation, but wrong
+  for a MessageFlow, which reads as a cross-lane/pool crossing).
+- Uses a 2-waypoint elbow (bend at the midpoint between the two boxes) when
+  the boxes aren't X-aligned; collapses to a single straight vertical line
+  when they are (the common case once the position-alignment above has run).
+- These two rules compose: position-alignment (above) makes the common case
+  X-aligned so the connector is a straight line; `_message_flow_path`
+  guarantees a correct top/bottom-only look even for the remaining
+  mid-chain-reception cases position-alignment doesn't cover.
+
+**DataObject/DataStore alignment (2026-07-05, explicit user rule):**
+"DataObjects and DataStore live in their own row. They are positioned above
+or below the activity they are connected to, which can exist in another
+lane/pool. The connector preferably has no bends." Since lanes are fixed,
+non-overlapping vertical bands, a DataObject can never actually leave its
+own lane's row regardless of which lane its connected activity is in — user
+confirmed the practical rule: DataObjects stay in their existing dedicated
+row below the flow rows in their own lane, but are horizontally **centered
+on their connected activity's X** (via `DataInputAssociation`/
+`DataOutputAssociation`, passed as `data_associations=[...]` to
+`compute_bpmn_flow_layout`, same `{"source": eid, "target": eid}` shape as
+`sequence_flows`), wherever that activity ended up, even in another lane —
+so the connector is a straight line with no bends, same principle as the
+MessageFlow position-alignment above. Placed in a pass after ALL lanes'
+flow elements are placed (not interleaved per-lane), so the connected
+activity's position is always known regardless of lane processing order.
+
+**Shared-target overlap (fixed 2026-07-05):** two DataObjects connected to
+the *same* (or nearby) activity computed the *same* preferred center-X
+independently and landed exactly on top of each other. Fix: cascade —
+prefer the aligned X, but never place further left than the current packing
+pointer (`xp`), so a second DataObject sharing a target's X stacks
+immediately to the right of the first instead of overlapping it. This is
+the same "shared anchor, must not collide" pattern as the gateway-fork
+sibling-stacking fix earlier in this section, applied to DataObjects too.
 
 **Longest path algorithm (`find_longest_path`):**
 - DFS with visited-set, handles cycles
-- Starts from nodes with no incoming edges (and at least one outgoing)
+- Starts from nodes with no incoming edges (and at least one outgoing),
+  scoped to one connected component (not the whole lane)
 - Returns node IDs in traversal order
 
+**Overlap bug (fixed 2026-07-03):** when a branch element's predecessor is
+*itself* another branch element (not on the main path) rather than a
+main-path element, placing it in the same shared row band as its predecessor
+nests it inside the predecessor's box. Fix: if the predecessor is on the main
+path, use the shared row band; if the predecessor is itself a branch
+element, stack below that element's *actual* bottom edge (`pos[p][3] +
+v_gap`), not the row's shared y.
+
+**Further overlap classes found on Sales (2026-07-05) — Customer Account's
+single-fork structure never exercised these:**
+- **Multiple siblings sharing one predecessor** (a real fork: predecessor
+  has 2+ children, none of which is itself on the main path) all computed
+  `pos[p][3] + v_gap` independently and landed on top of each other, since
+  `pos[p]` (the shared parent's own box) never changes just because a
+  sibling got placed near it. Fix: track `next_y_for_pred = {}` — each time
+  a child of `p` is placed, advance `next_y_for_pred[p]` to below that
+  child, so the next sibling stacks under the previous one, not the parent.
+- **DataObjects row used a fixed `2 * (row_h + v_gap)` offset**, assuming
+  the branch-stacking section above it only ever needed one row's worth of
+  height. With siblings/chains now stacking multiple levels deep, that
+  fixed offset placed DataObjects on top of a tall stack instead of below
+  it. Fix: compute the DataObjects row's start from the actual max bottom
+  used by the branch section, not a row-count constant.
+- **A fixed per-branch-row Y constant caused *unrelated* collisions**:
+  an independent "island" (its own disconnected StartEvent chain sharing no
+  predecessor with anything else) and a gateway-fork group could both start
+  at the same `lt + row_h + v_gap` baseline and collide if their X ranges
+  happened to overlap. Fix: recompute the fallback Y *dynamically*, each
+  time an island root needs placement, from the actual current max bottom
+  across everything already placed in that lane's branch section — not a
+  one-time snapshot (a snapshot taken once misses elements placed by later
+  iterations of the same pass).
+- **Merge points (an element with 2+ predecessors, e.g. two branches
+  rejoining into one activity) resolved position using only the *first*
+  predecessor found**, ignoring that a later, lower sibling might already
+  occupy that spot. Fix: when 2+ predecessors are already placed, clear the
+  *max* of all their bottoms, not just the first one's.
+- **DFS traversal order can place a merge point before all its predecessors
+  exist**: DFS fully explores one branch (predecessor A → the merge point)
+  before backtracking to sibling branch (predecessor B), so the merge point
+  gets positioned using only A, and B's later placement doesn't retroactively
+  fix it. Fix: after the main placement pass, run a correction pass over
+  every element with 2+ predecessors and re-clear against the now-complete
+  predecessor set, moving it deeper if needed.
+- **Lane height is a fixed guess (`lane_height=500` default) computed
+  *before* content is placed.** Deep stacking from any of the above can push
+  a lane's actual content past that guess, bleeding into the next lane's
+  allocated space. Fix: a post-processing pass (after all lanes are placed)
+  walks lanes top-to-bottom, and if a lane's actual content bottom exceeds
+  its allocated bottom, shifts every subsequent lane (and everything already
+  placed in it) down by the overflow.
+
+All of these were found and fixed by writing a **pure-Python overlap
+checker** (no EA/COM needed — just call `compute_bpmn_flow_layout` directly
+and check pairwise bounding-box intersection) against Sales' real MD, then
+verified end-to-end via a GUID-stripped Sandbox run + `SaveDiagramImageToFile`.
+Iterating this way (pure math → sandbox → image) is much faster than
+round-tripping through EA for every attempt.
+
 ### Re-run Position Management
+
+**Reflow-on-rerun is now the default for all 3 BPMN processes** (2026-07-05
+— previously Newsletter-only; Customer Account/Sales only ever added new
+elements, preserving whatever manual layout existed). This is a deliberate,
+user-approved behavior change, not a bug: the next `generate()` run against
+an existing diagram repositions ALL elements using flow layout, not just new
+ones. **Consequence:** any manually-tuned layout on a live diagram will be
+overwritten the next time its generator runs. Always preview in `Sandbox`
+first (with GUID-stripped input — see above) before running for real against
+a diagram with an established manual layout.
 
 On re-run (existing diagram), ALL elements are repositioned using flow layout, not just new ones:
 
@@ -565,10 +822,10 @@ match:
 ### Use a Sandbox Package for Calibration/Testing
 
 Never test new layout/sizing/style logic directly against a real diagram
-(`EAxCRM ArchiMate`, `EAxCRM Data Model`, etc.) — the user has manually
-adjusted layouts there that must be preserved. Instead, create/reuse a
-`Sandbox` package directly under the root Model package (same level as
-`Application Architecture`, `Data Architecture`, etc.), with its own
+(`EAxCRM ArchiMate`, `EAxCRM Data Model`, any BPMN process diagram, etc.) —
+the user has manually adjusted layouts there that must be preserved. Instead,
+create/reuse a `Sandbox` package directly under the root Model package (same
+level as `Application Architecture`, `Data Architecture`, etc.), with its own
 sub-packages, diagrams, and — critically — its **own separate GUID map file**
 (e.g. `sandbox_datamodel_guid_map.json`) so sandbox runs can never collide
 with a real generator's GUID map. `experiments/modelgen/sandbox_size_test.py`
@@ -577,6 +834,74 @@ are worked examples: the latter reuses `generate_uml_datamodel.parse_md()`
 and `sync_attributes()` against the *real* MD source but writes into
 `Sandbox` instead of `Data Architecture > EAxCRM Data Model`, so real MD data
 can be used to validate the full pipeline without any risk to production.
+
+#### CRITICAL: a different target package is NOT sufficient isolation
+
+**Incident, 2026-07-03 (BPMN engine refactor):** a "sandbox" dry-run targeting
+`parent_package_name="Sandbox"` still repositioned every element on the
+**real**, live, manually-tuned Customer Account diagram under
+`Process Architecture` — and left its connector routing visibly broken
+(stale `DiagramLink.Path` values drawing diagonal lines through the diagram
+after boxes moved). Root cause: `repo.GetElementByGuid()` resolves
+**repo-wide**, ignoring which package the calling code thinks it's targeting.
+Any MD file previously synced out of the live model embeds real element
+GUIDs in its `- GUID:` fields (that's the whole point of the idempotent
+GUID-map pattern) — so re-running a generator against that MD, even with a
+different `parent_package_name`, finds and updates the real elements
+wherever they actually live, silently, with nothing in the script's own
+output signaling the mismatch.
+
+**A separate sandbox GUID map file is necessary but NOT sufficient.** It only
+prevents the *sandbox script's own* re-run tracking from colliding with a
+real generator's map — it does nothing to stop the MD's embedded `- GUID:`
+fields from matching real elements on the very first sandbox run.
+
+**For genuine isolation, do one of:**
+- Strip all `- GUID:` (and `- Diagram GUID:`) fields from a **temp copy** of
+  the source MD before feeding it to the sandbox script. This forces
+  `create_element()`'s GUID-based lookup to fail and fall through to
+  creating fresh elements in the Sandbox package. One-liner:
+  ```python
+  import re
+  text = open(real_md_path, encoding="utf-8").read()
+  stripped = re.sub(r"^- (GUID|Diagram GUID): .*\n", "", text, flags=re.MULTILINE)
+  open(temp_md_path, "w", encoding="utf-8").write(stripped)
+  # then run the generator with md_path=temp_md_path
+  ```
+- Or use synthetic/fabricated test data that never had real GUIDs to begin
+  with (e.g. a hand-written test fixture MD for exercising a new code path
+  like Pool support, which no real process MD uses yet).
+
+**Also from the same incident:** any code that repositions already-placed
+diagram objects (reflow/relayout on re-run) must clear the connector
+`DiagramLink.Path` for links whose endpoints moved. Leaving a stale `Path`
+in place produces visibly broken diagonal routing even when the box
+positions themselves are now correct — `Path` holds absolute waypoint
+coordinates computed for the *old* positions, and EA does not recompute it
+automatically when a box moves via COM (`dobj.left/top/right/bottom =
+...; dobj.Update()`). See `bpmn_engine.py`'s line-style/geometry pass, which
+now recomputes `Path` for every connector on every run (see "Connector
+Routing" below) rather than leaving stale values in place.
+
+#### Visual self-verification via `SaveDiagramImageToFile`
+
+**Discovered 2026-07-05** — you don't have to rely on the user checking every
+layout iteration in EA's GUI. `EA.Project.SaveDiagramImageToFile` lets you
+export a diagram to PNG and view it yourself with the `Read` tool:
+
+```python
+with ea_session.ea_repository(qea_path) as repo:
+    diag = repo.GetDiagramByGuid(diagram_guid)   # or GetDiagramByID
+    repo.OpenDiagram(diag.DiagramID)             # must be open first
+    proj = repo.GetProjectInterface()
+    proj.SaveDiagramImageToFile(r"C:\path\to\out.png")   # 2-arg form errors;
+                                                          # only takes the path
+    repo.CloseDiagram(diag.DiagramID)
+```
+Then `Read` the PNG directly — this closes the loop for iterating on layout/
+routing algorithms without a human in the loop for every attempt. Reserve
+asking the user to look for final confirmation once you're already confident,
+not for every intermediate trial.
 
 ## Platform-Specific Gotchas
 
@@ -636,13 +961,17 @@ After placing diagram objects, verify coordinate correctness:
 | File | Purpose |
 |------|---------|
 | `experiments/modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup. Used by every generator/sync script |
-| `experiments/modelgen/diagram_utils.py` | Shared layout functions — grid layout (`compute_grid_positions`), diagonal cascade (legacy), BPMN lane grid, BPMN flow layout (`compute_bpmn_flow_layout`, `find_longest_path`), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`) |
+| `experiments/modelgen/diagram_utils.py` | Shared **non-BPMN** layout functions — grid layout (`compute_grid_positions`), diagonal cascade (legacy), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`). BPMN-only functions moved to `bpmn_engine.py` (2026-07-05) |
+| `experiments/modelgen/bpmn_config.py` | `ProcessConfig` dataclass + `CUSTOMER_ACCOUNT`/`SALES`/`NEWSLETTER` instances + shared BPMN vocabulary (`LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `BPMN_TAGGED_VALUES`, `CONNECTOR_TYPES`, `BPMN_ELEMENT_SIZES`, etc.) — previously copy-pasted across all 6 BPMN scripts |
+| `experiments/modelgen/bpmn_engine.py` | Shared BPMN engine: `parse_md`, `generate`, `sync_to_md`, `_connector_path`, and the BPMN-only layout functions (`compute_bpmn_lane_positions` (pool-aware), `compute_bpmn_flow_layout`, `find_longest_path`, `sort_by_flow_order`, `get_lane_from_fields`, `get_pool_from_lane_fields`) |
 | `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator |
 | `experiments/modelgen/generate_uml_datamodel.py` | UML Data Model diagram generator |
-| `experiments/modelgen/generate_sales_process_from_md.py` | Sales Process BPMN generator |
-| `experiments/modelgen/generate_newsletter_process_from_md.py` | Newsletter Process BPMN generator |
+| `experiments/modelgen/generate_customeraccount_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.CUSTOMER_ACCOUNT)` |
+| `experiments/modelgen/generate_sales_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.SALES)` |
+| `experiments/modelgen/generate_newsletter_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.NEWSLETTER)` |
 | `experiments/modelgen/generate_requirements_from_md.py` | Requirements diagram generator |
 | `experiments/modelgen/sync_datamodel_from_ea.py` | Reads EA data model back to MD |
-| `experiments/modelgen/sync_sales_process_from_ea.py` | Reads EA sales process back to MD |
-| `experiments/modelgen/sync_newsletter_process_from_ea.py` | Reads EA newsletter process back to MD |
+| `experiments/modelgen/sync_customeraccount_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.CUSTOMER_ACCOUNT)` |
+| `experiments/modelgen/sync_sales_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.SALES)` |
+| `experiments/modelgen/sync_newsletter_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.NEWSLETTER)` (hierarchical MD writer) |
 | `experiments/modelgen/sync_requirements_from_ea.py` | Reads EA requirements back to MD |

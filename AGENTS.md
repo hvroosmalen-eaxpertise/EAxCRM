@@ -327,12 +327,11 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 **Sorting**: `sort_by_flow_order()` applied to newsletter generator (first-time and re-run placement). Uses DFS pre-order traversal from flow-participant elements with no incoming edges. DataObjects append at end. Cycles handled by visited-element skip.
 
 ## Process Architecture
-- `EAxCRM-ProcessModel.md` holds the combined BPMN 2.0 process model (71 elements, 98 connectors)
 - Process Architecture package is at root level in the EA project
 - `<<CollaborationModel>>` elements (Activity with CollaborationModel stereotype) describe logical processes
-- `sync_process_from_ea.py` — reads BPMN 2.0 elements and SequenceFlow connectors from EA → MD (direct SQLite, since COM API doesn't detect elements added by another EA session)
-- BPMN adornments mapped: taskType (Abstract/User/Manual), gatewayType, loopCharacteristics, etc. (see BPMN_TAGGED_VALUES dict)
-- Dedicated process models: `EAxCRM-NewsletterProcess.md` and `EAxCRM-SalesProcess.md` with individual generators
+- BPMN adornments mapped: taskType (Abstract/User/Manual), gatewayType, loopCharacteristics, etc. (see `bpmn_config.BPMN_TAGGED_VALUES`)
+- Per-process models: `EAxCRM-CustomerAccountProcess.md`, `EAxCRM-SalesProcess.md`, `EAxCRM-NewsletterProcess.md`, each with a thin generate/sync wrapper over the shared `bpmn_engine.py` (see issue #3 refactor, 2026-07-05)
+- `sync_process_from_ea.py` (dead code, combined all processes into `EAxCRM-ProcessModel.md`) and that orphaned MD file were both deleted 2026-07-05 — superseded by the per-process sync scripts
 
 ## Requirements Model
 - `EAxCRM-Requirements.md` holds 39 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
