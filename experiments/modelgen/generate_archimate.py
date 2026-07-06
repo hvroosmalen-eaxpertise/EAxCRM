@@ -9,6 +9,7 @@ Re-run to update names, descriptions, or add new elements/relations.
 import sys, os, argparse, json, time, sqlite3, uuid
 import diagram_utils
 import ea_session
+from changelog import ChangeLog
 
 # stdout block-buffers when redirected/piped (e.g. to a log file), so nothing
 # shows up until the buffer fills or the process exits. Force line buffering
@@ -294,7 +295,7 @@ def get_or_create_package(parent, name):
     return pkg
 
 
-def sync_elements(repo, pkg, elements, guid_map):
+def sync_elements(repo, pkg, elements, guid_map, clog):
     """Create or update elements. Uses md_guid -> ea_guid mapping for idempotency."""
     # Build name lookup from package elements (for idempotent fallback)
     pkg.Elements.Refresh()
@@ -326,17 +327,21 @@ def sync_elements(repo, pkg, elements, guid_map):
         base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
 
         if existing:
+            old_notes = existing.Notes
             existing.Name = el["name"]
             existing.Notes = el["description"]
             existing.StereotypeEx = el["sparx_stereotype"]
             existing.Update()
             guid_map[md_guid] = existing.ElementGUID
+            clog.log("updated", el["id"], el["name"], el["type"], existing.ElementGUID,
+                     changes=({"Notes": (old_notes, el["description"])} if old_notes != el["description"] else None))
             log(f"  [{idx + 1}/{len(elements)}] Updated: '{el['name']}' ({el['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_elem = pkg.Elements.AddNew(el["name"], base_type)
             new_elem.StereotypeEx = el["sparx_stereotype"]
             new_elem.Notes = el["description"]
             new_elem.Update()
+            clog.log("created", el["id"], el["name"], el["type"], new_elem.ElementGUID)
 
             pkg.Elements.Refresh()
             for j in range(pkg.Elements.Count):
@@ -349,7 +354,7 @@ def sync_elements(repo, pkg, elements, guid_map):
             log(f"  [{idx + 1}/{len(elements)}] Created: '{el['name']}' ({el['type']}) [{time.time() - t0:.2f}s]")
 
 
-def sync_relations(repo, relations, elements, guid_map):
+def sync_relations(repo, relations, elements, guid_map, clog):
     """Create or update connectors via COM API."""
     elem_by_id = {e["id"]: e for e in elements}
 
@@ -403,6 +408,8 @@ def sync_relations(repo, relations, elements, guid_map):
                 break
 
         if exists:
+            existing_guid = conn.ConnectorGUID
+            clog.log("updated", rel["id"], rel["type"], rel["type"], existing_guid)
             log(f"  [{idx + 1}/{len(relations)}] Exists rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_conn = src_elem.Connectors.AddNew("", base_type)
@@ -410,6 +417,8 @@ def sync_relations(repo, relations, elements, guid_map):
             new_conn.StereotypeEx = full_stereo
             new_conn.Direction = "Source -> Destination"
             new_conn.Update()
+            clog.log("created", rel["id"], rel["type"], rel["type"], new_conn.ConnectorGUID,
+                     changes={"source": rel["source"], "target": rel["target"]})
             log(f"  [{idx + 1}/{len(relations)}] Created rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
 
 
@@ -421,6 +430,9 @@ def main():
 
     elements, relations = parse_md(args.md)
     print(f"Parsed {len(elements)} elements, {len(relations)} relationships")
+
+    clog = ChangeLog(os.path.join(SCRIPT_DIR, "archimate_changelog.md"))
+    clog.checkpoint("Parsed MD")
 
     guid_map = load_guid_map()
     print(f"Loaded {len(guid_map)} GUID mappings")
@@ -451,13 +463,13 @@ def main():
 
         # Phase 1: Elements
         log(f"--- Elements ({len(elements)}) ---")
-        sync_elements(repo, eax_pkg, elements, guid_map)
+        sync_elements(repo, eax_pkg, elements, guid_map, clog)
         save_guid_map(guid_map)
         log("--- Elements done ---")
 
         # Phase 2: Relationships
         log(f"--- Relationships ({len(relations)}) ---")
-        sync_relations(repo, relations, elements, guid_map)
+        sync_relations(repo, relations, elements, guid_map, clog)
         log("--- Relationships done ---")
 
         # Build object_ids: el["id"] -> numeric EA ElementID
@@ -539,6 +551,9 @@ def main():
 
         set_diagram_stereotype(diag, args.qea)
         print(f"  Set diagram toolbox to {DIAGRAM_STYLEEX_MDGDGM}")
+
+    clog.checkpoint("Diagram complete")
+    clog.close()
 
     print("\nDone. Open EAxCRM.qea in Sparx EA to view.")
 
