@@ -23,12 +23,24 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
 
     def extract_elements(text):
         elems = {}
-        for line in text.splitlines():
+        lines = text.splitlines()
+        for i, line in enumerate(lines):
             m = re.match(r"#{2,4}\s+(.+?)[\u2014\u2013]\s*(.+)", line)
-            if m:
-                label = m.group(1).strip()
-                eid = m.group(2).strip()
-                elems[eid] = {"type": label}
+            if not m:
+                continue
+            label = m.group(1).strip()
+            eid = m.group(2).strip()
+            name = eid
+            # Look ahead to this element's "- Name: ..." field (stops at
+            # the next header so it never bleeds into the following block).
+            for j in range(i + 1, len(lines)):
+                if lines[j].startswith("#"):
+                    break
+                nm = re.match(r"-\s*Name:\s*(.+)", lines[j])
+                if nm:
+                    name = nm.group(1).strip()
+                    break
+            elems[eid] = {"type": label, "name": name}
         return elems
 
     old_elems = extract_elements(old_content) if old_content else {}
@@ -39,11 +51,11 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
 
     diff = {
         "created": [
-            {"eid": eid, "name": eid, "type": new_elems[eid]["type"]}
+            {"eid": eid, "name": new_elems[eid]["name"], "type": new_elems[eid]["type"]}
             for eid in sorted(new_ids - old_ids)
         ],
         "deleted": [
-            {"eid": eid, "name": eid, "type": old_elems[eid]["type"]}
+            {"eid": eid, "name": old_elems[eid]["name"], "type": old_elems[eid]["type"]}
             for eid in sorted(old_ids - new_ids)
         ],
         "updated": [],
@@ -52,13 +64,20 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
     for eid in sorted(old_ids & new_ids):
         old_t = old_elems[eid]["type"]
         new_t = new_elems[eid]["type"]
+        old_n = old_elems[eid]["name"]
+        new_n = new_elems[eid]["name"]
+        changes = {}
         if old_t != new_t:
+            changes["Type"] = (old_t, new_t)
+        if old_n != new_n:
+            changes["Name"] = (old_n, new_n)
+        if changes:
             diff["updated"].append(
                 {
                     "eid": eid,
-                    "name": eid,
+                    "name": new_n,
                     "type": new_t,
-                    "changes": {"Type": (old_t, new_t)},
+                    "changes": changes,
                 }
             )
 
@@ -144,7 +163,9 @@ class ChangeLog:
 
         Args:
             action: ``"created"``, ``"updated"``, ``"deleted"``,
-                ``"conn_created"``, or ``"conn_deleted"``.
+                ``"conn_created"``, or ``"conn_deleted"``. An ``"updated"``
+                whose only change is ``Name`` is reclassified to
+                ``"renamed"`` automatically (its own section in the log).
             eid: Element identifier (for connectors: the connector type).
             name: Human-readable name (for connectors: source element).
             kind: BPMN/ArchiMate type (for connectors: target element).
@@ -153,6 +174,9 @@ class ChangeLog:
                 or ``{"condition": ..., ...}`` for connectors.
             run_id: Optional run identifier.
         """
+        changes = changes or {}
+        if action == "updated" and set(changes.keys()) == {"Name"}:
+            action = "renamed"
         self._entries.append(
             {
                 "action": action,
@@ -160,7 +184,7 @@ class ChangeLog:
                 "name": name,
                 "type": kind,
                 "guid": guid,
-                "changes": changes or {},
+                "changes": changes,
                 "run_id": run_id,
             }
         )
@@ -266,6 +290,7 @@ class ChangeLog:
         # Group entries by action
         created = [e for e in self._entries if e["action"] == "created"]
         updated = [e for e in self._entries if e["action"] == "updated"]
+        renamed = [e for e in self._entries if e["action"] == "renamed"]
         deleted = [e for e in self._entries if e["action"] == "deleted"]
         connectors = [e for e in self._entries if e["action"].startswith("conn_")]
 
@@ -279,21 +304,15 @@ class ChangeLog:
                     f"| {e['eid']} | {e['name']} | {e['type']} | {e['guid']} |\n"
                 )
 
+        # -- Renamed ---------------------------------------------------
+        if renamed:
+            lines.append("\n### Renamed\n")
+            lines.extend(self._format_change_rows(renamed))
+
         # -- Updated -------------------------------------------------------
         if updated:
             lines.append("\n### Updated\n")
-            lines.append("| eid | Name | Type | GUID | Changes |\n")
-            lines.append("|-----|------|------|------|---------|\n")
-            for e in updated:
-                changes_parts = []
-                for k, v in e.get("changes", {}).items():
-                    old_val, new_val = v
-                    changes_parts.append(f"{k}: {old_val} -> {new_val}")
-                changes_str = "; ".join(changes_parts)
-                lines.append(
-                    f"| {e['eid']} | {e['name']} | {e['type']} | "
-                    f"{e['guid']} | {changes_str} |\n"
-                )
+            lines.extend(self._format_change_rows(updated))
 
         # -- Deleted -------------------------------------------------------
         if deleted:
@@ -320,6 +339,22 @@ class ChangeLog:
 
         lines.append("\n")
         return "".join(lines)
+
+    def _format_change_rows(self, entries: list[dict]) -> list[str]:
+        """Shared eid/Name/Type/GUID/Changes table body for Updated and
+        Renamed sections (identical layout, different action filter)."""
+        lines = ["| eid | Name | Type | GUID | Changes |\n", "|-----|------|------|------|---------|\n"]
+        for e in entries:
+            changes_parts = []
+            for k, v in e.get("changes", {}).items():
+                old_val, new_val = v
+                changes_parts.append(f"{k}: {old_val} -> {new_val}")
+            changes_str = "; ".join(changes_parts)
+            lines.append(
+                f"| {e['eid']} | {e['name']} | {e['type']} | "
+                f"{e['guid']} | {changes_str} |\n"
+            )
+        return lines
 
     def _trim_oldest(self, content: str) -> str:
         """Remove oldest ``##`` sections until content fits ``max_bytes``.

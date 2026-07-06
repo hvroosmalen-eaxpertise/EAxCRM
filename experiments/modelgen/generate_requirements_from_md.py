@@ -181,26 +181,27 @@ def main():
 
             if existing:
                 # Update existing
-                changed = False
+                changes = {}
                 if existing.Name != req["name"]:
+                    changes["Name"] = (existing.Name, req["name"])
                     existing.Name = req["name"]
-                    changed = True
                 if existing.Alias != req["alias"]:
+                    changes["Alias"] = (existing.Alias, req["alias"])
                     existing.Alias = req["alias"]
-                    changed = True
                 if (existing.Notes or "").strip() != req["description"]:
+                    changes["Notes"] = ((existing.Notes or "").strip(), req["description"])
                     existing.Notes = req["description"]
-                    changed = True
                 if existing.Status != req["status"]:
+                    changes["Status"] = (existing.Status, req["status"])
                     existing.Status = req["status"]
-                    changed = True
                 if existing.Version != req["version"]:
+                    changes["Version"] = (existing.Version, req["version"])
                     existing.Version = req["version"]
-                    changed = True
-                if changed:
+                if changes:
                     existing.Update()
                     print(f"  Updated {req['alias']:8s}  {req['name']}")
-                    clog.log("updated", req["id"], req["name"], "Requirement", existing.ElementGUID)
+                    clog.log("updated", req["id"], req["name"], "Requirement", existing.ElementGUID,
+                             changes=changes)
                 else:
                     print(f"  Current {req['alias']:8s}  {req['name']}")
 

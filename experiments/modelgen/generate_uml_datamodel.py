@@ -319,10 +319,18 @@ def main():
                 existing = pkg_elements_by_name.get(ent["name"])
 
             if existing:
+                old_name = existing.Name
+                old_notes = existing.Notes
                 existing.Name = ent["name"]
                 existing.Notes = ent["description"]
                 existing.Update()
-                clog.log("updated", ent["id"], ent["name"], "Class", existing.ElementGUID)
+                changes = {}
+                if old_name != ent["name"]:
+                    changes["Name"] = (old_name, ent["name"])
+                if old_notes != ent["description"]:
+                    changes["Notes"] = (old_notes, ent["description"])
+                clog.log("updated", ent["id"], ent["name"], "Class", existing.ElementGUID,
+                         changes=(changes or None))
                 guid_map[md_guid] = existing.ElementGUID
                 sync_attributes(existing, ent["attributes"], clog=clog, entity_name=ent["name"])
                 print(f"    Synced {len(ent['attributes'])} attributes")

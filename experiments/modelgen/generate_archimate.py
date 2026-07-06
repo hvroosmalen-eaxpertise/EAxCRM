@@ -327,14 +327,20 @@ def sync_elements(repo, pkg, elements, guid_map, clog):
         base_type = ELEMENT_BASE_TYPE.get(el["type"], "Class")
 
         if existing:
+            old_name = existing.Name
             old_notes = existing.Notes
             existing.Name = el["name"]
             existing.Notes = el["description"]
             existing.StereotypeEx = el["sparx_stereotype"]
             existing.Update()
             guid_map[md_guid] = existing.ElementGUID
+            changes = {}
+            if old_name != el["name"]:
+                changes["Name"] = (old_name, el["name"])
+            if old_notes != el["description"]:
+                changes["Notes"] = (old_notes, el["description"])
             clog.log("updated", el["id"], el["name"], el["type"], existing.ElementGUID,
-                     changes=({"Notes": (old_notes, el["description"])} if old_notes != el["description"] else None))
+                     changes=(changes or None))
             log(f"  [{idx + 1}/{len(elements)}] Updated: '{el['name']}' ({el['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_elem = pkg.Elements.AddNew(el["name"], base_type)

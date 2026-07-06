@@ -168,14 +168,59 @@ def test_log_updated_with_changes(clog_path):
     clog = ChangeLog(clog_path)
     clog.log(
         "updated", "AcceptOffer", "Accept Offer", "Activity",
-        changes={"Name": ("Accept", "Accept Offer")},
+        changes={"Notes": ("old note", "new note")},
     )
     clog.close()
     content = Path(clog_path).read_text(encoding="utf-8")
     assert "### Updated" in content
     assert "AcceptOffer" in content
-    assert "Accept ->" in content or "Accept" in content
-    assert "Accept Offer" in content
+    assert "old note ->" in content
+    assert "new note" in content
+
+
+def test_log_pure_name_change_is_renamed_not_updated(clog_path):
+    """An 'updated' log whose only change is Name is reclassified to its
+    own Renamed section, not folded into Updated."""
+    clog = ChangeLog(clog_path)
+    clog.log(
+        "updated", "AcceptOffer", "Accept Offer", "Activity",
+        changes={"Name": ("Accept", "Accept Offer")},
+    )
+    clog.close()
+    content = Path(clog_path).read_text(encoding="utf-8")
+    assert "### Renamed" in content
+    assert "### Updated" not in content
+    assert "AcceptOffer" in content
+    assert "Accept -> Accept Offer" in content
+
+
+def test_log_name_plus_other_change_stays_updated(clog_path):
+    """A Name change alongside another field change is NOT a pure rename --
+    it stays under Updated, with Name still shown in the Changes column."""
+    clog = ChangeLog(clog_path)
+    clog.log(
+        "updated", "AcceptOffer", "Accept Offer", "Activity",
+        changes={"Name": ("Accept", "Accept Offer"), "Notes": ("old", "new")},
+    )
+    clog.close()
+    content = Path(clog_path).read_text(encoding="utf-8")
+    assert "### Updated" in content
+    assert "### Renamed" not in content
+    assert "Accept -> Accept Offer" in content
+
+
+def test_log_diff_detects_rename(clog_path):
+    """compute_md_diff picks up a Name-only change from the MD's '- Name:'
+    field and routes it through the same rename reclassification."""
+    old_md = "### Activity—CreateAccount\n- Name: Create Account\n- Type: Activity\n"
+    new_md = "### Activity—CreateAccount\n- Name: Create Customer Account\n- Type: Activity\n"
+    diff = compute_md_diff(old_md, new_md)
+    clog = ChangeLog(clog_path)
+    clog.log_diff(diff)
+    clog.close()
+    content = Path(clog_path).read_text(encoding="utf-8")
+    assert "### Renamed" in content
+    assert "Create Account -> Create Customer Account" in content
 
 
 def test_log_deleted(clog_path):
