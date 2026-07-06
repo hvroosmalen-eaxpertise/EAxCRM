@@ -9,6 +9,7 @@ Re-run to update names, descriptions, attribute types, or add new entities/relat
 import sys, os, argparse, json, re
 import diagram_utils
 import ea_session
+from changelog import ChangeLog, compute_md_diff
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -195,7 +196,7 @@ def sync_attribute(ea_attr, attr_def):
     ea_attr.Update()
 
 
-def sync_attributes(ea_elem, attr_defs):
+def sync_attributes(ea_elem, attr_defs, clog=None, entity_name=""):
     """Sync attributes on an EA element. Adds new, updates existing, deletes orphans."""
     existing = {}
     for i in range(ea_elem.Attributes.Count):
@@ -216,7 +217,8 @@ def sync_attributes(ea_elem, attr_defs):
         a = ea_elem.Attributes.GetAt(i)
         if a.Name not in md_names:
             ea_elem.Attributes.Delete(i)
-            print(f"    Deleted attribute '{a.Name}'")
+            if clog:
+                clog.log("deleted", a.Name, a.Name, "Attribute", changes={"entity": entity_name})
 
     ea_elem.Update()
 
@@ -241,6 +243,8 @@ def main():
 
     entities, relations = parse_md(args.md)
     print(f"Parsed {len(entities)} entities, {len(relations)} relationships")
+    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
+    clog.checkpoint("Parsed MD")
 
     guid_map = load_guid_map()
     print(f"Loaded {len(guid_map)} GUID mappings")
@@ -318,9 +322,9 @@ def main():
                 existing.Name = ent["name"]
                 existing.Notes = ent["description"]
                 existing.Update()
-                print(f"  Updated: '{ent['name']}'")
+                clog.log("updated", ent["id"], ent["name"], "Class", existing.ElementGUID)
                 guid_map[md_guid] = existing.ElementGUID
-                sync_attributes(existing, ent["attributes"])
+                sync_attributes(existing, ent["attributes"], clog=clog, entity_name=ent["name"])
                 print(f"    Synced {len(ent['attributes'])} attributes")
             else:
                 new_elem = dm_pkg.Elements.AddNew(ent["name"], "Class")
@@ -334,8 +338,8 @@ def main():
                         guid_map[md_guid] = e.ElementGUID
                         pkg_elements_by_name[e.Name] = e
                         break
-                print(f"  Created: '{ent['name']}'")
-                sync_attributes(new_elem, ent["attributes"])
+                clog.log("created", ent["id"], ent["name"], "Class", new_elem.ElementGUID)
+                sync_attributes(new_elem, ent["attributes"], clog=clog, entity_name=ent["name"])
                 print(f"    Added {len(ent['attributes'])} attributes")
 
         save_guid_map(guid_map)
@@ -378,7 +382,7 @@ def main():
                     conn.Name = rel.get("name", "")
                     conn.Notes = rel.get("description", "")
                     conn.Update()
-                    print(f"  Updated rel: '{rel['id']}'")
+                    clog.log("updated", rel["id"], f"{src['name']} -> {tgt['name']}", "Association", conn.ConnectorGUID)
                     break
 
             if not exists:
@@ -388,7 +392,7 @@ def main():
                 new_conn.Name = rel.get("name", "")
                 new_conn.Notes = rel.get("description", "")
                 new_conn.Update()
-                print(f"  Created rel: '{rel['id']}'")
+                clog.log("created", rel["id"], f"{src['name']} -> {tgt['name']}", "Association", new_conn.ConnectorGUID)
 
         # Phase 2b: Delete orphan connectors via COM API (database-independent)
         print("\n--- Relationship Orphan Cleanup (COM API) ---")
@@ -588,6 +592,9 @@ def main():
         styled = diagram_utils.set_diagram_link_style(diag, 8)  # Orthogonal Square
         if styled:
             print(f"  Set Orthogonal Square line style on {styled} connector(s)")
+
+        clog.checkpoint("Diagram complete")
+        clog.close()
 
     finally:
         try:

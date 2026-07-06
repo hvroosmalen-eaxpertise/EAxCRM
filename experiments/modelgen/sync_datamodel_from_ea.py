@@ -8,6 +8,7 @@ Usage:
     python sync_datamodel_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
 """
 import sys, os, argparse, sqlite3, re
+from changelog import ChangeLog, compute_md_diff
 
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -160,10 +161,23 @@ def main():
         lines.append(f"- GUID: {guid}")
         lines.append("")
 
-    output = "\n".join(lines) + "\n"
+    new_content = "\n".join(lines) + "\n"
+
+    # Changelog: diff against previous MD
+    old_content = ""
+    if os.path.exists(args.md):
+        with open(args.md, "r", encoding="utf-8") as f:
+            old_content = f.read()
+
+    diff = compute_md_diff(old_content, new_content)
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
+    clog.checkpoint("Sync from EA")
+    clog.log_diff(diff)
+    clog.close()
 
     with open(args.md, "w", encoding="utf-8") as f:
-        f.write(output)
+        f.write(new_content)
     print(f"Written {len(lines)} lines to {args.md}")
     print("Done.")
 
