@@ -66,7 +66,7 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
         conns = set()
         in_conn_section = False
         for line in text.splitlines():
-            if re.match(r"###\s+(Sequence|Message|Data)", line):
+            if re.match(r"##\s+(Sequence|Message|Data)", line):
                 in_conn_section = True
                 continue
             if line.startswith("## "):
@@ -74,7 +74,7 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
                 continue
             if in_conn_section and line.startswith("- "):
                 m = re.match(
-                    r"- (.+?)\s*[\u2192\u279e]\s*(.+?)(?:\s*\[(.+?)\])?$",
+                    r"(.+?)\s*[\u2192\u279e]\s*(.+?)(?:\s*\[(.+?)\])?$",
                     line[2:],
                 )
                 if m:

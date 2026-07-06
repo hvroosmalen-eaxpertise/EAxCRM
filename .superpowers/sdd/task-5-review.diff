@@ -1,0 +1,311 @@
+﻿febd768 feat: add changelog to Requirements scripts
+diff --git a/experiments/modelgen/generate_requirements_from_md.py b/experiments/modelgen/generate_requirements_from_md.py
+index 50a1883..5aadf80 100644
+--- a/experiments/modelgen/generate_requirements_from_md.py
++++ b/experiments/modelgen/generate_requirements_from_md.py
+@@ -1,18 +1,19 @@
+ """Create/update Requirements in EAxCRM.qea from Markdown model file.
+ 
+ Usage:
+     python generate_requirements_from_md.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-Requirements.md]
+ """
+ import sys, os, argparse, json, re
+ import diagram_utils
+ import ea_session
++from changelog import ChangeLog
+ 
+ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
+ DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-Requirements.md"
+ GUID_MAP_PATH = os.path.join(SCRIPT_DIR, "requirements_guid_map.json")
+ 
+ 
+ def parse_md(path):
+     """Parse requirements Markdown into a list of dicts."""
+     with open(path, encoding="utf-8") as f:
+@@ -103,20 +104,23 @@ def find_package(parent, name):
+ 
+ def main():
+     parser = argparse.ArgumentParser(description="Generate requirements in EAxCRM.qea from Markdown")
+     parser.add_argument("--qea", default=DEFAULT_QEA)
+     parser.add_argument("--md", default=DEFAULT_MD)
+     args = parser.parse_args()
+ 
+     requirements = parse_md(args.md)
+     print(f"Parsed {len(requirements)} requirements from MD")
+ 
++    clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
++    clog.checkpoint("Parsed MD")
++
+     # Build lookup by safe_id
+     req_by_id = {}
+     for r in requirements:
+         req_by_id[r["id"]] = r
+ 
+     guid_map = load_guid_map()
+     print(f"Loaded {len(guid_map)} GUID mappings")
+ 
+     try:
+         import win32com.client
+@@ -189,20 +193,21 @@ def main():
+                     changed = True
+                 if existing.Status != req["status"]:
+                     existing.Status = req["status"]
+                     changed = True
+                 if existing.Version != req["version"]:
+                     existing.Version = req["version"]
+                     changed = True
+                 if changed:
+                     existing.Update()
+                     print(f"  Updated {req['alias']:8s}  {req['name']}")
++                    clog.log("updated", req["id"], req["name"], "Requirement", existing.ElementGUID)
+                 else:
+                     print(f"  Current {req['alias']:8s}  {req['name']}")
+ 
+                 # Sync GUID map
+                 if md_guid:
+                     guid_map[md_guid] = existing.ElementGUID
+                 else:
+                     # Assign a placeholder GUID key
+                     guid_map[f"_{req['id']}"] = existing.ElementGUID
+ 
+@@ -216,20 +221,21 @@ def main():
+                 new_el.Version = req["version"]
+                 new_el.Update()
+                 pkg.Elements.Refresh()
+ 
+                 # Store GUID mapping
+                 if md_guid:
+                     guid_map[md_guid] = new_el.ElementGUID
+                 else:
+                     guid_map[f"_{req['id']}"] = new_el.ElementGUID
+ 
++                clog.log("created", req["id"], req["name"], "Requirement", new_el.ElementGUID)
+                 print(f"  Created {req['alias']:8s}  {req['name']}  [{new_el.ElementGUID}]")
+                 touched_ids.add(new_el.ElementID)
+ 
+         # Refresh elements list to pick up new IDs and build GUIDÔåÆelement map
+         pkg.Elements.Refresh()
+         fresh_by_guid = {}
+         fresh_by_id = {}
+         for i in range(pkg.Elements.Count):
+             el = pkg.Elements.GetAt(i)
+             if el.Type == "Requirement":
+@@ -274,20 +280,21 @@ def main():
+ 
+                 # Check if connector already exists
+                 key = (child_el.ElementID, parent_el.ElementID)
+                 if key in existing_conns:
+                     print(f"  Connector exists: {req['id']} -> {parent_id_str}")
+                     del existing_conns[key]
+                 else:
+                     conn = child_el.Connectors.AddNew("", "Aggregation")
+                     conn.SupplierID = parent_el.ElementID
+                     conn.Update()
++                    clog.log("created", f"{req['id']}->{parent_id_str}", req["name"], "Aggregation", conn.ConnectorGUID)
+                     print(f"  Created connector: {req['id']} -> {parent_id_str}")
+ 
+         # --- Delete orphan connectors ---
+         for (client_id, supplier_id), conn in existing_conns.items():
+             try:
+                 child_el = fresh_by_id.get(client_id)
+                 parent_el = fresh_by_id.get(supplier_id)
+                 child_name = child_el.Name if child_el else str(client_id)
+                 parent_name = parent_el.Name if parent_el else str(supplier_id)
+                 src_el = repo.GetElementByID(client_id)
+@@ -417,20 +424,21 @@ def main():
+                     print(f"  WARN '{req['id']}': entity '{ent_name}' not found in EA")
+                     continue
+ 
+                 key = (ent_el.ElementID, req_el.ElementID)
+                 if key in existing_real:
+                     matched_real.add(key)
+                 else:
+                     conn = ent_el.Connectors.AddNew("", "Realisation")
+                     conn.SupplierID = req_el.ElementID
+                     conn.Update()
++                    clog.log("created", f"{ent_name}->{req['id']}", ent_name, "Realisation", conn.ConnectorGUID)
+                     print(f"  Created: {ent_name} -> {req['alias'] or req['id']}")
+                     new_real += 1
+ 
+         # Delete orphan Realisation connectors
+         orphan_real = 0
+         for (eid, rid), conn in existing_real.items():
+             if (eid, rid) not in matched_real:
+                 try:
+                     src_el = repo.GetElementByID(eid)
+                     src_el.Connectors.Refresh()
+@@ -443,20 +451,25 @@ def main():
+                 except:
+                     pass
+ 
+         if new_real:
+             print(f"  Created {new_real} new Realisation connector(s)")
+         else:
+             print("  All Realisation connectors exist")
+         if orphan_real:
+             print(f"  Deleted {orphan_real} orphan Realisation connector(s)")
+ 
++        try:
++            clog.checkpoint("Diagram complete")
++        finally:
++            clog.close()
++
+         save_guid_map(guid_map)
+ 
+     finally:
+         try:
+             repo.RefreshModelView(0)  # Full model tree refresh
+             repo.RefreshOpenDiagrams(True)
+         except Exception as e:
+             print(f"  [refresh] RefreshModelView(0) failed: {e}")
+         try:
+             repo.CloseFile()
+diff --git a/experiments/modelgen/seed_requirements_properties.py b/experiments/modelgen/seed_requirements_properties.py
+index 29d3be9..9f24938 100644
+--- a/experiments/modelgen/seed_requirements_properties.py
++++ b/experiments/modelgen/seed_requirements_properties.py
+@@ -1,18 +1,21 @@
+ """Set ID (Alias), Status, and Version on requirements in EA via COM API.
+ 
+ Run after sync_requirements_from_ea.py to populate EA with spec-compliant IDs.
+ Usage:
+     python seed_requirements_properties.py [--qea M:\\path\\EAxCRM.qea]
+ """
+ import sys, os, argparse
+ import ea_session
++from changelog import ChangeLog
++
++SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ 
+ DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
+ 
+ # Mapping: EA Name ÔåÆ (ID, Status, Version)
+ ID_MAP = {
+     "EAxCRM must support the procurement process": ("PRO-1", "Approved", "1.0"),
+     "EAXCRM must support the sales process": ("SAL-1", "Approved", "1.0"),
+     "Procurement can be done via Prolaborate": ("PRO-5.4", "Approved", "1.0"),
+     "Procument can be done via multiple parties": ("PRO-5", "Approved", "1.0"),
+     "EAxCRM must show a UX that shows the current state of Procuement": ("RPT-4", "Proposed", "1.0"),
+@@ -44,42 +47,61 @@ def main():
+         print("FAIL: win32com not installed. Run: pip install pywin32")
+         sys.exit(1)
+ 
+     with ea_session.ea_repository(args.qea) as repo:
+         root = ea_session.get_model_root(repo)
+         pkg = find_package(root, "EAxCRM Requirements")
+         if not pkg:
+             print("FAIL: 'EAxCRM Requirements' package not found")
+             sys.exit(1)
+ 
++        clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
++        clog.checkpoint("Seeding properties")
++
+         pkg.Elements.Refresh()
+         count = 0
+         for i in range(pkg.Elements.Count):
+             el = pkg.Elements.GetAt(i)
+             if el.Type != "Requirement":
+                 continue
+             if el.Name in ID_MAP:
+                 aid, status, version = ID_MAP[el.Name]
+                 changed = False
++                old_alias = el.Alias
++                old_status = el.Status
++                old_version = el.Version
+                 if el.Alias != aid:
+                     el.Alias = aid
+                     changed = True
+                 if el.Status != status:
+                     el.Status = status
+                     changed = True
+                 if el.Version != version:
+                     el.Version = version
+                     changed = True
+                 if changed:
+                     el.Update()
++                    actual_changes = {}
++                    if old_alias != aid:
++                        actual_changes["Alias"] = (old_alias, aid)
++                    if old_status != status:
++                        actual_changes["Status"] = (old_status, status)
++                    if old_version != version:
++                        actual_changes["Version"] = (old_version, version)
++                    clog.log("updated", aid, el.Name, "Requirement", el.ElementGUID,
++                             changes=actual_changes)
+                     print(f"  Updated {aid:8s}  {el.Name}")
+                 else:
+                     print(f"  Skipped {aid:8s}  (no change)")
+                 count += 1
+             else:
+                 print(f"  ?         {el.Name}")
+ 
+         print(f"Processed {count} requirements.")
++        try:
++            clog.checkpoint("Seed complete")
++        finally:
++            clog.close()
+ 
+ 
+ if __name__ == "__main__":
+     main()
+diff --git a/experiments/modelgen/sync_requirements_from_ea.py b/experiments/modelgen/sync_requirements_from_ea.py
+index c497680..be27253 100644
+--- a/experiments/modelgen/sync_requirements_from_ea.py
++++ b/experiments/modelgen/sync_requirements_from_ea.py
+@@ -1,18 +1,20 @@
+ """Read Requirements from EAxCRM.qea (via COM API) and write them as Markdown.
+ 
+ Usage:
+     python sync_requirements_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-Requirements.md]
+ """
+ import sys, os, argparse, re
+ import ea_session
++from changelog import ChangeLog, compute_md_diff
+ 
++SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ 
+ DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
+ DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-Requirements.md"
+ 
+ 
+ def safe_id(name):
+     return re.sub(r"[^a-z0-9]", "", name.lower())
+ 
+ 
+ def find_package(parent, name):
+@@ -157,20 +159,34 @@ def main():
+                 lines.append("- Parents:" + (" (none)" if not parent_names else ""))
+                 for p in parent_names:
+                     lines.append(f"  - {p}")
+             else:
+                 lines.append("- Parents:")
+                 lines.append("  - (none \u2014 top-level)")
+             lines.append("")
+ 
+         output = "\n".join(lines) + "\n"
+ 
++        # Read existing content and compute diff
++        old_content = ""
++        if os.path.exists(args.md):
++            with open(args.md, "r", encoding="utf-8") as f:
++                old_content = f.read()
++
++        diff = compute_md_diff(old_content, output)
++        clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
++        clog.checkpoint("Sync from EA")
++        try:
++            clog.log_diff(diff)
++        finally:
++            clog.close()
++
+         with open(args.md, "w", encoding="utf-8") as f:
+             f.write(output)
+         print(f"Written {len(lines)} lines to {args.md}")
+         print("Done.")
+ 
+     finally:
+         try:
+             repo.CloseFile()
+         except:
+             pass
