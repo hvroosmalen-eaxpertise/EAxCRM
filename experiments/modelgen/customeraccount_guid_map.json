@@ -23,6 +23,7 @@
     "NewCustomerContact": "{739C876F-E4AE-4102-9663-966D2C925D01}",
     "PrimaryorLicenseHolderrole": "{16CF0C0D-548F-4cb0-8B2A-E536B593612B}",
     "RetrieveCustomerEmailHistory": "{CA27AF88-ED2F-4653-8059-A61D0BA88A8E}",
-    "SuggestNewsletterOptin": "{8D50E44F-E7EB-4a7f-B861-D0766947A995}"
+    "SuggestNewsletterOptin": "{8D50E44F-E7EB-4a7f-B861-D0766947A995}",
+    "Contact": "{77AAEBE9-8BA5-4668-9967-629293E99856}"
   }
 }

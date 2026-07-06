@@ -52,6 +52,7 @@ the design. `diagram_utils.py` keeps only the non-BPMN layout functions
 | **Reflow leaves stale connector Path** | Diagonal lines cutting through the diagram after boxes move | `DiagramLink.Path` holds absolute waypoints computed for the *old* positions; EA does not recompute it when a box moves via COM. Must explicitly recompute/clear `Path` whenever positions change. |
 | **`.Geometry`'s `EDGE` field does nothing alone** | Setting `EDGE=N` in the Geometry string had zero visible effect on rendered routing | Routing is controlled by `DiagramLink.Path` (absolute waypoints), not `.Geometry`. See "Connector Routing" below. |
 | **Orphaned DiagramLink after deleting a connector** | `repo.GetConnectorByID(dl.ConnectorID)` throws EA's internal error 61704 (not transient — happens every time) while iterating `diag.DiagramLinks` | Deleting a connector via `Element.Connectors.Delete(index)` does not clean up `t_diagramlinks` rows on diagrams where that connector was rendered — the row survives with a `ConnectorID` pointing at nothing. `diag.DiagramLinks.Delete(index)` also fails to remove it (its own delete path needs to resolve the same dangling connector). Confirm via SQLite (`SELECT COUNT(*) FROM t_connector WHERE Connector_ID=?` returns 0) then delete the single orphaned row directly: `DELETE FROM t_diagramlinks WHERE DiagramID=? AND ConnectorID=?` — same accepted-exception category as the diagram-stereotype `t_xref` fallback. `bpmn_engine.py`'s linestyle/routing loop now wraps `GetConnectorByID` in try/except and skips gracefully instead of aborting the whole pass. |
+| **Wrong native `Diagram_Type` AND wrong toolbox-selector → empty toolbox** (github issue #5, fixed 2026-07-06, corrected same day) | Opening a generated diagram in EA's GUI shows no matching MDG toolbox page by default (generic "analysis"/"application" tab caption, plain icon), forcing the user to manually pick a diagram type every time | **Two separate bugs, found in sequence.** (1) Every generator created diagrams with an invalid native `Diagram_Type` string — one that looks plausible (a stereotype's human-readable alias) but isn't real. ArchiMate used Type=`"Application Layer"` (that's the *alias* of the `Application` stereotype, not a `Diagram_Type` — the real native type is `"Logical"`); BPMN (Customer Account, Newsletter) used Type=`"BusinessProcess"` (not real either — the real type for BPMN2.0 diagrams is `"Analysis"`). Confirmed by reading `MDGTechnologies/ArchiMate3.xml` / `MDGTechnologies/BPMN 2.0 Technology.xml` directly (`<Apply type="Diagram_Logical">` / `<Apply type="Diagram_Analysis">`) rather than guessing. (2) **Fixing only the Type wasn't enough** — a first attempt also set `Diagram.StereotypeEx` + a `t_xref` "Stereotypes"/"diagram property" row (mirroring an existing BPMN pattern) but the toolbox *still* didn't show (user-confirmed by comparing against a diagram they built correctly by hand in EA's GUI). Reading that hand-built reference diagram's raw `t_diagram` row revealed the actual mechanism: **`Diagram.StyleEx`'s `MDGDgm=<Technology>::<Name>;` key** (e.g. `MDGDgm=BPMN2.0::Business Process;`) — not `Stereotype`/`StereotypeEx` (both `None`/blank on the working reference) and not any `t_xref` row (none present either). Verified end-to-end: setting this key changed the tab caption from generic "analysis ..." to a bold "Business Process ..." with a proper BPMN icon, and lane labels dropped their generic `«Lane»` UML-stereotype prefix. **Both `Diagram.Type` and an already-non-empty `Diagram.StyleEx` MDGDgm entry are read-only-after-creation via COM** (`Type` raises "can not be set"; `StyleEx` accepts the write silently but doesn't persist it if the key already has *any* value, even blank, e.g. `MDGDgm=;`) — so existing diagrams need both corrected via direct SQL (`UPDATE t_diagram SET Diagram_Type=...` / string-replace the `MDGDgm=...;` substring within the full `StyleEx` value, preserving its other keys) — same accepted-exception category as other documented SQLite fallbacks in this skill. A freshly-created diagram (never yet touched by COM) *can* have `StyleEx` set directly via COM, though. Fix pattern: `generate_archimate.py`'s `set_diagram_stereotype()` and `bpmn_engine.py`'s diagram-creation block now set `Stereotype="" `/`StereotypeEx=""` (cosmetic, matches the reference), correct `Diagram_Type` via SQL if wrong, correct `StyleEx`'s `MDGDgm` key via SQL if wrong, and delete any stray `t_xref` "Stereotypes" row left over from the earlier (wrong) fix attempt — all idempotent, only writing when a value is actually wrong. **Caveat: only the BPMN *mechanism* is user-verified, not the specific value copied from it.** The hand-built "Sandbox" reference diagram is a generic scratch diagram typed `MDGDgm=BPMN2.0::Business Process;` — copying that exact value onto Customer Account/Sales/Newsletter was a **third bug**: those diagrams are each rooted in a `CollaborationModel` element with Pools/Lanes, so their own `MDGDgm` must match what they actually represent — `BPMN2.0::Collaboration` — not whichever generic BPMN type happened to confirm the mechanism. **Lesson: a reference diagram proves the *mechanism* (which field/key EA reads), not necessarily the *value* to copy onto a semantically-different diagram** — match the value to the diagram's own underlying element/stereotype, don't copy verbatim. **The ArchiMate fix is now user-confirmed correct as applied**: `Diagram_Type='Logical'`, `Stereotype=None`, `StyleEx` containing `MDGDgm=ArchiMate3::Application;` — this was a case where the value derived from reading the MDG technology XML directly (rather than copied from an unrelated reference) turned out right on the first attempt; `generate_archimate.py`'s `set_diagram_stereotype()`/`DIAGRAM_STYLEEX_MDGDGM` already produces exactly this and needed no further change. Can't verify toolbox rendering directly — only diagram *content* is exportable via `SaveDiagramImageToFile`, not IDE chrome — always get explicit user confirmation of the actual toolbox before considering a diagram-type fix done, and when copying a value from a reference diagram, confirm both the mechanism AND that the specific value matches the target diagram's own semantics, not just by re-reading MDG technology XML or copying a convenient nearby example. |
 
 ## INITIAL DIAGRAM DESIGN PHASE (CRITICAL)
 
@@ -147,23 +148,39 @@ dobj.Update()
 
 - **BPMN diagrams** (Sales, Newsletter): Must be under the **CollaborationModel element**, NOT under the package. See `generate_sales_process_from_md.py:582-587`:
   ```python
-  diag = collab_elem.Diagrams.AddNew("Sales Process Architecture", "BusinessProcess")
+  diag = collab_elem.Diagrams.AddNew("Sales Process Architecture", "Analysis")  # NOT "BusinessProcess" -- see BPMN Diagram Type and Toolbox below
   ```
 - **ArchiMate diagrams**: Under the **package** (`eax_pkg.Diagrams.AddNew`). See `generate_archimate.py:416`.
 - **Data Model diagrams**: Under the **package** (`dm_pkg.Diagrams.AddNew`). See `generate_uml_datamodel.py:544`.
 - **Requirements diagrams**: Under the **package** (`pkg.Diagrams.AddNew`). See `generate_requirements_from_md.py:339`.
 
-### BPMN Diagram Stereotype (needs 3 things)
+### BPMN Diagram Type and Toolbox (corrected 2026-07-06 — see Known Failure Modes above)
 
-`StereotypeEx` alone doesn't persist BPMN stereotypes on diagrams. You must also set the short-form Stereotype:
+Neither `Stereotype` nor `StereotypeEx` is what makes EA show the BPMN toolbox — that was an earlier, wrong fix attempt. Create the diagram with the correct native `Diagram_Type` (`"Analysis"`, not `"BusinessProcess"`), leave `Stereotype`/`StereotypeEx` blank, and set the toolbox via `StyleEx`'s `MDGDgm=` key instead. **Match the value to what the diagram actually represents** — our 3 process diagrams are each rooted in a `CollaborationModel` element with Pools/Lanes, so they use `BPMN2.0::Collaboration`; a generic scratch/test diagram not tied to any such element (e.g. the hand-built "Sandbox" reference used to discover this mechanism) might rightly use a different BPMN type like `BPMN2.0::Business Process` — don't copy a reference diagram's specific value onto a semantically different diagram, only the mechanism:
 
 ```python
-diag.Stereotype = "Collaboration"
-diag.StereotypeEx = "BPMN2.0::Collaboration"
+diag = collab_elem.Diagrams.AddNew(name, "Analysis")  # NOT "BusinessProcess"
+diag.Stereotype = ""
+diag.StereotypeEx = ""
+diag.StyleEx = "MDGDgm=BPMN2.0::Collaboration;"  # the real toolbox selector
 diag.Update()
 ```
 
-See `generate_sales_process_from_md.py:590-612` for the full pattern with SQLite t_xref fallback.
+See `bpmn_engine.py`'s diagram-creation block (~line 1100) for the full pattern with SQLite `t_xref` fallback (stereotype) and `t_diagram.Diagram_Type` correction (existing diagrams, since `Diagram.Type` can't be set via COM after creation).
+
+### ArchiMate Diagram Type and Toolbox (user-confirmed correct 2026-07-06)
+
+Same mechanism as BPMN above (`StyleEx`'s `MDGDgm=` key, not `Stereotype`/`StereotypeEx`), native `Diagram_Type` `"Logical"` (not `"Application Layer"` — that's only the human alias of the `Application` stereotype):
+
+```python
+diag = eax_pkg.Diagrams.AddNew(name, "Logical")  # NOT "Application Layer"
+diag.Stereotype = ""
+diag.StereotypeEx = ""
+diag.StyleEx = "MDGDgm=ArchiMate3::Application;"  # the real toolbox selector
+diag.Update()
+```
+
+See `generate_archimate.py`'s `set_diagram_stereotype()` for the full pattern (SQLite correction of `Diagram_Type`/`StyleEx` for existing diagrams, same as BPMN).
 
 ### Refresh() Stale-Proxy Bug
 
@@ -944,6 +961,47 @@ to distinguish the user's real session from a zombie. If you suspect a
 genuine leaked zombie (rare — e.g. a script crashed before reaching the
 `finally` block), confirm the PID's start time lines up with the crashed
 run before asking the user for permission to kill it.
+
+## Elements Reused Across Diagrams and Packages (clarified 2026-07-06)
+
+An EA element can legitimately appear on multiple diagrams — that's the whole
+point of a repository-backed model rather than a drawing tool: one underlying
+`Element` (one GUID, one set of Notes/tagged values) can be dropped onto any
+number of `Diagrams` as separate `DiagramObject` placements, each with its own
+position. Seeing the "same" element rendered on two different diagrams is
+normal and expected, not a modeling defect.
+
+Likewise, an element's **owning package** (where it lives in the Project
+Browser tree) is independent of which diagram(s) render it — an element
+parented under one package can still be placed on a diagram that itself lives
+under a completely different package (nesting/collection is a separate
+concern from diagram membership). Don't assume an element must be
+re-parented to appear on a given diagram.
+
+**This is distinct from** two independently-created elements that merely
+share a name/description but have different GUIDs (e.g. two separately
+authored "Confirm Customer Account" IntermediateEvents, one per BPMN
+Collaboration diagram/process) — that's real duplication, not reuse, and
+still worth flagging if found, since nothing in the model actually ties the
+two together (no shared GUID, no MessageFlow/relationship between them).
+
+## Element/Diagram Description Convention (rule added 2026-07-06)
+
+Every element and diagram description (`Notes` field, synced from/to the
+MD's `- Description:` line) should be elaborate enough to independently
+answer, at minimum:
+
+- **Why** does this exist / why is it relevant to the model?
+- **What** is it, in plain terms?
+- **How** does it work, if that's non-obvious (algorithm, trigger, manual
+  vs. automated step)?
+- **In what context** does it sit (which process/layer/diagram, what it
+  connects to)?
+
+A one-line restatement of the element's name is not sufficient. Apply this
+when authoring new elements/diagrams and when substantially revising
+existing ones — it does not require a blanket retrofit of every existing
+description in one pass.
 
 ## Checking Your Work
 

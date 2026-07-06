@@ -2,11 +2,12 @@
 
 **Model ID**: m-eacrm
 **Purpose**: Enterprise Architect Customer Relationship Manager
-**Version**: 2.1
-**Elements**: 71 (was 66)
-**Relationships**: 107 (was 91)
+**Version**: 2.2
+**Elements**: 72 (was 71)
+**Relationships**: 111 (was 107)
 **Changes in v2.0**: Added Sales Management function with 5 sub-processes, Vendor actor, and 7 new business objects with corresponding data objects and services. Updated Purchase Data description for removed attributes.
 **Changes in v2.1**: Added Manage Customer Account function with 4 sub-processes (Create Customer Account, Flag Duplicate Accounts, Merge Customer Accounts, Retrieve Customer Email History), reusing existing Customer/Contact/Communication business objects and the Customer Management/IMAP Fetch services. Added a Triggering relation from Handle RFQ to Create Customer Account.
+**Changes in v2.2**: Added a 5th Manage Customer Account sub-process, Suggest Newsletter Opt-in (was BPMN-only, missing from ArchiMate). Added Access relationships from Flag Duplicate Accounts and Retrieve Customer Email History to Contact Data — both processes touch Contact fields (email, role) per their BPMN descriptions but lacked the corresponding Access relationship.
 
 ## Elements
 
@@ -92,6 +93,12 @@
 - Name: Retrieve Customer Email History
 - Description: Scan the configured IMAP mailboxes for a Contact's email address and link matching Communications to the Customer Account.
 - GUID: {9D6DF8A4-51AF-4718-A080-104383F7FFFC}
+- Layer: Business
+
+### BusinessProcess — e-process-optinsuggest
+- Name: Suggest Newsletter Opt-in
+- Description: Why - a Contact holding the Primary or License Holder role is the one worth inviting to the newsletter, but opt-in must always be an explicit, staff-confirmed decision, never automatic. What - checks whether the account's Contact has (or has just been assigned) the Primary or License Holder role, and if so, offers to opt them in. How - the user is prompted after Retrieve Customer Email History completes; only on explicit confirmation are Contact.opt_in and opt_in_date set. Context - the final step of the Manage Customer Account process (EAxCRM-CustomerAccountProcess.md, "Suggest Newsletter Opt-in" activity) before the process reaches Account Ready; the actual opt-in bookkeeping is otherwise owned by Newsletter Management's Manage Opt-in process.
+- GUID: {52CD6F61-A2CE-4A14-98CB-237D877F225A}
 - Layer: Business
 
 ### BusinessProcess — e-process-imap
@@ -793,6 +800,11 @@
 - Target: e-process-emailhistory
 - GUID: {7E11F6D1-FE23-4844-BFE7-5C3E929B1841}
 
+### Composition — r-comp-account-optinsuggest
+- Source: e-func-account
+- Target: e-process-optinsuggest
+- GUID: {B7F3DE21-C882-4081-973D-D3F2BB008009}
+
 ### Access — r-access-rfq-quote
 - Source: e-process-rfq
 - Target: e-bo-quote
@@ -827,6 +839,24 @@
 - Source: e-process-emailhistory
 - Target: e-bo-communication
 - GUID: {B889D653-6167-4F59-BD4C-A6763B85A9FE}
+
+### Access — r-access-dedupe-contact
+- Source: e-process-dedupe
+- Target: e-bo-contact
+- Description: Duplicate detection fuzzy-matches both organisation name (Customer) and Contact email; the process was missing this Access relationship despite touching Contact data.
+- GUID: {F4052B6E-82A0-468F-9F05-0B1A26711B3D}
+
+### Access — r-access-emailhistory-contact
+- Source: e-process-emailhistory
+- Target: e-bo-contact
+- Description: Retrieval searches IMAP mailboxes using the Contact's email address as the match key.
+- GUID: {9E4EAF3F-2975-46CA-8381-0BB101B87B75}
+
+### Access — r-access-optinsuggest-contact
+- Source: e-process-optinsuggest
+- Target: e-bo-contact
+- Description: Reads Contact.role to evaluate eligibility and writes Contact.opt_in/opt_in_date on explicit user confirmation.
+- GUID: {2FFC83DD-38BE-43D9-833F-2360C181C714}
 
 ### Triggering — r-trigger-rfq-createaccount
 - Source: e-process-rfq

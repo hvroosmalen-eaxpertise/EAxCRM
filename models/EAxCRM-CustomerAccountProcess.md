@@ -37,6 +37,16 @@
 - Event Type: Signal
 - Description: Signal checkpoint before registering the RFQ — the user verifies the requesting organisation has a Customer Account, or creates one via the Manage Customer Account process (see EAxCRM-CustomerAccountProcess.md), before continuing.
 
+### DataObject—Contact
+- Name: Contact
+- Type: Artifact
+- Stereotype: DataObject
+- GUID: {77AAEBE9-8BA5-4668-9967-629293E99856}
+- Lane: EAxpertise
+- Data In/Out: None
+- Is Collection: false
+- Description: Why: almost every step in this process reads or writes a field on the account's Contact (role, opt_in, opt_in_date) -- without an explicit DataObject, that dependency was invisible in the diagram, only implied inside 'Customer Account'. What: the single Contact record (name, email, role, opt-in status) attached to the Customer Account being processed. How: created alongside the Customer as part of Create Customer Account (role may be unset initially), later updated by Suggest Newsletter Opt-in o
+
 ### Activity—CreateCustomerAccount
 - Name: Create Customer Account
 - Type: Activity
@@ -133,7 +143,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: From the Customer Account page, scan the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) for the Contact's email address and link matching Communications to the account.
+- Description: Why: staff need a fast way to see everything a Customer Account has ever communicated, without manually searching three separate mailboxes. What: composes a running Email History for the account -- a list of contact moments (sender, participants, date) matched against the Contact's email address, not just a raw dump of messages. How: reads the account's Contact email as the search key, scans the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl), and appends n
 
 ### Activity—SuggestNewsletterOptin
 - Name: Suggest Newsletter Opt-in
@@ -151,7 +161,6 @@
 
 ### Sequence Flows
 
-- ConfirmCustomerAccount → CreateCustomerAccount
 - NewCustomerContact → CreateCustomerAccount
 - CreateCustomerAccount → Duplicatefound
 - Duplicatefound → MergeCustomerAccounts [duplicate found]
@@ -161,13 +170,17 @@
 - PrimaryorLicenseHolderrole → SuggestNewsletterOptin [Primary or License Holder]
 - PrimaryorLicenseHolderrole → AccountReady [no]
 - SuggestNewsletterOptin → AccountReady
+- ConfirmCustomerAccount → CreateCustomerAccount
 
 ### Data Input Associations
 
+- EmailHistory → RetrieveCustomerEmailHistory
 - CustomerAccount → RetrieveCustomerEmailHistory
 
 ### Data Output Associations
 
-- CreateCustomerAccount → CustomerAccount
 - RetrieveCustomerEmailHistory → EmailHistory
+- CreateCustomerAccount → CustomerAccount
+- CreateCustomerAccount → Contact
+- SuggestNewsletterOptin → Contact
 

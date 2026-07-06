@@ -6,7 +6,7 @@ Usage:
 Idempotent: stores a JSON mapping of MD-GUID -> EA-GUID after first run.
 Re-run to update names, descriptions, or add new elements/relations.
 """
-import sys, os, argparse, json, time
+import sys, os, argparse, json, time, sqlite3, uuid
 import diagram_utils
 import ea_session
 
@@ -85,6 +85,94 @@ ELEMENT_BASE_TYPE = {
     "Grouping": "Class",
     "Location": "Class",
 }
+
+# ArchiMate3 MDG diagram stereotypes (from MDGTechnologies/ArchiMate3.xml's
+# <DiagramProfile> block) -- there are only 5, each single-layer, each
+# applying to the native EA diagram Type "Logical" (NOT "Application Layer"
+# -- that string is only the human-readable *alias* of the "Application"
+# stereotype, not a real Diagram_Type value; using it directly as the Type
+# silently created an unrecognized diagram type with no toolbox at all,
+# github.com issue #5). "Application" is used here since that's what this
+# diagram's (broken) Type string was already trying to say. There is no
+# combined/multi-layer diagram stereotype in this MDG -- Business/Technology/
+# Motivation/Implementation shapes remain reachable via the toolbox's "more
+# tools" picker even though "Application" is the default page.
+#
+# NOTE: unlike the BPMN fix (verified against a diagram the user built
+# correctly by hand in EA's GUI), this ArchiMate fix is applied BY ANALOGY
+# only -- there is no user-verified ArchiMate reference diagram yet. The
+# StyleEx tab caption still reads generic/lowercase after this fix, unlike
+# BPMN's, which changed to a bold "Business Process" caption once fixed. If
+# the toolbox still doesn't show, get a real reference the same way the BPMN
+# one was obtained: have the user manually create + correctly type an
+# ArchiMate diagram in EA's GUI, then read back its t_diagram.StyleEx.
+DIAGRAM_NATIVE_TYPE = "Logical"
+DIAGRAM_STYLEEX_MDGDGM = "ArchiMate3::Application"
+
+
+def set_diagram_stereotype(diag, qea_path):
+    """Set an ArchiMate3 diagram Type/toolbox so EA shows the matching
+    toolbox (github issue #5 -- an unrecognized Diagram_Type meant no
+    ArchiMate toolbox ever showed by default, forcing manual selection).
+
+    Three properties in play, two of which EA's COM API will not let us set
+    after creation -- all confirmed empirically against a BPMN diagram the
+    user built correctly by hand in EA's GUI (Diagram_Type='Analysis',
+    Stereotype=None, StyleEx='MDGDgm=BPMN2.0::Business Process;'):
+    - Diagram.Type: read-only once the diagram exists ("can not be set").
+    - Diagram.StereotypeEx / t_xref "Stereotypes" diagram-property row: both
+      were tried first and both ruled out -- StereotypeEx never persists,
+      and the t_xref row persists but does NOT drive the toolbox either
+      (confirmed: BPMN diagrams with that xref set still showed no toolbox).
+    - Diagram.StyleEx's "MDGDgm=<Technology>::<Name>;" key is the real
+      toolbox selector, and DOES persist via plain COM -- but COM silently
+      refuses to overwrite an already-present MDGDgm value on an existing
+      diagram (same read-once-only behavior as Type), so existing diagrams
+      need it patched via direct SQL string replacement instead.
+    Type/StyleEx corrections are therefore written directly via SQLite (the
+    .qea file is a SQLite database) -- same documented exception as the
+    (now-removed) diagram-property xref approach, not a general SQLite
+    write policy.
+    """
+    diag.Stereotype = ""
+    diag.StereotypeEx = ""
+    diag.Update()
+
+    dg_guid = diag.DiagramGUID
+    if not dg_guid:
+        return
+    db = sqlite3.connect(qea_path)
+    c = db.cursor()
+
+    c.execute("SELECT Diagram_Type, StyleEx FROM t_diagram WHERE ea_guid=?", (dg_guid,))
+    row = c.fetchone()
+    if row and row[0] != DIAGRAM_NATIVE_TYPE:
+        c.execute("UPDATE t_diagram SET Diagram_Type=? WHERE ea_guid=?", (DIAGRAM_NATIVE_TYPE, dg_guid))
+        db.commit()
+        print(f"  Corrected diagram Type to '{DIAGRAM_NATIVE_TYPE}' (was {row[0]!r}, invalid -- COM won't set Type after creation)")
+
+    style_ex = (row[1] if row else "") or ""
+    mdgdgm_token = f"MDGDgm={DIAGRAM_STYLEEX_MDGDGM};"
+    if mdgdgm_token not in style_ex:
+        if "MDGDgm=;" in style_ex:
+            new_style_ex = style_ex.replace("MDGDgm=;", mdgdgm_token)
+        elif "MDGDgm=" in style_ex:
+            import re as _re
+            new_style_ex = _re.sub(r"MDGDgm=[^;]*;", mdgdgm_token, style_ex)
+        else:
+            new_style_ex = style_ex + mdgdgm_token
+        c.execute("UPDATE t_diagram SET StyleEx=? WHERE ea_guid=?", (new_style_ex, dg_guid))
+        db.commit()
+        print(f"  Corrected StyleEx MDGDgm to '{DIAGRAM_STYLEEX_MDGDGM}'")
+
+    # Remove any stale t_xref Stereotypes row from the earlier, incorrect fix
+    # attempt (ruled out -- see docstring above) -- the verified-working BPMN
+    # reference diagram has none.
+    c.execute("DELETE FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
+              (dg_guid,))
+    db.commit()
+    db.close()
+
 
 # Base Connector_Type for each ArchiMate relationship type
 CONNECTOR_BASE_TYPE = {
@@ -291,11 +379,26 @@ def sync_relations(repo, relations, elements, guid_map):
             print(f"  SKIP rel '{rel['id']}': source/target element not found in repo")
             continue
 
-        # Check if connector already exists between these two elements
+        # Check if connector already exists between these two elements.
+        # Match purely on (ClientID, SupplierID), ignoring stereotype --
+        # verified no (source, target) pair in EAxCRM-Archimate.md has more
+        # than one relationship type between the same two elements, so this
+        # is safe and far more robust than comparing stereotype text.
+        # Two stereotype-comparison attempts both failed in practice
+        # (2026-07-06): comparing the raw StereotypeEx string missed
+        # connectors stored in the live model with the short form
+        # ("ArchiMate_Composition" vs. this script's "ArchiMate3::
+        # ArchiMate_Composition"); comparing the normalized/suffix-only form
+        # still missed connectors whose StereotypeEx/Stereotype were BOTH
+        # blank in the live model (e.g. Flow relations) -- both silently
+        # duplicated relationships on every re-run. Also require ClientID to
+        # match src_elem (not just SupplierID): src_elem.Connectors includes
+        # connectors where src_elem is the *target* too, which would
+        # otherwise misfire on any future self-referential relationship.
         exists = False
         for i in range(src_elem.Connectors.Count):
             conn = src_elem.Connectors.GetAt(i)
-            if conn.SupplierID == tgt_elem.ElementID and conn.StereotypeEx == full_stereo:
+            if conn.ClientID == src_elem.ElementID and conn.SupplierID == tgt_elem.ElementID:
                 exists = True
                 break
 
@@ -395,7 +498,7 @@ def main():
         elem_types = {el["id"]: ELEMENT_BASE_TYPE.get(el["type"], "Class") for el in elements}
 
         if not diag:
-            diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", "Application Layer")
+            diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", DIAGRAM_NATIVE_TYPE)
             diag.Update()
             eax_pkg.Update()
             guid_map[diag_guid_key] = diag.DiagramGUID
@@ -434,9 +537,8 @@ def main():
             else:
                 print("  Diagram already has all elements — preserving manual layout")
 
-        diag.StereotypeEx = "ArchiMate3::ArchiMate_ArchimateDiagram"
-        diag.Update()
-        print("  Set diagram stereotype to ArchiMate_ArchimateDiagram")
+        set_diagram_stereotype(diag, args.qea)
+        print(f"  Set diagram toolbox to {DIAGRAM_STYLEEX_MDGDGM}")
 
     print("\nDone. Open EAxCRM.qea in Sparx EA to view.")
 

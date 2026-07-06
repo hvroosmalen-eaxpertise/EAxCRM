@@ -15,7 +15,12 @@ class ProcessConfig:
     collab_name: str = ""
     collab_name_like: str = ""
     diagram_name: str = ""
-    diagram_type: str = "BusinessProcess"
+    diagram_type: str = "Analysis"  # native EA Diagram_Type BPMN2.0's "Collaboration"
+                                     # stereotype applies to (per MDGTechnologies/BPMN
+                                     # 2.0 Technology.xml's Diagram_Analysis Apply block)
+                                     # -- was "BusinessProcess", not a real Diagram_Type,
+                                     # so the BPMN toolbox never showed by default
+                                     # (github issue #5)
     lane_ids_fallback: frozenset = field(default_factory=frozenset)
     hierarchical_format: bool = False  # True: newsletter only (#### + Parent-fallback parse, recursive sync writer)
     generate_connector_categories: tuple = ("SequenceFlow", "MessageFlow",

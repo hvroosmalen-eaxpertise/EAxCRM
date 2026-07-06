@@ -479,3 +479,10 @@
 - Name: billed_on
 - GUID: {0619E0BA-35D5-412d-9A65-691A9ED3CA4F}
 
+### Association—r-customer-customer
+- Source: customer (*)
+- Target: customer (0..1)
+- Name: merged_into
+- Description: Why - Manage Customer Account's Merge Customer Accounts step folds a flagged-duplicate Customer into an existing one, but nothing previously recorded what happened to the losing record, making the operation unauditable after the fact. What - self-referential merged_into FK on Customer, set on the losing record and pointing at the surviving record; null for a Customer that has never been merged away. How - set once, by Merge Customer Accounts, at merge time; never cleared. A merged Customer is not deleted — its row (and any Contacts not manually removed) stays queryable via this FK, so "what happened to Customer X" is always answerable. Context - EAxCRM-CustomerAccountProcess.md's "Merge Customer Accounts" activity and "Merged into Existing Account" end event; same self-referential pattern as license's renews association above.
+- GUID: {985DAD01-075E-4c1f-BF06-FC38270912D2}
+

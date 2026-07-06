@@ -361,11 +361,19 @@ def main():
                 print(f"  SKIP rel '{rel['id']}': source/target element not found in repo")
                 continue
 
-            # Check if connector already exists
+            # Check if connector already exists. Must also check ClientID, not
+            # just SupplierID -- src_elem.Connectors includes connectors where
+            # src_elem is the *target* too (e.g. every "X -> Customer" relation
+            # shows up in Customer's own Connectors collection). A self-
+            # referential relation (src_elem is tgt_elem, e.g. Customer ->
+            # Customer) would otherwise spuriously match the first unrelated
+            # incoming connector and overwrite its Name/Notes (found + fixed
+            # 2026-07-06, corrupted r-contact-customer's "belongs_to" when
+            # adding r-customer-customer's "merged_into").
             exists = False
             for i in range(src_elem.Connectors.Count):
                 conn = src_elem.Connectors.GetAt(i)
-                if conn.SupplierID == tgt_elem.ElementID:
+                if conn.ClientID == src_elem.ElementID and conn.SupplierID == tgt_elem.ElementID:
                     exists = True
                     conn.Name = rel.get("name", "")
                     conn.Notes = rel.get("description", "")
@@ -477,7 +485,7 @@ def main():
             tgt_multi = rel.get("target_multi", "")
             for i in range(src_elem.Connectors.Count):
                 conn = src_elem.Connectors.GetAt(i)
-                if conn.SupplierID == tgt_elem.ElementID:
+                if conn.ClientID == src_elem.ElementID and conn.SupplierID == tgt_elem.ElementID:
                     try:
                         conn.ClientEnd.Cardinality = src_multi
                         conn.SupplierEnd.Cardinality = tgt_multi

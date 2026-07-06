@@ -15,7 +15,6 @@ import os
 import re
 import json
 import sqlite3
-import uuid
 
 import ea_session
 from bpmn_config import (
@@ -1131,28 +1130,59 @@ def generate(config, qea_path=None, md_path=None):
             print("  Created new diagram under CollaborationModel")
 
         if diag:
-            diag.Stereotype = "Collaboration"
-            diag.StereotypeEx = "BPMN2.0::Collaboration"
+            # The real toolbox-selector EA uses is Diagram.StyleEx's
+            # "MDGDgm=<Technology>::<StereotypeName>;" key -- NOT
+            # StereotypeEx (accepted by Update() but never persists -- reads
+            # back blank even in the same session) and NOT a t_xref
+            # "Stereotypes" diagram-property row (persists, but doesn't
+            # drive the toolbox either -- both were tried and ruled out
+            # empirically, see github issue #5). Confirmed against a
+            # diagram the user built correctly by hand in EA's own GUI
+            # (Diagram_Type='Analysis', Stereotype=None), and confirmed
+            # diag.StyleEx does persist via plain COM, unlike StereotypeEx.
+            #
+            # "Collaboration" (not "Business Process", the user's generic
+            # hand-built test reference's own type) is used here because our
+            # diagrams are each rooted in a CollaborationModel element with
+            # Pools/Lanes -- the diagram's toolbox type should match what the
+            # diagram actually represents, not just whichever BPMN toolbox
+            # was used to first confirm the underlying mechanism worked.
+            mdgdgm_value = "MDGDgm=BPMN2.0::Collaboration;"
+            diag.Stereotype = ""
+            diag.StereotypeEx = ""
+            diag.StyleEx = mdgdgm_value
             diag.Update()
-            # SQLite fallback for the diagram-property stereotype xref only --
-            # documented exception in the ea-diagram-creator skill, not a
-            # general SQLite write. All element/connector writes are COM API.
+
             dg_guid = diag.DiagramGUID
             if dg_guid:
                 db = sqlite3.connect(qea_path)
                 c = db.cursor()
-                c.execute("SELECT COUNT(*) FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
-                          (dg_guid,))
-                if c.fetchone()[0] == 0:
-                    xref_id = f"{{{str(uuid.uuid4())}}}"
-                    c.execute(
-                        "INSERT INTO t_xref (XrefID, Client, Type, Visibility, Namespace, Description) "
-                        "VALUES (?, ?, 'Stereotypes', 'diagram property', 'BPMN2_0', ?)",
-                        (xref_id, dg_guid,
-                         "@STEREO;Name=Collaboration;FQName=BPMN2.0::Collaboration;@ENDSTEREO;")
-                    )
+                # Diagram.Type is read-only via COM once a diagram exists (raises
+                # "can not be set"), so a wrong native Diagram_Type from an older
+                # run can only be fixed via direct SQL. "BusinessProcess" (this
+                # config's old diagram_type default) isn't a real Diagram_Type --
+                # BPMN2.0's diagram stereotypes apply to "Analysis" per
+                # MDGTechnologies/BPMN 2.0 Technology.xml.
+                c.execute("SELECT Diagram_Type, StyleEx FROM t_diagram WHERE ea_guid=?", (dg_guid,))
+                row = c.fetchone()
+                if row and row[0] != "Analysis":
+                    c.execute("UPDATE t_diagram SET Diagram_Type='Analysis' WHERE ea_guid=?", (dg_guid,))
                     db.commit()
-                    print("  Added BPMN stereotype xref for diagram")
+                    print(f"  Corrected diagram Type to 'Analysis' (was {row[0]!r}, invalid)")
+                # Also force StyleEx via SQL: COM's setter silently refuses to
+                # overwrite an already-present (possibly stale/different)
+                # MDGDgm value on an existing diagram -- same read-once-only
+                # behavior as Type.
+                if row and row[1] != mdgdgm_value:
+                    c.execute("UPDATE t_diagram SET StyleEx=? WHERE ea_guid=?", (mdgdgm_value, dg_guid))
+                    db.commit()
+                    print(f"  Corrected StyleEx to {mdgdgm_value!r} (was {row[1]!r})")
+                # Remove any stale t_xref Stereotypes row from the older,
+                # incorrect fix attempt -- the verified-working reference
+                # diagram has none.
+                c.execute("DELETE FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
+                          (dg_guid,))
+                db.commit()
                 db.close()
 
         # Placement: flow-aware layout for all processes (first-time and re-run)
