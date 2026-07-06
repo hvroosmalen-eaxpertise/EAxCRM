@@ -85,10 +85,10 @@ def compute_md_diff(old_content: str, new_content: str) -> dict:
         conns = set()
         in_conn_section = False
         for line in text.splitlines():
-            if re.match(r"##\s+(Sequence|Message|Data)", line):
+            if re.match(r"###\s+(Sequence|Message|Data)", line):
                 in_conn_section = True
                 continue
-            if line.startswith("## "):
+            if line.startswith("## ") or line.startswith("# "):
                 in_conn_section = False
                 continue
             if in_conn_section and line.startswith("- "):
