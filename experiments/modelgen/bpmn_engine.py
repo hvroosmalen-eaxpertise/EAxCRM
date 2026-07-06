@@ -946,6 +946,7 @@ def generate(config, qea_path=None, md_path=None):
                 existing = pkg_elems_by_name.get(name)
 
             if existing:
+                old_name = existing.Name
                 existing.Name = name
                 existing.StereotypeEx = f"BPMN2.0::{stereo}"
                 existing.Notes = notes
@@ -954,8 +955,8 @@ def generate(config, qea_path=None, md_path=None):
                 existing.Update()
                 if clog:
                     changes = {}
-                    if existing.Name != name:
-                        changes["Name"] = (existing.Name, name)
+                    if old_name != name:
+                        changes["Name"] = (old_name, name)
                     if changes:
                         clog.log("updated", eid, name, stereo, existing.ElementGUID, changes=changes)
                     else:
