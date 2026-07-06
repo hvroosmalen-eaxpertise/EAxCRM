@@ -1,0 +1,4 @@
+﻿Task 1: complete (commits d70b4ea..0741cd9, review clean - Approved, 5 Minor findings)
+Task 2: complete (commits 0741cd9..93e9638 + 003f219, review approved, fix: old_name capture)
+Task 3: complete (commits 003f219..9e92338, smoke test passed)
+Task 3 review: Approved (2 Minor findings)

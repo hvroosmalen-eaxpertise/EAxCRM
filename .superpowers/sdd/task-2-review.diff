@@ -1,0 +1,278 @@
+﻿93e9638 feat: wire changelog logging into BPMN engine
+diff --git a/experiments/modelgen/bpmn_config.py b/experiments/modelgen/bpmn_config.py
+index 28f01d9..bb50a0b 100644
+--- a/experiments/modelgen/bpmn_config.py
++++ b/experiments/modelgen/bpmn_config.py
+@@ -1,15 +1,18 @@
+ """Shared BPMN config: ProcessConfig dataclass, per-process instances, and the
+ BPMN vocabulary constants previously copy-pasted across the 3 generate_*_process_from_md.py
+ and 3 sync_*_process_from_ea.py scripts."""
++import os
+ from dataclasses import dataclass, field
+ 
++SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
++
+ 
+ @dataclass
+ class ProcessConfig:
+     name: str
+     package_name: str
+     parent_package_name: str = "Process Architecture"
+     default_qea: str = r"M:\EAxCRM\models\EAxCRM.qea"
+     default_md: str = ""
+     guid_map_file: str = ""
+     collab_name: str = ""
+@@ -26,64 +29,68 @@ class ProcessConfig:
+     generate_connector_categories: tuple = ("SequenceFlow", "MessageFlow",
+                                              "DataInputAssociation", "DataOutputAssociation")
+     sync_connector_categories: tuple = ("SequenceFlow", "MessageFlow",
+                                          "DataInputAssociation", "DataOutputAssociation")
+     reflow_on_rerun: bool = True  # default BPMN diagram layout behavior (flow-aware reflow) for all processes
+     model_id: str = ""
+     purpose: str = ""
+     header_name: str = ""
+     diag_guid_key: str = ""
+     tagged_value_overrides: dict | None = None
++    changelog_file: str = ""
+ 
+ 
+ CUSTOMER_ACCOUNT = ProcessConfig(
+     name="Customer Account",
+     package_name="Manage Customer Account Architecture",
+     default_md=r"M:\EAxCRM\models\EAxCRM-CustomerAccountProcess.md",
+     guid_map_file="customeraccount_guid_map.json",
+     collab_name="Manage Customer Account",
+     collab_name_like="%Customer Account%",
+     diagram_name="Manage Customer Account",
+     diag_guid_key="_diagram_customeraccount",
+     lane_ids_fallback=frozenset({"EAxpertise"}),
+     model_id="cap-eacrm",
+     purpose="BPMN 2.0 process model for creating and maintaining Customer Accounts in EAxCRM",
+     header_name="Manage Customer Account Process",
++    changelog_file=os.path.join(SCRIPT_DIR, "customeraccount_changelog.md"),
+ )
+ 
+ SALES = ProcessConfig(
+     name="Sales",
+     package_name="Sales Process Architecture",
+     default_md=r"M:\EAxCRM\models\EAxCRM-SalesProcess.md",
+     guid_map_file="sales_guid_map.json",
+     collab_name="EAxCRM Sales Process Architecture",
+     collab_name_like="%Sales%",
+     diagram_name="Sales Process Architecture",
+     diag_guid_key="_diagram_sales",
+     lane_ids_fallback=frozenset({"Customer", "EAxpertise", "Vendor"}),
+     model_id="sp-eacrm",
+     purpose="BPMN 2.0 sales process model for the EAxCRM system",
+     header_name="Sales Process Architecture",
++    changelog_file=os.path.join(SCRIPT_DIR, "sales_changelog.md"),
+ )
+ 
+ NEWSLETTER = ProcessConfig(
+     name="Newsletter",
+     package_name="Newsletter Process Architecture",
+     default_md=r"M:\EAxCRM\models\EAxCRM-NewsletterProcess.md",
+     guid_map_file="newsletter_guid_map.json",
+     collab_name="EAxCRM Newsletter Process Architecture",
+     collab_name_like="%Newsletter%",
+     diagram_name="Newsletter Process Architecture",
+     diag_guid_key="_diagram_newsletter",
+     model_id="nlp-eacrm",
+     purpose="BPMN 2.0 newsletter process model for the EAxCRM system",
+     header_name="Newsletter Process Architecture",
++    changelog_file=os.path.join(SCRIPT_DIR, "newsletter_changelog.md"),
+     hierarchical_format=True,
+     generate_connector_categories=("SequenceFlow",),
+     sync_connector_categories=("SequenceFlow", "MessageFlow"),
+ )
+ 
+ 
+ # ---- Shared BPMN vocabulary (was copy-pasted across generate_*/sync_* scripts) ----
+ 
+ LABEL_TO_STEREO = {
+     "BPMN Collaboration": "CollaborationModel",
+diff --git a/experiments/modelgen/bpmn_engine.py b/experiments/modelgen/bpmn_engine.py
+index 8a8110f..f676c41 100644
+--- a/experiments/modelgen/bpmn_engine.py
++++ b/experiments/modelgen/bpmn_engine.py
+@@ -9,20 +9,22 @@ sync_*_process_from_ea.py. Two format families exist, both preserved exactly:
+ - hierarchical (Newsletter): "#### LabelÔÇöeid" elements nested under their
+   "### LaneÔÇö" header, lane membership derived from nesting (fields["Parent"]),
+   no explicit "- Lane:" field; sync side writes a recursive, indented MD tree
+   and combines Sequence/MessageFlow into one "### Sequence Flows" section.
+ """
+ import os
+ import re
+ import json
+ import sqlite3
+ 
++from changelog import ChangeLog
++
+ import ea_session
+ from bpmn_config import (
+     LABEL_TO_STEREO, OBJECT_TYPE_MAP, BPMN_TAGGED_VALUES,
+     CONNECTOR_TYPES, CONNECTOR_STEREOTYPE_EX, CONNECTOR_STEREOTYPES_SHORT,
+     BPMN_TYPE_LABEL, BPMN_ELEMENT_SIZES,
+ )
+ from diagram_utils import get_placed_ids, add_missing_elements, create_diagram_objects
+ 
+ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ 
+@@ -857,20 +859,25 @@ def set_tagged_values(elem, stereo, fields):
+ def generate(config, qea_path=None, md_path=None):
+     qea_path = qea_path or config.default_qea
+     md_path = md_path or config.default_md
+     guid_map_file = os.path.join(SCRIPT_DIR, config.guid_map_file)
+ 
+     elements, connectors = parse_md(config, md_path)
+     total_conns = sum(len(v) for v in connectors.values())
+     print(f"Parsed {len(elements)} elements, {total_conns} connectors "
+           f"({', '.join(f'{k}: {len(v)}' for k, v in connectors.items() if v)})")
+ 
++    clog = None
++    if config.changelog_file:
++        clog = ChangeLog(config.changelog_file)
++        clog.checkpoint("Parsed MD", run_id=config.model_id)
++
+     elem_types = {eid: data["label"] for eid, data in elements.items()
+                   if data.get("label") and data["label"] not in ("Lane", "Pool")}
+ 
+     guid_map = {}
+     if os.path.exists(guid_map_file):
+         with open(guid_map_file, "r") as f:
+             guid_map = json.load(f)
+     elem_guid_map = guid_map.get("elements", {})
+ 
+     with ea_session.ea_repository(qea_path, technology="BPMN2.0") as repo:
+@@ -938,32 +945,42 @@ def generate(config, qea_path=None, md_path=None):
+             if not existing:
+                 existing = pkg_elems_by_name.get(name)
+ 
+             if existing:
+                 existing.Name = name
+                 existing.StereotypeEx = f"BPMN2.0::{stereo}"
+                 existing.Notes = notes
+                 if parent_elem:
+                     existing.ParentID = parent_elem.ElementID
+                 existing.Update()
++                if clog:
++                    changes = {}
++                    if existing.Name != name:
++                        changes["Name"] = (existing.Name, name)
++                    if changes:
++                        clog.log("updated", eid, name, stereo, existing.ElementGUID, changes=changes)
++                    else:
++                        clog.log("updated", eid, name, stereo, existing.ElementGUID)
+                 elem_guid_map[eid] = existing.ElementGUID
+                 object_ids[eid] = existing.ElementID
+                 updated_count += 1
+                 pkg_elems_by_name[existing.Name] = existing
+                 return existing
+             else:
+                 new_elem = proc_arch.Elements.AddNew(name, obj_type)
+                 new_elem.StereotypeEx = f"BPMN2.0::{stereo}"
+                 new_elem.Notes = notes
+                 if parent_elem:
+                     new_elem.ParentID = parent_elem.ElementID
+                 new_elem.Update()
++                if clog:
++                    clog.log("created", eid, name, stereo, new_elem.ElementGUID)
+                 # Capture GUID/ID BEFORE Refresh() (reference may go stale after)
+                 elem_guid_map[eid] = new_elem.ElementGUID
+                 object_ids[eid] = new_elem.ElementID
+                 pkg_elems_by_name[new_elem.Name] = new_elem
+                 created_count += 1
+                 return new_elem
+ 
+         collab_eid = None
+         for eid, elem_data in elements.items():
+             if elem_data["label"] == "BPMN Collaboration":
+@@ -1089,20 +1106,30 @@ def generate(config, qea_path=None, md_path=None):
+                     if flow["condition"]:
+                         new_conn.Name = flow["condition"]
+                     new_conn.Update()
+                     count += 1
+             conn_counts[conn_type] = count
+ 
+         for ctype, cnt in conn_counts.items():
+             if cnt:
+                 print(f"  Created {cnt} new {ctype}(s)")
+ 
++        if clog:
++            for conn_type in config.generate_connector_categories:
++                for flow in connectors.get(conn_type, []):
++                    src = flow.get("source", "")
++                    tgt = flow.get("target", "")
++                    cond = flow.get("condition", "")
++                    clog.log("created", src + "_" + tgt, src + " -> " + tgt,
++                             conn_type, "", changes={"source": src, "target": tgt,
++                                                      "condition": cond})
++
+         # Diagram
+         diag = None
+         diag_guid_key = config.diag_guid_key
+         existing_diag_guid = guid_map.get(diag_guid_key)
+         if existing_diag_guid:
+             try:
+                 diag = repo.GetDiagramByGuid(existing_diag_guid)
+             except Exception:
+                 diag = None
+ 
+@@ -1330,20 +1357,24 @@ def generate(config, qea_path=None, md_path=None):
+                 print(f"  [linestyle] Failed: {e}")
+ 
+         if collab_elem:
+             guid_map["_collaboration_model"] = collab_elem.ElementGUID
+         if diag:
+             guid_map[diag_guid_key] = diag.DiagramGUID
+         guid_map["elements"] = elem_guid_map
+         with open(guid_map_file, "w") as f:
+             json.dump(guid_map, f, indent=2)
+ 
++    if clog:
++        clog.checkpoint("Diagram complete", run_id=config.model_id)
++        clog.close()
++
+     print("Done.")
+ 
+ 
+ # ---------------------------------------------------------------------------
+ # sync_to_md(): EA -> MD
+ # ---------------------------------------------------------------------------
+ 
+ def _find_package_and_elements(c, config):
+     c.execute("SELECT Package_ID FROM t_package WHERE Name=? AND Parent_ID=1", (config.parent_package_name,))
+     parent_row = c.fetchone()
+@@ -1664,15 +1695,30 @@ def sync_to_md(config, qea_path=None, md_path=None):
+                 seen.add(key)
+                 src_eid = eid_by_oid.get(src_id, safe_id(elem_by_id.get(src_id, {}).get("name", f"ID:{src_id}")))
+                 tgt_eid = eid_by_oid.get(tgt_id, safe_id(elem_by_id.get(tgt_id, {}).get("name", f"ID:{tgt_id}")))
+                 cond = f" [{name}]" if name.strip() else ""
+                 lines.append(f"- {src_eid} ÔåÆ {tgt_eid}{cond}")
+             lines.append("")
+ 
+         for category in config.sync_connector_categories:
+             add_connector_section(category, CATEGORY_HEADING[category])
+ 
+-    output = "\n".join(lines) + "\n"
++    from changelog import ChangeLog, compute_md_diff
++
++    old_content = ""
++    if os.path.exists(md_path):
++        with open(md_path, "r", encoding="utf-8") as f:
++            old_content = f.read()
++
++    new_content = "\n".join(lines) + "\n"
++    diff = compute_md_diff(old_content, new_content)
++
++    clog = None
++    if config.changelog_file:
++        clog = ChangeLog(config.changelog_file)
++        clog.log_diff(diff, run_id=config.model_id)
++        clog.close()
++
+     with open(md_path, "w", encoding="utf-8") as f:
+-        f.write(output)
++        f.write(new_content)
+     print(f"Written {len(lines)} lines to {md_path}")
+     print("Done.")

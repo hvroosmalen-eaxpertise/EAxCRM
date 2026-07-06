@@ -2,7 +2,7 @@
 
 **Model ID**: sp-eacrm
 **Purpose**: BPMN 2.0 sales process model for the EAxCRM system
-**Version**: 1.1 — added Confirm Customer Account message checkpoint before RegisterRFQ, referencing the Manage Customer Account process (EAxCRM-CustomerAccountProcess.md)
+**Version**: 1.0
 
 ## BPMN Collaboration—EAxCRMSalesProcessArchitecture
 - Name: EAxCRM Sales Process Architecture
@@ -90,7 +90,17 @@
 - Stereotype: IntermediateEvent
 - GUID: {B6F6A5F0-31B9-4876-AB37-29EB93616701}
 - Lane: EAxpertise
+- Event Type: Timer
 - Description: Check if the sales invoice has been paid by the customer. Outcome determines next step.
+
+### IntermediateEvent—ConfirmCustomerAccount
+- Name: Confirm Customer Account
+- Type: Event
+- Stereotype: IntermediateEvent
+- GUID: {AD32AD89-C0CA-4001-ACFB-56C1F46601AC}
+- Lane: EAxpertise
+- Event Type: Signal
+- Description: Signal checkpoint before registering the RFQ — the user verifies the requesting organisation has a Customer Account, or creates one via the Manage Customer Account process (see EAxCRM-CustomerAccountProcess.md), before continuing.
 
 ### Activity—CreateRFQ
 - Name: Create RFQ
@@ -105,15 +115,6 @@
 - Start Quantity: 1
 - Task Type: User
 - Description: Customer drafts and sends a Request For Quote detailing their license and service needs.
-
-### IntermediateEvent—ConfirmCustomerAccount
-- Name: Confirm Customer Account
-- Type: Event
-- Stereotype: IntermediateEvent
-- Event Type: Signal
-- GUID: {AFB83CB9-1EDE-4D3E-BFCF-5B6FBAEA40FC}
-- Lane: EAxpertise
-- Description: Signal checkpoint before registering the RFQ — the user verifies the requesting organisation has a Customer Account, or creates one via the Manage Customer Account process (see EAxCRM-CustomerAccountProcess.md), before continuing.
 
 ### Activity—DetermineLicenses
 - Name: Determine Licenses
@@ -149,6 +150,7 @@
 - Stereotype: EndEvent
 - GUID: {32ADEDC2-2890-40b6-A489-51A28FA5AC67}
 - Lane: EAxpertise
+- Event Type: None
 - Description: The sales process terminates because the customer rejected the offer.
 
 ### EndEvent—EndSales
@@ -157,6 +159,7 @@
 - Stereotype: EndEvent
 - GUID: {AC4B3F30-5771-4426-8445-30325797259B}
 - Lane: EAxpertise
+- Event Type: None
 - Description: The sales process is complete — payment received and delivery activated.
 
 ### Activity—FinaliseVersionofOffer
@@ -207,6 +210,7 @@
 - Stereotype: DataObject
 - GUID: {B5EBA936-39BC-4694-858E-2474715E89E0}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: License registration files delivered by the vendor.
 
@@ -216,6 +220,7 @@
 - Stereotype: DataObject
 - GUID: {C206CCD5-D481-40b3-BA1C-18FFD705326E}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: Incoming invoice from the vendor for purchased licenses.
 
@@ -225,6 +230,7 @@
 - Stereotype: DataObject
 - GUID: {6C0747AF-BB4C-4885-BAF6-4FC496E23590}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: Pricing quote from the vendor for requested license line items.
 
@@ -243,6 +249,7 @@
 - Stereotype: DataObject
 - GUID: {CB5267A2-D848-4021-A26E-DDB979177C3A}
 - Lane: EAxpertise
+- Data In/Out: Output
 - Is Collection: false
 - Description: The sales proposal document sent to the customer, containing license and service line items with pricing.
 
@@ -266,6 +273,7 @@
 - Stereotype: DataObject
 - GUID: {332D8643-81C6-4b64-A250-E8898028D48E}
 - Lane: Customer
+- Data In/Out: Input
 - Is Collection: false
 - Description: Payment record by Bank.
 
@@ -373,6 +381,7 @@
 - Stereotype: DataObject
 - GUID: {A9A7B62D-3F33-4b05-8239-DF34F4EF35FE}
 - Lane: Customer
+- Data In/Out: Input
 - Is Collection: false
 - Description: A Purchase order is the acceptance for the payment. It can come with a Customer Purchase Order code and information on invoicing.
 
@@ -508,6 +517,7 @@
 - Stereotype: DataObject
 - GUID: {76AD2E52-11A3-4657-8F06-F937D33F3C19}
 - Lane: Customer
+- Data In/Out: Input
 - Is Collection: false
 - Description: The Request For Quote document artifact exchanged between Customer and EAxpertise.
 
@@ -517,6 +527,7 @@
 - Stereotype: DataObject
 - GUID: {E47CCCC5-9862-4bde-A10D-7AFE0D040DFA}
 - Lane: EAxpertise
+- Data In/Out: Output
 - Is Collection: false
 - Description: Invoice sent to Customer.
 
@@ -526,6 +537,7 @@
 - Stereotype: DataObject
 - GUID: {9651C011-400C-4d72-9689-35FC5CC0DF2D}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: Service agreement document delivered by the vendor.
 
@@ -535,6 +547,7 @@
 - Stereotype: DataObject
 - GUID: {D47CACA8-4CFE-44f4-829E-E9C4785A8D99}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: Incoming invoice from the vendor for procured services.
 
@@ -544,6 +557,7 @@
 - Stereotype: DataObject
 - GUID: {117B4799-A108-4e69-BCF6-6BCF203A4EEC}
 - Lane: Vendor
+- Data In/Out: Input
 - Is Collection: false
 - Description: Pricing quote from the vendor for requested service line items.
 
@@ -562,6 +576,7 @@
 - Stereotype: StartEvent
 - GUID: {94A14FAC-00B9-43fc-B10E-9FABE868C74C}
 - Lane: Customer
+- Event Type: None
 - Description: The customer initiates the process by submitting a request for a quote to EAxpertise.
 
 ### Activity—ValidatePayment
@@ -581,7 +596,6 @@
 ### Sequence Flows
 
 - StartRFQ → CreateRFQ
-- ConfirmCustomerAccount → RegisterRFQ
 - RegisterRFQ → PrepareRevisedOffer
 - PrepareRevisedOffer → DetermineServices
 - DetermineLicenses → licensesrequired
@@ -605,10 +619,11 @@
 - DetermineServices → servicesrequired
 - licensesrequired → FinaliseVersionofOffer [no]
 - licensesrequired → RequestLicenseQuote [yes]
+- ConfirmCustomerAccount → RegisterRFQ
 
 ### Message Flows
 
-- CreateRFQ → ConfirmCustomerAccount [email]
+- CreateRFQ → RegisterRFQ [email]
 - PrepareLicenseQuote → RequestLicenseQuote [email license pricing]
 - FinaliseVersionofOffer → ReviewOffer [email offer]
 - AcceptOffer_Activity → HandleApprovedOffer [email acceptance and invoice details]
@@ -625,6 +640,7 @@
 - PrepareServiceQuote → RequestServiceQuote [email service pricing]
 - RejectOffer → HandleRejectedOffer
 - RequestLicenseQuote → PrepareLicenseQuote [email license request]
+- CreateRFQ → ConfirmCustomerAccount [email]
 
 ### Data Input Associations
 

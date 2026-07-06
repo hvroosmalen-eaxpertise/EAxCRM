@@ -1,0 +1,685 @@
+﻿0741cd9 feat: add changelog.py -- structured audit logging utility
+diff --git a/experiments/modelgen/changelog.py b/experiments/modelgen/changelog.py
+new file mode 100644
+index 0000000..db9e906
+--- /dev/null
++++ b/experiments/modelgen/changelog.py
+@@ -0,0 +1,336 @@
++"""Structured audit logging for EAxCRM generator/sync scripts.
++
++Provides ChangeLog (a per-run audit trail writer) and compute_md_diff (a
++module-level function for comparing two process-MD texts).
++"""
++
++import os
++import re
++import datetime
++
++
++def compute_md_diff(old_content: str, new_content: str) -> dict:
++    """Compare two process MD texts and return a structured diff dict.
++
++    Args:
++        old_content: Previous Markdown content (or empty string).
++        new_content: New Markdown content.
++
++    Returns:
++        A dict with keys "created", "deleted", "updated", "connectors".
++        Each maps to a list of dicts suitable for ChangeLog.log_diff().
++    """
++
++    def extract_elements(text):
++        elems = {}
++        for line in text.splitlines():
++            m = re.match(r"#{2,4}\s+(.+?)[\u2014\u2013]\s*(.+)", line)
++            if m:
++                label = m.group(1).strip()
++                eid = m.group(2).strip()
++                elems[eid] = {"type": label}
++        return elems
++
++    old_elems = extract_elements(old_content) if old_content else {}
++    new_elems = extract_elements(new_content)
++
++    old_ids = set(old_elems.keys())
++    new_ids = set(new_elems.keys())
++
++    diff = {
++        "created": [
++            {"eid": eid, "name": eid, "type": new_elems[eid]["type"]}
++            for eid in sorted(new_ids - old_ids)
++        ],
++        "deleted": [
++            {"eid": eid, "name": eid, "type": old_elems[eid]["type"]}
++            for eid in sorted(old_ids - new_ids)
++        ],
++        "updated": [],
++        "connectors": [],
++    }
++    for eid in sorted(old_ids & new_ids):
++        old_t = old_elems[eid]["type"]
++        new_t = new_elems[eid]["type"]
++        if old_t != new_t:
++            diff["updated"].append(
++                {
++                    "eid": eid,
++                    "name": eid,
++                    "type": new_t,
++                    "changes": {"Type": (old_t, new_t)},
++                }
++            )
++
++    def extract_connectors(text):
++        conns = set()
++        in_conn_section = False
++        for line in text.splitlines():
++            if re.match(r"###\s+(Sequence|Message|Data)", line):
++                in_conn_section = True
++                continue
++            if line.startswith("## "):
++                in_conn_section = False
++                continue
++            if in_conn_section and line.startswith("- "):
++                m = re.match(
++                    r"- (.+?)\s*[\u2192\u279e]\s*(.+?)(?:\s*\[(.+?)\])?$",
++                    line[2:],
++                )
++                if m:
++                    conns.add((m.group(1).strip(), m.group(2).strip()))
++        return conns
++
++    old_conns = extract_connectors(old_content) if old_content else set()
++    new_conns = extract_connectors(new_content)
++
++    for src, tgt in sorted(new_conns - old_conns):
++        diff["connectors"].append(
++            {
++                "action": "created",
++                "type": "connector",
++                "source": src,
++                "target": tgt,
++                "condition": "",
++            }
++        )
++    for src, tgt in sorted(old_conns - new_conns):
++        diff["connectors"].append(
++            {
++                "action": "deleted",
++                "type": "connector",
++                "source": src,
++                "target": tgt,
++                "condition": "",
++            }
++        )
++
++    return diff
++
++
++class ChangeLog:
++    """Per-run audit trail that accumulates entries and writes Markdown.
++
++    Usage::
++
++        clog = ChangeLog("changelog.md")
++        clog.checkpoint("Parsed MD")
++        clog.log("created", "CreateRFQ", "Create RFQ", "Activity")
++        clog.log_diff(some_diff_dict)
++        clog.close()          # writes prepended section, trims if oversize
++    """
++
++    def __init__(self, filepath: str, max_bytes: int = 1_000_000):
++        self.filepath = filepath
++        self.max_bytes = max_bytes
++        self._entries: list[dict] = []
++        self._checkpoints: list[dict] = []
++
++    # ------------------------------------------------------------------
++    # Public API
++    # ------------------------------------------------------------------
++
++    def log(
++        self,
++        action: str,
++        eid: str,
++        name: str,
++        kind: str,
++        guid: str = "",
++        changes: dict | None = None,
++        run_id: str = "",
++    ) -> None:
++        """Record a single action (created / updated / deleted / conn_*).
++
++        Args:
++            action: ``"created"``, ``"updated"``, ``"deleted"``,
++                ``"conn_created"``, or ``"conn_deleted"``.
++            eid: Element identifier (for connectors: the connector type).
++            name: Human-readable name (for connectors: source element).
++            kind: BPMN/ArchiMate type (for connectors: target element).
++            guid: EA GUID (optional).
++            changes: Dict of {field: (old, new)} for ``"updated"`` entries,
++                or ``{"condition": ..., ...}`` for connectors.
++            run_id: Optional run identifier.
++        """
++        self._entries.append(
++            {
++                "action": action,
++                "eid": eid,
++                "name": name,
++                "type": kind,
++                "guid": guid,
++                "changes": changes or {},
++                "run_id": run_id,
++            }
++        )
++
++    def checkpoint(self, phase: str, run_id: str = "") -> None:
++        """Record a checkpoint / phase name for this run."""
++        self._checkpoints.append({"phase": phase, "run_id": run_id})
++
++    def log_diff(self, diff: dict, run_id: str = "") -> None:
++        """Process a structured diff dict (as returned by compute_md_diff).
++
++        Calls ``log()`` for each item in the diff's sub-lists.
++        """
++        for item in diff.get("created", []):
++            self.log(
++                "created",
++                item["eid"],
++                item.get("name", item["eid"]),
++                item.get("type", ""),
++                run_id=run_id,
++            )
++        for item in diff.get("deleted", []):
++            self.log(
++                "deleted",
++                item["eid"],
++                item.get("name", item["eid"]),
++                item.get("type", ""),
++                run_id=run_id,
++            )
++        for item in diff.get("updated", []):
++            self.log(
++                "updated",
++                item["eid"],
++                item.get("name", item["eid"]),
++                item.get("type", ""),
++                changes=item.get("changes", {}),
++                run_id=run_id,
++            )
++        for item in diff.get("connectors", []):
++            self.log(
++                "conn_" + item["action"],
++                item.get("type", ""),
++                item.get("source", ""),
++                item.get("target", ""),
++                changes={"condition": item.get("condition", "")},
++                run_id=run_id,
++            )
++
++    def close(self) -> None:
++        """Finalise the current run and prepend it to the file.
++
++        - If no entries or checkpoints have been recorded, does nothing.
++        - Reads the existing file, prepends the new ``##`` section.
++        - If the combined content exceeds ``max_bytes``, removes oldest
++          ``##`` sections from the end until it fits (always keeps at
++          least one section).
++        """
++        if not self._entries and not self._checkpoints:
++            return
++
++        section = self._format_section()
++
++        existing = ""
++        if os.path.exists(self.filepath):
++            with open(self.filepath, "r", encoding="utf-8") as f:
++                existing = f.read()
++
++        content = section + existing
++
++        # Trim oldest sections if over the size limit.
++        if len(content.encode("utf-8")) > self.max_bytes:
++            content = self._trim_oldest(content)
++
++        with open(self.filepath, "w", encoding="utf-8") as f:
++            f.write(content)
++
++    # ------------------------------------------------------------------
++    # Internal helpers
++    # ------------------------------------------------------------------
++
++    def _format_section(self) -> str:
++        """Build the Markdown ``##`` section for the current buffer."""
++        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
++
++        # Collect unique run_ids
++        run_ids: set[str] = set()
++        for e in self._entries:
++            if e["run_id"]:
++                run_ids.add(e["run_id"])
++        for c in self._checkpoints:
++            if c["run_id"]:
++                run_ids.add(c["run_id"])
++        run_id_str = f", run {next(iter(run_ids))}" if run_ids else ""
++
++        lines = [f"## {now} ÔÇö Audit{run_id_str}\n"]
++
++        # -- Checkpoints ---------------------------------------------------
++        if self._checkpoints:
++            lines.append("\n### Checkpoints\n")
++            for cp in self._checkpoints:
++                lines.append(f"- {cp['phase']}\n")
++
++        # Group entries by action
++        created = [e for e in self._entries if e["action"] == "created"]
++        updated = [e for e in self._entries if e["action"] == "updated"]
++        deleted = [e for e in self._entries if e["action"] == "deleted"]
++        connectors = [e for e in self._entries if e["action"].startswith("conn_")]
++
++        # -- Created -------------------------------------------------------
++        if created:
++            lines.append("\n### Created\n")
++            lines.append("| eid | Name | Type | GUID |\n")
++            lines.append("|-----|------|------|------|\n")
++            for e in created:
++                lines.append(
++                    f"| {e['eid']} | {e['name']} | {e['type']} | {e['guid']} |\n"
++                )
++
++        # -- Updated -------------------------------------------------------
++        if updated:
++            lines.append("\n### Updated\n")
++            lines.append("| eid | Name | Type | GUID | Changes |\n")
++            lines.append("|-----|------|------|------|---------|\n")
++            for e in updated:
++                changes_parts = []
++                for k, v in e.get("changes", {}).items():
++                    old_val, new_val = v
++                    changes_parts.append(f"{k}: {old_val} -> {new_val}")
++                changes_str = "; ".join(changes_parts)
++                lines.append(
++                    f"| {e['eid']} | {e['name']} | {e['type']} | "
++                    f"{e['guid']} | {changes_str} |\n"
++                )
++
++        # -- Deleted -------------------------------------------------------
++        if deleted:
++            lines.append("\n### Deleted\n")
++            lines.append("| eid | Name | Type | GUID |\n")
++            lines.append("|-----|------|------|------|\n")
++            for e in deleted:
++                lines.append(
++                    f"| {e['eid']} | {e['name']} | {e['type']} | {e['guid']} |\n"
++                )
++
++        # -- Connectors ----------------------------------------------------
++        if connectors:
++            lines.append("\n### Connectors\n")
++            lines.append("| Action | Type | Source | Target | Condition |\n")
++            lines.append("|--------|------|--------|--------|-----------|\n")
++            for e in connectors:
++                bare_action = e["action"].replace("conn_", "")
++                cond = e.get("changes", {}).get("condition", "")
++                lines.append(
++                    f"| {bare_action} | {e['eid']} | {e['name']} | "
++                    f"{e['type']} | {cond} |\n"
++                )
++
++        lines.append("\n")
++        return "".join(lines)
++
++    def _trim_oldest(self, content: str) -> str:
++        """Remove oldest ``##`` sections until content fits ``max_bytes``.
++
++        Always keeps at least one section.
++        """
++        # Split on section boundaries: newline followed by "## "
++        sections = re.split(r"\n(?=## )", content)
++        while (
++            len(sections) > 1
++            and len("".join(sections).encode("utf-8")) > self.max_bytes
++        ):
++            sections.pop()  # Remove the oldest (last) section
++        return "".join(sections)
+diff --git a/experiments/modelgen/test_changelog.py b/experiments/modelgen/test_changelog.py
+new file mode 100644
+index 0000000..e1a85fe
+--- /dev/null
++++ b/experiments/modelgen/test_changelog.py
+@@ -0,0 +1,336 @@
++"""Tests for changelog module."""
++import os
++import re
++import tempfile
++from pathlib import Path
++
++import pytest
++
++from changelog import ChangeLog, compute_md_diff
++
++
++# =============================================================================
++# Tests for compute_md_diff
++# =============================================================================
++
++OLD_TEXT = """## Elements
++
++### ActivityÔÇöCreateRFQ
++- Name: Create RFQ
++- Lane: Customer
++- Notes: Creates a Request For Quote from a customer
++
++### ActivityÔÇöAcceptOffer
++- Name: Accept Offer
++- Lane: EAxpertise
++- Notes: Customer accepts the offer
++
++## Relationships
++
++### SequenceFlowÔÇösf1
++- Source: CreateRFQ
++- Target: AcceptOffer
++- Name: Send quote
++"""
++
++NEW_TEXT = """## Elements
++
++### ActivityÔÇöCreateRFQ
++- Name: Create RFQ
++- Lane: Customer
++
++### GatewayÔÇöduplicateCheck
++- Name: Check duplicates
++- Lane: EAxpertise
++
++## Relationships
++
++### SequenceFlowÔÇösf1
++- Source: CreateRFQ
++- Target: duplicateCheck
++- Name: Send data
++"""
++
++
++def test_compute_md_diff_created_deleted():
++    """Detect newly created and deleted elements."""
++    diff = compute_md_diff(OLD_TEXT, NEW_TEXT)
++    assert "created" in diff
++    created_ids = [e["eid"] for e in diff["created"]]
++    assert "duplicateCheck" in created_ids, (
++        f"Expected duplicateCheck in created, got {created_ids}"
++    )
++    assert "deleted" in diff
++    deleted_ids = [e["eid"] for e in diff["deleted"]]
++    assert "AcceptOffer" in deleted_ids, (
++        f"Expected AcceptOffer in deleted, got {deleted_ids}"
++    )
++
++
++def test_compute_md_diff_updated():
++    """Detect type changes between BPMN types."""
++    old = "### ActivityÔÇöAcceptOffer\n- Name: Accept Offer\n"
++    new = "### GatewayÔÇöAcceptOffer\n- Name: Accept Offer\n"
++    diff = compute_md_diff(old, new)
++    assert len(diff["updated"]) == 1
++    assert diff["updated"][0]["eid"] == "AcceptOffer"
++    assert diff["updated"][0]["changes"]["Type"] == ("Activity", "Gateway")
++
++
++def test_compute_md_diff_empty_old():
++    """All elements in new are created when old is empty.
++
++    Note: the element regex matches ALL ``#`` headers with an em-dash,
++    including ``### SequenceFlow---sf1`` under Relationships, not only
++    the Elements section.
++    """
++    diff = compute_md_diff("", NEW_TEXT)
++    # CreateRFQ, duplicateCheck, _and_ the SequenceFlow sf1 header
++    assert len(diff["created"]) == 3
++    created_ids = {e["eid"] for e in diff["created"]}
++    assert "CreateRFQ" in created_ids
++    assert "duplicateCheck" in created_ids
++    assert len(diff["deleted"]) == 0
++    assert len(diff["updated"]) == 0
++
++
++def test_compute_md_diff_empty_new():
++    """All elements in old are deleted when new is empty."""
++    diff = compute_md_diff(OLD_TEXT, "")
++    assert len(diff["deleted"]) == 3  # CreateRFQ, AcceptOffer, sf1
++    deleted_ids = {e["eid"] for e in diff["deleted"]}
++    assert "CreateRFQ" in deleted_ids
++    assert "AcceptOffer" in deleted_ids
++    assert len(diff["created"]) == 0
++
++
++def test_compute_md_diff_no_changes():
++    """No diffs when content is identical."""
++    diff = compute_md_diff(OLD_TEXT, OLD_TEXT)
++    assert len(diff["created"]) == 0
++    assert len(diff["deleted"]) == 0
++    assert len(diff["updated"]) == 0
++    assert len(diff["connectors"]) == 0
++
++
++# =============================================================================
++# Tests for ChangeLog class
++# =============================================================================
++
++
++@pytest.fixture
++def clog_path():
++    """Yield a clean temporary file path, then clean up."""
++    tmp = tempfile.NamedTemporaryFile(suffix=".md", delete=True)
++    path = tmp.name
++    tmp.close()  # file is deleted because delete=True
++    yield path
++    if os.path.exists(path):
++        os.unlink(path)
++
++
++def test_log_creates_file(clog_path):
++    """Logging then close() creates the file on disk."""
++    clog = ChangeLog(clog_path)
++    clog.log("created", "CreateRFQ", "Create RFQ", "Activity")
++    clog.close()
++    assert os.path.exists(clog_path), "File should exist after close()"
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "CreateRFQ" in content
++    assert "### Created" in content
++    assert "### Deleted" not in content
++
++
++def test_prepend_newest_first(clog_path):
++    """Newest run is prepended (appears first in the file)."""
++    # First run
++    cl = ChangeLog(clog_path)
++    cl.log("created", "First", "First", "Activity")
++    cl.close()
++
++    # Second run
++    cl2 = ChangeLog(clog_path)
++    cl2.log("created", "Second", "Second", "Activity")
++    cl2.close()
++
++    content = Path(clog_path).read_text(encoding="utf-8")
++    # The first section after --- or file start should contain "Second"
++    sections = re.split(r"\n(?=## )", content)
++    first_section = sections[0]
++    assert "Second" in first_section, (
++        f"Newest entry 'Second' should appear first. Sections: "
++        f"{[s[:60] for s in sections]}"
++    )
++
++
++def test_log_updated_with_changes(clog_path):
++    """Updated entries render Changes column correctly."""
++    clog = ChangeLog(clog_path)
++    clog.log(
++        "updated", "AcceptOffer", "Accept Offer", "Activity",
++        changes={"Name": ("Accept", "Accept Offer")},
++    )
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "### Updated" in content
++    assert "AcceptOffer" in content
++    assert "Accept ->" in content or "Accept" in content
++    assert "Accept Offer" in content
++
++
++def test_log_deleted(clog_path):
++    """Deleted entries appear in Deleted section."""
++    clog = ChangeLog(clog_path)
++    clog.log("deleted", "OldElem", "Old Element", "DataObject")
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "### Deleted" in content
++    assert "OldElem" in content
++    assert "Old Element" in content
++
++
++def test_size_cap_trims_oldest(clog_path):
++    """When file exceeds max_bytes, oldest sections are removed."""
++    # Write many entries with a small max_bytes
++    for i in range(25):
++        c = ChangeLog(clog_path, max_bytes=500)
++        c.log("created", f"Elem{i}", f"Elem{i}", "Activity")
++        c.close()
++
++    content = Path(clog_path).read_text(encoding="utf-8")
++    # File should be bounded (500 + some margin for the encoding difference)
++    assert os.path.getsize(clog_path) <= 700, (
++        f"File size {os.path.getsize(clog_path)} exceeds 700"
++    )
++    # Evidence of trimming: not all 25 sections are present
++    section_count = content.count("### Created")
++    assert section_count < 25, (
++        f"Expected fewer than 25 sections after trim, got {section_count}"
++    )
++    # The most recent entries should survive, oldest may be gone
++    assert "Elem24" in content, "Most recent entry should survive trimming"
++    assert "Elem0" not in content or section_count < 25, (
++        "Oldest entries may have been trimmed"
++    )
++
++
++def test_checkpoint(clog_path):
++    """Checkpoints appear in the Checkpoints section."""
++    clog = ChangeLog(clog_path)
++    clog.checkpoint("Parsed MD")
++    clog.checkpoint("Elements complete")
++    clog.log("created", "X", "X", "Activity")
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "### Checkpoints" in content
++    assert "- Parsed MD" in content
++    assert "- Elements complete" in content
++
++
++def test_log_diff_created_deleted(clog_path):
++    """log_diff processes a diff dict into entries."""
++    clog = ChangeLog(clog_path)
++    diff = {
++        "created": [
++            {"eid": "NewElem", "name": "New Elem", "type": "Activity"},
++        ],
++        "deleted": [
++            {"eid": "OldElem", "name": "Old Elem", "type": "DataObject"},
++        ],
++        "updated": [],
++        "connectors": [
++            {
++                "action": "created",
++                "type": "SequenceFlow",
++                "source": "A",
++                "target": "B",
++                "condition": "",
++            },
++        ],
++    }
++    clog.log_diff(diff)
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "NewElem" in content, "Created element should appear"
++    assert "OldElem" in content, "Deleted element should appear"
++    assert "### Connectors" in content, "Connectors section should exist"
++    assert "SequenceFlow" in content, "Connector type should appear"
++
++
++def test_empty_buffer_no_file(clog_path):
++    """close() with no entries does not create a file."""
++    clog = ChangeLog(clog_path)
++    clog.close()
++    assert not os.path.exists(clog_path), (
++        "File should not be created with no entries"
++    )
++
++
++def test_log_deleted_no_guid(clog_path):
++    """Deleted entries without a GUID still render cleanly."""
++    clog = ChangeLog(clog_path)
++    clog.log("deleted", "Orphan", "Orphan Element", "Artifact")
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "Orphan" in content
++    assert "Artifact" in content
++
++
++def test_multiple_same_run_id(clog_path):
++    """Multiple entries with the same run_id produce one header."""
++    clog = ChangeLog(clog_path)
++    clog.log("created", "A", "A", "Activity", run_id="run-001")
++    clog.log("created", "B", "B", "Activity", run_id="run-001")
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    # The run_id should appear once in the header
++    assert content.count("run-001") >= 1
++    assert "A" in content
++    assert "B" in content
++
++
++def test_unicode_changes_display(clog_path):
++    """Changes with unicode arrows or special chars render."""
++    clog = ChangeLog(clog_path)
++    clog.log(
++        "updated", "Elem", "Elem", "Activity",
++        changes={"Name": ("old name", "new name")},
++    )
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "old name" in content
++    assert "new name" in content
++
++
++def test_multiple_connectors_logged(clog_path):
++    """Multiple connectors in log_diff all appear."""
++    clog = ChangeLog(clog_path)
++    diff = {
++        "created": [],
++        "deleted": [],
++        "updated": [],
++        "connectors": [
++            {
++                "action": "created",
++                "type": "SequenceFlow",
++                "source": "A",
++                "target": "B",
++                "condition": "if true",
++            },
++            {
++                "action": "deleted",
++                "type": "MessageFlow",
++                "source": "C",
++                "target": "D",
++                "condition": "",
++            },
++        ],
++    }
++    clog.log_diff(diff)
++    clog.close()
++    content = Path(clog_path).read_text(encoding="utf-8")
++    assert "A" in content
++    assert "B" in content
++    assert "C" in content
++    assert "D" in content
++    assert "if true" in content

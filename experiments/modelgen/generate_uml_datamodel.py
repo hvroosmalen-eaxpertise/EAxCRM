@@ -9,7 +9,7 @@ Re-run to update names, descriptions, attribute types, or add new entities/relat
 import sys, os, argparse, json, re
 import diagram_utils
 import ea_session
-from changelog import ChangeLog, compute_md_diff
+from changelog import ChangeLog
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"

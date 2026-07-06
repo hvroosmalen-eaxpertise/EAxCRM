@@ -1,0 +1,259 @@
+﻿1bbc8c9 feat: add changelog to UML Data Model generator and sync
+diff --git a/experiments/modelgen/generate_uml_datamodel.py b/experiments/modelgen/generate_uml_datamodel.py
+index 9e1163f..1c2b06e 100644
+--- a/experiments/modelgen/generate_uml_datamodel.py
++++ b/experiments/modelgen/generate_uml_datamodel.py
+@@ -2,20 +2,21 @@
+ 
+ Usage:
+     python generate_uml_datamodel.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
+ 
+ Idempotent: stores a GUID mapping after first run.
+ Re-run to update names, descriptions, attribute types, or add new entities/relations.
+ """
+ import sys, os, argparse, json, re
+ import diagram_utils
+ import ea_session
++from changelog import ChangeLog, compute_md_diff
+ 
+ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
+ DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-DataModel.md"
+ GUID_MAP_PATH = os.path.join(SCRIPT_DIR, "uml_datamodel_guid_map.json")
+ 
+ SPARX_TYPE_MAP = {
+     "int": "int",
+     "string": "string",
+     "text": "string",
+@@ -188,42 +189,43 @@ def sync_attribute(ea_attr, attr_def):
+         ea_attr.Stereotype = attr_def["stereotype"]
+     elif ea_attr.Stereotype:
+         ea_attr.Stereotype = ""
+     if attr_def.get("description"):
+         ea_attr.Notes = attr_def["description"]
+     elif ea_attr.Notes:
+         ea_attr.Notes = ""
+     ea_attr.Update()
+ 
+ 
+-def sync_attributes(ea_elem, attr_defs):
++def sync_attributes(ea_elem, attr_defs, clog=None, entity_name=""):
+     """Sync attributes on an EA element. Adds new, updates existing, deletes orphans."""
+     existing = {}
+     for i in range(ea_elem.Attributes.Count):
+         a = ea_elem.Attributes.GetAt(i)
+         existing[a.Name] = a
+ 
+     md_names = set()
+     for ad in attr_defs:
+         md_names.add(ad["name"])
+         if ad["name"] in existing:
+             sync_attribute(existing[ad["name"]], ad)
+         else:
+             new_a = ea_elem.Attributes.AddNew(ad["name"], ad["sparx_type"])
+             sync_attribute(new_a, ad)
+ 
+     # Iterate in reverse index order so deletions don't shift indices
+     for i in range(ea_elem.Attributes.Count - 1, -1, -1):
+         a = ea_elem.Attributes.GetAt(i)
+         if a.Name not in md_names:
+             ea_elem.Attributes.Delete(i)
+-            print(f"    Deleted attribute '{a.Name}'")
++            if clog:
++                clog.log("deleted", a.Name, a.Name, "Attribute", changes={"entity": entity_name})
+ 
+     ea_elem.Update()
+ 
+ 
+ def load_guid_map():
+     if os.path.exists(GUID_MAP_PATH):
+         with open(GUID_MAP_PATH) as f:
+             return json.load(f)
+     return {}
+ 
+@@ -234,20 +236,22 @@ def save_guid_map(mapping):
+ 
+ 
+ def main():
+     parser = argparse.ArgumentParser(description="Generate UML data model in EAxCRM.qea")
+     parser.add_argument("--qea", default=DEFAULT_QEA)
+     parser.add_argument("--md", default=DEFAULT_MD)
+     args = parser.parse_args()
+ 
+     entities, relations = parse_md(args.md)
+     print(f"Parsed {len(entities)} entities, {len(relations)} relationships")
++    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
++    clog.checkpoint("Parsed MD")
+ 
+     guid_map = load_guid_map()
+     print(f"Loaded {len(guid_map)} GUID mappings")
+ 
+     try:
+         import win32com.client
+     except ImportError:
+         print("FAIL: win32com not installed. Run: pip install pywin32")
+         sys.exit(1)
+ 
+@@ -311,38 +315,38 @@ def main():
+                     pass
+ 
+             # 3) Name-based fallback ÔÇö scan package for element with same name
+             if not existing:
+                 existing = pkg_elements_by_name.get(ent["name"])
+ 
+             if existing:
+                 existing.Name = ent["name"]
+                 existing.Notes = ent["description"]
+                 existing.Update()
+-                print(f"  Updated: '{ent['name']}'")
++                clog.log("updated", ent["id"], ent["name"], "Class", existing.ElementGUID)
+                 guid_map[md_guid] = existing.ElementGUID
+-                sync_attributes(existing, ent["attributes"])
++                sync_attributes(existing, ent["attributes"], clog=clog, entity_name=ent["name"])
+                 print(f"    Synced {len(ent['attributes'])} attributes")
+             else:
+                 new_elem = dm_pkg.Elements.AddNew(ent["name"], "Class")
+                 new_elem.Notes = ent["description"]
+                 new_elem.Update()
+                 dm_pkg.Elements.Refresh()
+                 # Refresh the name lookup
+                 for j in range(dm_pkg.Elements.Count):
+                     e = dm_pkg.Elements.GetAt(j)
+                     if e.ElementID == new_elem.ElementID:
+                         guid_map[md_guid] = e.ElementGUID
+                         pkg_elements_by_name[e.Name] = e
+                         break
+-                print(f"  Created: '{ent['name']}'")
+-                sync_attributes(new_elem, ent["attributes"])
++                clog.log("created", ent["id"], ent["name"], "Class", new_elem.ElementGUID)
++                sync_attributes(new_elem, ent["attributes"], clog=clog, entity_name=ent["name"])
+                 print(f"    Added {len(ent['attributes'])} attributes")
+ 
+         save_guid_map(guid_map)
+ 
+         # Phase 2: Relationships (via COM API ÔÇö creation only, cardinality via SQLite)
+         print("\n--- Relationships ---")
+         for rel in relations:
+             src = entity_by_id.get(rel["source"])
+             tgt = entity_by_id.get(rel["target"])
+             if not src or not tgt:
+@@ -371,31 +375,31 @@ def main():
+             # 2026-07-06, corrupted r-contact-customer's "belongs_to" when
+             # adding r-customer-customer's "merged_into").
+             exists = False
+             for i in range(src_elem.Connectors.Count):
+                 conn = src_elem.Connectors.GetAt(i)
+                 if conn.ClientID == src_elem.ElementID and conn.SupplierID == tgt_elem.ElementID:
+                     exists = True
+                     conn.Name = rel.get("name", "")
+                     conn.Notes = rel.get("description", "")
+                     conn.Update()
+-                    print(f"  Updated rel: '{rel['id']}'")
++                    clog.log("updated", rel["id"], f"{src['name']} -> {tgt['name']}", "Association", conn.ConnectorGUID)
+                     break
+ 
+             if not exists:
+                 new_conn = src_elem.Connectors.AddNew("", "Association")
+                 new_conn.SupplierID = tgt_elem.ElementID
+                 new_conn.Direction = "Source -> Destination"
+                 new_conn.Name = rel.get("name", "")
+                 new_conn.Notes = rel.get("description", "")
+                 new_conn.Update()
+-                print(f"  Created rel: '{rel['id']}'")
++                clog.log("created", rel["id"], f"{src['name']} -> {tgt['name']}", "Association", new_conn.ConnectorGUID)
+ 
+         # Phase 2b: Delete orphan connectors via COM API (database-independent)
+         print("\n--- Relationship Orphan Cleanup (COM API) ---")
+         # Build set of expected (source_EA_guid, target_EA_guid) pairs from MD
+         md_pairs = set()
+         for rel in relations:
+             src = entity_by_id.get(rel["source"])
+             tgt = entity_by_id.get(rel["target"])
+             if src and tgt:
+                 sg = guid_map.get(src["guid"])
+@@ -582,20 +586,23 @@ def main():
+                     cell_height=max_entity_height + 20, h_gap=20, v_gap=20)
+                 added = diagram_utils.add_missing_elements(diag, new_ids, object_ids, new_positions)
+                 print(f"  Added {added} new entit(ies) to existing diagram")
+             else:
+                 print("  Diagram already has all entities ÔÇö preserving manual layout")
+ 
+         styled = diagram_utils.set_diagram_link_style(diag, 8)  # Orthogonal Square
+         if styled:
+             print(f"  Set Orthogonal Square line style on {styled} connector(s)")
+ 
++        clog.checkpoint("Diagram complete")
++        clog.close()
++
+     finally:
+         try:
+             repo.RefreshModelView(0)  # Full model tree refresh
+             repo.RefreshOpenDiagrams(True)
+         except Exception as e:
+             print(f"  [refresh] RefreshModelView(0) failed: {e}")
+         try:
+             repo.CloseFile()
+         except:
+             pass
+diff --git a/experiments/modelgen/sync_datamodel_from_ea.py b/experiments/modelgen/sync_datamodel_from_ea.py
+index 09d3884..56ad1c0 100644
+--- a/experiments/modelgen/sync_datamodel_from_ea.py
++++ b/experiments/modelgen/sync_datamodel_from_ea.py
+@@ -1,20 +1,21 @@
+ """Read UML data model from EAxCRM.qea and write it as Markdown.
+ 
+ Reverse of generate_uml_datamodel.py:
+   generate:  MD ÔåÆ EA (creates/updates elements, attributes, relationships)
+   sync:      EA ÔåÆ MD (reads current EA state, writes MD file)
+ 
+ Usage:
+     python sync_datamodel_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
+ """
+ import sys, os, argparse, sqlite3, re
++from changelog import ChangeLog, compute_md_diff
+ 
+ 
+ DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
+ DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-DataModel.md"
+ 
+ SPARX_TO_MD_TYPE = {
+     "int": "int",
+     "string": "string",
+     "memo": "string",
+     "datetime": "datetime",
+@@ -153,20 +154,33 @@ def main():
+         if conn_name.strip():
+             lines.append(f"- Name: {conn_name.strip()}")
+         if notes.strip():
+             lines.append(f"- Description: {notes.strip()}")
+         if not guid.strip():
+             import uuid
+             guid = "{" + str(uuid.uuid4()).upper() + "}"
+         lines.append(f"- GUID: {guid}")
+         lines.append("")
+ 
+-    output = "\n".join(lines) + "\n"
++    new_content = "\n".join(lines) + "\n"
++
++    # Changelog: diff against previous MD
++    old_content = ""
++    if os.path.exists(args.md):
++        with open(args.md, "r", encoding="utf-8") as f:
++            old_content = f.read()
++
++    diff = compute_md_diff(old_content, new_content)
++    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
++    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
++    clog.checkpoint("Sync from EA")
++    clog.log_diff(diff)
++    clog.close()
+ 
+     with open(args.md, "w", encoding="utf-8") as f:
+-        f.write(output)
++        f.write(new_content)
+     print(f"Written {len(lines)} lines to {args.md}")
+     print("Done.")
+ 
+ 
+ if __name__ == "__main__":
+     main()

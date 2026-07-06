@@ -173,8 +173,10 @@ def main():
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
     clog.checkpoint("Sync from EA")
-    clog.log_diff(diff)
-    clog.close()
+    try:
+        clog.log_diff(diff)
+    finally:
+        clog.close()
 
     with open(args.md, "w", encoding="utf-8") as f:
         f.write(new_content)
