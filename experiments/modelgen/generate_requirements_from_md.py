@@ -6,6 +6,7 @@ Usage:
 import sys, os, argparse, json, re
 import diagram_utils
 import ea_session
+from changelog import ChangeLog
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
@@ -110,6 +111,9 @@ def main():
     requirements = parse_md(args.md)
     print(f"Parsed {len(requirements)} requirements from MD")
 
+    clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
+    clog.checkpoint("Parsed MD")
+
     # Build lookup by safe_id
     req_by_id = {}
     for r in requirements:
@@ -196,6 +200,7 @@ def main():
                 if changed:
                     existing.Update()
                     print(f"  Updated {req['alias']:8s}  {req['name']}")
+                    clog.log("updated", req["id"], req["name"], "Requirement", existing.ElementGUID)
                 else:
                     print(f"  Current {req['alias']:8s}  {req['name']}")
 
@@ -223,6 +228,7 @@ def main():
                 else:
                     guid_map[f"_{req['id']}"] = new_el.ElementGUID
 
+                clog.log("created", req["id"], req["name"], "Requirement", new_el.ElementGUID)
                 print(f"  Created {req['alias']:8s}  {req['name']}  [{new_el.ElementGUID}]")
                 touched_ids.add(new_el.ElementID)
 
@@ -281,6 +287,7 @@ def main():
                     conn = child_el.Connectors.AddNew("", "Aggregation")
                     conn.SupplierID = parent_el.ElementID
                     conn.Update()
+                    clog.log("created", f"{req['id']}->{parent_id_str}", req["name"], "Aggregation", conn.ConnectorGUID)
                     print(f"  Created connector: {req['id']} -> {parent_id_str}")
 
         # --- Delete orphan connectors ---
@@ -424,6 +431,7 @@ def main():
                     conn = ent_el.Connectors.AddNew("", "Realisation")
                     conn.SupplierID = req_el.ElementID
                     conn.Update()
+                    clog.log("created", f"{ent_name}->{req['id']}", ent_name, "Realisation", conn.ConnectorGUID)
                     print(f"  Created: {ent_name} -> {req['alias'] or req['id']}")
                     new_real += 1
 
@@ -449,6 +457,11 @@ def main():
             print("  All Realisation connectors exist")
         if orphan_real:
             print(f"  Deleted {orphan_real} orphan Realisation connector(s)")
+
+        try:
+            clog.checkpoint("Diagram complete")
+        finally:
+            clog.close()
 
         save_guid_map(guid_map)
 

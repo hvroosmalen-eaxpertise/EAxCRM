@@ -5,7 +5,9 @@ Usage:
 """
 import sys, os, argparse, re
 import ea_session
+from changelog import ChangeLog, compute_md_diff
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
 DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-Requirements.md"
@@ -163,6 +165,20 @@ def main():
             lines.append("")
 
         output = "\n".join(lines) + "\n"
+
+        # Read existing content and compute diff
+        old_content = ""
+        if os.path.exists(args.md):
+            with open(args.md, "r", encoding="utf-8") as f:
+                old_content = f.read()
+
+        diff = compute_md_diff(old_content, output)
+        clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
+        clog.checkpoint("Sync from EA")
+        try:
+            clog.log_diff(diff)
+        finally:
+            clog.close()
 
         with open(args.md, "w", encoding="utf-8") as f:
             f.write(output)

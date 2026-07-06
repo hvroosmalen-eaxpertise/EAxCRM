@@ -6,6 +6,9 @@ Usage:
 """
 import sys, os, argparse
 import ea_session
+from changelog import ChangeLog
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
 
@@ -51,6 +54,9 @@ def main():
             print("FAIL: 'EAxCRM Requirements' package not found")
             sys.exit(1)
 
+        clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
+        clog.checkpoint("Seeding properties")
+
         pkg.Elements.Refresh()
         count = 0
         for i in range(pkg.Elements.Count):
@@ -60,6 +66,9 @@ def main():
             if el.Name in ID_MAP:
                 aid, status, version = ID_MAP[el.Name]
                 changed = False
+                old_alias = el.Alias
+                old_status = el.Status
+                old_version = el.Version
                 if el.Alias != aid:
                     el.Alias = aid
                     changed = True
@@ -71,6 +80,15 @@ def main():
                     changed = True
                 if changed:
                     el.Update()
+                    actual_changes = {}
+                    if old_alias != aid:
+                        actual_changes["Alias"] = (old_alias, aid)
+                    if old_status != status:
+                        actual_changes["Status"] = (old_status, status)
+                    if old_version != version:
+                        actual_changes["Version"] = (old_version, version)
+                    clog.log("updated", aid, el.Name, "Requirement", el.ElementGUID,
+                             changes=actual_changes)
                     print(f"  Updated {aid:8s}  {el.Name}")
                 else:
                     print(f"  Skipped {aid:8s}  (no change)")
@@ -79,6 +97,10 @@ def main():
                 print(f"  ?         {el.Name}")
 
         print(f"Processed {count} requirements.")
+        try:
+            clog.checkpoint("Seed complete")
+        finally:
+            clog.close()
 
 
 if __name__ == "__main__":
