@@ -52,6 +52,13 @@ EAxCRM/
 ├── models/             # Sparx EA model files (.qea, .md) — see models/README.md
 ├── experiments/        # Isolated POCs (IMAP, PDF parsing, modelgen)
 │   ├── modelgen/       # Model generators (Markdown ↔ Sparx EA: data model, requirements, BPMN process)
+│   │   └── changelog.py        # Structured audit logging (per-run Markdown, prepend, size cap)
+│   │   ├── archimate_changelog.md
+│   │   ├── uml_datamodel_changelog.md
+│   │   ├── requirements_changelog.md
+│   │   ├── sales_changelog.md
+│   │   ├── newsletter_changelog.md
+│   │   └── customeraccount_changelog.md
 │   ├── imap/           # IMAP retrieval experiments
 │   └── parsing/        # PDF parsing experiments
 ├── EAxCRM.sln          # Visual Studio solution file

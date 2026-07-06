@@ -4,7 +4,7 @@
 
 **Issue**: [#2](https://github.com/hvroosmalen-eaxpertise/EAxCRM/issues/2) — Log element/relationship add/remove events with timestamps
 
-**Status**: Design
+**Status**: Implemented (2026-07-06)
 
 ## Problem
 
