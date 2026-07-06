@@ -1,7 +1,10 @@
 """Shared BPMN config: ProcessConfig dataclass, per-process instances, and the
 BPMN vocabulary constants previously copy-pasted across the 3 generate_*_process_from_md.py
 and 3 sync_*_process_from_ea.py scripts."""
+import os
 from dataclasses import dataclass, field
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @dataclass
@@ -33,6 +36,7 @@ class ProcessConfig:
     header_name: str = ""
     diag_guid_key: str = ""
     tagged_value_overrides: dict | None = None
+    changelog_file: str = ""
 
 
 CUSTOMER_ACCOUNT = ProcessConfig(
@@ -48,6 +52,7 @@ CUSTOMER_ACCOUNT = ProcessConfig(
     model_id="cap-eacrm",
     purpose="BPMN 2.0 process model for creating and maintaining Customer Accounts in EAxCRM",
     header_name="Manage Customer Account Process",
+    changelog_file=os.path.join(SCRIPT_DIR, "customeraccount_changelog.md"),
 )
 
 SALES = ProcessConfig(
@@ -63,6 +68,7 @@ SALES = ProcessConfig(
     model_id="sp-eacrm",
     purpose="BPMN 2.0 sales process model for the EAxCRM system",
     header_name="Sales Process Architecture",
+    changelog_file=os.path.join(SCRIPT_DIR, "sales_changelog.md"),
 )
 
 NEWSLETTER = ProcessConfig(
@@ -77,6 +83,7 @@ NEWSLETTER = ProcessConfig(
     model_id="nlp-eacrm",
     purpose="BPMN 2.0 newsletter process model for the EAxCRM system",
     header_name="Newsletter Process Architecture",
+    changelog_file=os.path.join(SCRIPT_DIR, "newsletter_changelog.md"),
     hierarchical_format=True,
     generate_connector_categories=("SequenceFlow",),
     sync_connector_categories=("SequenceFlow", "MessageFlow"),

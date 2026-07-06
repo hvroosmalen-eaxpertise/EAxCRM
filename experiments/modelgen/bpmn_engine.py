@@ -16,6 +16,8 @@ import re
 import json
 import sqlite3
 
+from changelog import ChangeLog
+
 import ea_session
 from bpmn_config import (
     LABEL_TO_STEREO, OBJECT_TYPE_MAP, BPMN_TAGGED_VALUES,
@@ -864,6 +866,11 @@ def generate(config, qea_path=None, md_path=None):
     print(f"Parsed {len(elements)} elements, {total_conns} connectors "
           f"({', '.join(f'{k}: {len(v)}' for k, v in connectors.items() if v)})")
 
+    clog = None
+    if config.changelog_file:
+        clog = ChangeLog(config.changelog_file)
+        clog.checkpoint("Parsed MD", run_id=config.model_id)
+
     elem_types = {eid: data["label"] for eid, data in elements.items()
                   if data.get("label") and data["label"] not in ("Lane", "Pool")}
 
@@ -945,6 +952,14 @@ def generate(config, qea_path=None, md_path=None):
                 if parent_elem:
                     existing.ParentID = parent_elem.ElementID
                 existing.Update()
+                if clog:
+                    changes = {}
+                    if existing.Name != name:
+                        changes["Name"] = (existing.Name, name)
+                    if changes:
+                        clog.log("updated", eid, name, stereo, existing.ElementGUID, changes=changes)
+                    else:
+                        clog.log("updated", eid, name, stereo, existing.ElementGUID)
                 elem_guid_map[eid] = existing.ElementGUID
                 object_ids[eid] = existing.ElementID
                 updated_count += 1
@@ -957,6 +972,8 @@ def generate(config, qea_path=None, md_path=None):
                 if parent_elem:
                     new_elem.ParentID = parent_elem.ElementID
                 new_elem.Update()
+                if clog:
+                    clog.log("created", eid, name, stereo, new_elem.ElementGUID)
                 # Capture GUID/ID BEFORE Refresh() (reference may go stale after)
                 elem_guid_map[eid] = new_elem.ElementGUID
                 object_ids[eid] = new_elem.ElementID
@@ -1095,6 +1112,16 @@ def generate(config, qea_path=None, md_path=None):
         for ctype, cnt in conn_counts.items():
             if cnt:
                 print(f"  Created {cnt} new {ctype}(s)")
+
+        if clog:
+            for conn_type in config.generate_connector_categories:
+                for flow in connectors.get(conn_type, []):
+                    src = flow.get("source", "")
+                    tgt = flow.get("target", "")
+                    cond = flow.get("condition", "")
+                    clog.log("created", src + "_" + tgt, src + " -> " + tgt,
+                             conn_type, "", changes={"source": src, "target": tgt,
+                                                      "condition": cond})
 
         # Diagram
         diag = None
@@ -1336,6 +1363,10 @@ def generate(config, qea_path=None, md_path=None):
         guid_map["elements"] = elem_guid_map
         with open(guid_map_file, "w") as f:
             json.dump(guid_map, f, indent=2)
+
+    if clog:
+        clog.checkpoint("Diagram complete", run_id=config.model_id)
+        clog.close()
 
     print("Done.")
 
@@ -1671,8 +1702,23 @@ def sync_to_md(config, qea_path=None, md_path=None):
         for category in config.sync_connector_categories:
             add_connector_section(category, CATEGORY_HEADING[category])
 
-    output = "\n".join(lines) + "\n"
+    from changelog import ChangeLog, compute_md_diff
+
+    old_content = ""
+    if os.path.exists(md_path):
+        with open(md_path, "r", encoding="utf-8") as f:
+            old_content = f.read()
+
+    new_content = "\n".join(lines) + "\n"
+    diff = compute_md_diff(old_content, new_content)
+
+    clog = None
+    if config.changelog_file:
+        clog = ChangeLog(config.changelog_file)
+        clog.log_diff(diff, run_id=config.model_id)
+        clog.close()
+
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write(output)
+        f.write(new_content)
     print(f"Written {len(lines)} lines to {md_path}")
     print("Done.")
