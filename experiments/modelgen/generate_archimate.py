@@ -6,7 +6,7 @@ Usage:
 Idempotent: stores a JSON mapping of MD-GUID -> EA-GUID after first run.
 Re-run to update names, descriptions, or add new elements/relations.
 """
-import sys, os, argparse, json, time, sqlite3, uuid
+import sys, os, argparse, json, time
 import diagram_utils
 import ea_session
 from changelog import ChangeLog
@@ -111,68 +111,52 @@ DIAGRAM_NATIVE_TYPE = "Logical"
 DIAGRAM_STYLEEX_MDGDGM = "ArchiMate3::Application"
 
 
-def set_diagram_stereotype(diag, qea_path):
+def ensure_diagram_toolbox(diag, is_new, label=""):
     """Set an ArchiMate3 diagram Type/toolbox so EA shows the matching
     toolbox (github issue #5 -- an unrecognized Diagram_Type meant no
     ArchiMate toolbox ever showed by default, forcing manual selection).
 
-    Three properties in play, two of which EA's COM API will not let us set
-    after creation -- all confirmed empirically against a BPMN diagram the
-    user built correctly by hand in EA's GUI (Diagram_Type='Analysis',
-    Stereotype=None, StyleEx='MDGDgm=BPMN2.0::Business Process;'):
-    - Diagram.Type: read-only once the diagram exists ("can not be set").
-    - Diagram.StereotypeEx / t_xref "Stereotypes" diagram-property row: both
-      were tried first and both ruled out -- StereotypeEx never persists,
-      and the t_xref row persists but does NOT drive the toolbox either
-      (confirmed: BPMN diagrams with that xref set still showed no toolbox).
+    COM-only, no SQLite (2026-07-06 hard rule -- see ea-model-common skill;
+    an earlier version of this function patched Diagram_Type/StyleEx via
+    direct SQL, which is no longer allowed in shipped generate/sync code).
+
+    - Diagram.Type: read-only once the diagram exists ("can not be set") --
+      COM can only set it correctly at Diagrams.AddNew() time.
     - Diagram.StyleEx's "MDGDgm=<Technology>::<Name>;" key is the real
-      toolbox selector, and DOES persist via plain COM -- but COM silently
-      refuses to overwrite an already-present MDGDgm value on an existing
-      diagram (same read-once-only behavior as Type), so existing diagrams
-      need it patched via direct SQL string replacement instead.
-    Type/StyleEx corrections are therefore written directly via SQLite (the
-    .qea file is a SQLite database) -- same documented exception as the
-    (now-removed) diagram-property xref approach, not a general SQLite
-    write policy.
+      toolbox selector (Stereotype/StereotypeEx do not drive it -- both
+      ruled out empirically). It DOES persist via plain COM when the field
+      starts empty, but COM silently refuses to overwrite an already-present
+      MDGDgm value on an existing diagram.
+
+    is_new=True: diagram was just created this run with the correct native
+    Type already passed to AddNew() -- set Stereotype/StereotypeEx blank and
+    StyleEx's MDGDgm token via COM; this persists since the field is empty.
+
+    is_new=False: a pre-existing diagram found via GUID/name lookup -- COM
+    can only *read* Type/StyleEx to check them, never correct them if
+    wrong. Log a warning naming the diagram rather than attempting a fix --
+    that needs a manual fix in EA's GUI or an explicit, user-approved
+    recreate-the-diagram pass.
     """
-    diag.Stereotype = ""
-    diag.StereotypeEx = ""
-    diag.Update()
-
-    dg_guid = diag.DiagramGUID
-    if not dg_guid:
-        return
-    db = sqlite3.connect(qea_path)
-    c = db.cursor()
-
-    c.execute("SELECT Diagram_Type, StyleEx FROM t_diagram WHERE ea_guid=?", (dg_guid,))
-    row = c.fetchone()
-    if row and row[0] != DIAGRAM_NATIVE_TYPE:
-        c.execute("UPDATE t_diagram SET Diagram_Type=? WHERE ea_guid=?", (DIAGRAM_NATIVE_TYPE, dg_guid))
-        db.commit()
-        print(f"  Corrected diagram Type to '{DIAGRAM_NATIVE_TYPE}' (was {row[0]!r}, invalid -- COM won't set Type after creation)")
-
-    style_ex = (row[1] if row else "") or ""
     mdgdgm_token = f"MDGDgm={DIAGRAM_STYLEEX_MDGDGM};"
-    if mdgdgm_token not in style_ex:
-        if "MDGDgm=;" in style_ex:
-            new_style_ex = style_ex.replace("MDGDgm=;", mdgdgm_token)
-        elif "MDGDgm=" in style_ex:
-            import re as _re
-            new_style_ex = _re.sub(r"MDGDgm=[^;]*;", mdgdgm_token, style_ex)
-        else:
-            new_style_ex = style_ex + mdgdgm_token
-        c.execute("UPDATE t_diagram SET StyleEx=? WHERE ea_guid=?", (new_style_ex, dg_guid))
-        db.commit()
-        print(f"  Corrected StyleEx MDGDgm to '{DIAGRAM_STYLEEX_MDGDGM}'")
+    if is_new:
+        diag.Stereotype = ""
+        diag.StereotypeEx = ""
+        diag.StyleEx = mdgdgm_token
+        diag.Update()
+        return
 
-    # Remove any stale t_xref Stereotypes row from the earlier, incorrect fix
-    # attempt (ruled out -- see docstring above) -- the verified-working BPMN
-    # reference diagram has none.
-    c.execute("DELETE FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
-              (dg_guid,))
-    db.commit()
-    db.close()
+    current_type = diag.Type
+    current_style = diag.StyleEx or ""
+    problems = []
+    if current_type != DIAGRAM_NATIVE_TYPE:
+        problems.append(f"Diagram_Type is {current_type!r}, expected {DIAGRAM_NATIVE_TYPE!r}")
+    if mdgdgm_token not in current_style:
+        problems.append(f"StyleEx is missing {mdgdgm_token!r}")
+    if problems:
+        print(f"  WARNING: '{label}' diagram toolbox may be wrong -- {'; '.join(problems)}. "
+              f"COM can't correct an existing diagram's Type/StyleEx (see ea-model-common skill) -- "
+              f"fix manually in EA's GUI, or ask to have this diagram recreated.")
 
 
 # Base Connector_Type for each ArchiMate relationship type
@@ -515,10 +499,12 @@ def main():
 
         elem_types = {el["id"]: ELEMENT_BASE_TYPE.get(el["type"], "Class") for el in elements}
 
+        is_new_diag = False
         if not diag:
             diag = eax_pkg.Diagrams.AddNew("EAxCRM ArchiMate", DIAGRAM_NATIVE_TYPE)
             diag.Update()
             eax_pkg.Update()
+            is_new_diag = True
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
             print("  Created diagram — element layout will be auto-generated")
@@ -555,8 +541,8 @@ def main():
             else:
                 print("  Diagram already has all elements — preserving manual layout")
 
-        set_diagram_stereotype(diag, args.qea)
-        print(f"  Set diagram toolbox to {DIAGRAM_STYLEEX_MDGDGM}")
+        ensure_diagram_toolbox(diag, is_new_diag, label="EAxCRM ArchiMate")
+        print(f"  Diagram toolbox: {DIAGRAM_STYLEEX_MDGDGM}")
 
     clog.checkpoint("Diagram complete")
     clog.close()

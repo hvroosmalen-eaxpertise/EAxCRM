@@ -260,7 +260,7 @@ def get_placed_ids(diag):
 
 def set_diagram_link_style(diag, line_style):
     """Set LineStyle on every DiagramLink on a diagram (see the LineStyle enum
-    table in the ea-diagram-creator skill -- e.g. 8 = Orthogonal Square,
+    table in the ea-model-common skill -- e.g. 8 = Orthogonal Square,
     9 = Orthogonal Rounded). Idempotent -- safe to call on every run.
     """
     diag.DiagramLinks.Refresh()

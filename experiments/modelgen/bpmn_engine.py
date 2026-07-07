@@ -1150,10 +1150,12 @@ def generate(config, qea_path=None, md_path=None):
                     diag = d
                     break
 
+        is_new_diag = False
         if not diag and collab_elem:
             diag = collab_elem.Diagrams.AddNew(config.diagram_name, config.diagram_type)
             diag.Update()
             collab_elem.Update()
+            is_new_diag = True
             guid_map[diag_guid_key] = diag.DiagramGUID
             print("  Created new diagram under CollaborationModel")
 
@@ -1175,43 +1177,31 @@ def generate(config, qea_path=None, md_path=None):
             # Pools/Lanes -- the diagram's toolbox type should match what the
             # diagram actually represents, not just whichever BPMN toolbox
             # was used to first confirm the underlying mechanism worked.
+            #
+            # COM-only, no SQLite (2026-07-06 hard rule -- see ea-model-common
+            # skill): Diagram.Type is read-only via COM once a diagram exists,
+            # and an already-non-empty StyleEx won't be overwritten by COM
+            # either -- both correctable only at creation time, before
+            # anything else touches them. An existing diagram found with the
+            # wrong Type/StyleEx can no longer be auto-corrected in code; log
+            # a warning instead of falling back to SQL.
             mdgdgm_value = "MDGDgm=BPMN2.0::Collaboration;"
-            diag.Stereotype = ""
-            diag.StereotypeEx = ""
-            diag.StyleEx = mdgdgm_value
-            diag.Update()
-
-            dg_guid = diag.DiagramGUID
-            if dg_guid:
-                db = sqlite3.connect(qea_path)
-                c = db.cursor()
-                # Diagram.Type is read-only via COM once a diagram exists (raises
-                # "can not be set"), so a wrong native Diagram_Type from an older
-                # run can only be fixed via direct SQL. "BusinessProcess" (this
-                # config's old diagram_type default) isn't a real Diagram_Type --
-                # BPMN2.0's diagram stereotypes apply to "Analysis" per
-                # MDGTechnologies/BPMN 2.0 Technology.xml.
-                c.execute("SELECT Diagram_Type, StyleEx FROM t_diagram WHERE ea_guid=?", (dg_guid,))
-                row = c.fetchone()
-                if row and row[0] != "Analysis":
-                    c.execute("UPDATE t_diagram SET Diagram_Type='Analysis' WHERE ea_guid=?", (dg_guid,))
-                    db.commit()
-                    print(f"  Corrected diagram Type to 'Analysis' (was {row[0]!r}, invalid)")
-                # Also force StyleEx via SQL: COM's setter silently refuses to
-                # overwrite an already-present (possibly stale/different)
-                # MDGDgm value on an existing diagram -- same read-once-only
-                # behavior as Type.
-                if row and row[1] != mdgdgm_value:
-                    c.execute("UPDATE t_diagram SET StyleEx=? WHERE ea_guid=?", (mdgdgm_value, dg_guid))
-                    db.commit()
-                    print(f"  Corrected StyleEx to {mdgdgm_value!r} (was {row[1]!r})")
-                # Remove any stale t_xref Stereotypes row from the older,
-                # incorrect fix attempt -- the verified-working reference
-                # diagram has none.
-                c.execute("DELETE FROM t_xref WHERE Client=? AND Type='Stereotypes' AND Visibility='diagram property'",
-                          (dg_guid,))
-                db.commit()
-                db.close()
+            if is_new_diag:
+                diag.Stereotype = ""
+                diag.StereotypeEx = ""
+                diag.StyleEx = mdgdgm_value
+                diag.Update()
+            else:
+                problems = []
+                if diag.Type != "Analysis":
+                    problems.append(f"Diagram_Type is {diag.Type!r}, expected 'Analysis'")
+                if mdgdgm_value not in (diag.StyleEx or ""):
+                    problems.append(f"StyleEx is missing {mdgdgm_value!r}")
+                if problems:
+                    print(f"  WARNING: '{config.diagram_name}' diagram toolbox may be wrong -- "
+                          f"{'; '.join(problems)}. COM can't correct an existing diagram's "
+                          f"Type/StyleEx (see ea-model-common skill) -- fix manually in EA's "
+                          f"GUI, or ask to have this diagram recreated.")
 
         # Placement: flow-aware layout for all processes (first-time and re-run)
         if diag:

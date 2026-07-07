@@ -13,7 +13,8 @@ This directory contains the Sparx Enterprise Architect model files for the EAxCR
 | `EAxCRM-SalesProcess.md` | Sales BPMN process (Markdown, 49 elements, 3 lanes, 25 sequence flows, 17 message flows, 22 data associations) |
 | `EAxCRM-CustomerAccountProcess.md` | Manage Customer Account BPMN process (Markdown, 1 CollaborationModel, 1 Lane, 14 elements, 10 sequence flows, data associations) — generated into EA (2026-07-03) |
 | `EAxCRM-SalesProcess-CRUD.md` | Sales process CRUD matrix — maps which activities create/read/update/delete each data object, cross-referenced to data model entities |
-| `EAxCRM.qea` | Sparx EA project file (ArchiMate + data model + requirements + process architecture) |
+| `EAxCRM-CustomerAccountUI.md` | Manage Customer Account UI wireframes (Markdown, 4 screens, 26 controls, 3 navigation links) — generated into EA (2026-07-06, issue #4) |
+| `EAxCRM.qea` | Sparx EA project file (ArchiMate + data model + requirements + process architecture + wireframes) |
 
 ## Generators
 
@@ -23,7 +24,7 @@ Data model and requirements generators use Sparx EA's COM API (`EA.Repository`) 
 ```
 python experiments/modelgen/generate_archimate.py
 ```
-Reads `EAxCRM-Archimate.md`, generates 71 elements and 107 relationships in an Application Layer diagram.
+Reads `EAxCRM-Archimate.md`, generates the elements and relationships in the single "EAxCRM ArchiMate" diagram.
 
 ### Data Model (UML Class Diagram)
 - **Generate** (MD → EA): `python experiments/modelgen/generate_uml_datamodel.py`
@@ -35,13 +36,24 @@ Reads `EAxCRM-Archimate.md`, generates 71 elements and 107 relationships in an A
 - **Sync** (EA → MD): `python experiments/modelgen/sync_requirements_from_ea.py`
 - 39 requirements with ID/Alias, Status, Version, parent hierarchy (Aggregation connectors), entity mappings (Realisation connectors)
 
+### Wireframe Model (issue #4)
+- **Generate** (MD → EA): `python experiments/modelgen/generate_customeraccount_ui_from_md.py`
+- **Sync** (EA → MD): `python experiments/modelgen/sync_customeraccount_ui_from_ea.py`
+- Thin config + CLI wrapper around a shared engine, same split as BPMN:
+  `experiments/modelgen/wireframe_config.py` (per-flow `WireframeFlow` +
+  Wireframing MDG vocabulary) and `experiments/modelgen/wireframe_engine.py`
+  (parsing, generation, sync) — see the `ea-wireframe-creator` skill for the
+  full layout/toolbox rules. Each Screen gets its own EA Webpage Wireframe
+  diagram (explicit per-control bounds, no computed layout) plus a shared
+  sitemap overview diagram showing navigation between screens.
+
 ### Process Model (BPMN 2.0)
 Three separate BPMN collaboration models. As of the issue #3 refactor
 (2026-07-05), each process's `generate_*_process_from_md.py` /
 `sync_*_process_from_ea.py` is a thin config + CLI wrapper around a shared
 engine: `experiments/modelgen/bpmn_config.py` (per-process `ProcessConfig` +
 shared BPMN vocabulary) and `experiments/modelgen/bpmn_engine.py` (parsing,
-generation, sync, and BPMN-specific layout — see the `ea-diagram-creator`
+generation, sync, and BPMN-specific layout — see the `ea-bpmn-creator`
 skill for the full layout/routing rules).
 
 #### Newsletter Process
