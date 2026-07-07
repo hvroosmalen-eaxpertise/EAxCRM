@@ -31,11 +31,15 @@ Not set (same as ArchiMate — ask before assuming a value).
 
 Requirements' changelog wiring (`requirements_changelog.md`) follows the exact same pattern as the other generators — see `ea-model-common`'s changelog reference and `changelog.py` itself.
 
-## Notes Composition and Tagged Values (added 2026-07-07)
+## Notes Composition and Tagged Values (added 2026-07-07, RTF formatting added 2026-07-07)
 
-Each requirement's MD block may include `- Rationale:` (single line) and `- Test Cases:` (a `  - ` bullet list) fields alongside `- Description:`. `build_notes()` in `generate_requirements_from_md.py` composes these into the EA element's `Notes` field as `{Description}\n\nRationale:\n{rationale}\n\nTest Cases:\n- item...`, so all three are visible together when viewing the element in EA — not just the Description. The same Rationale/Test Cases values are *also* written as EA Tagged Values (`Rationale`, `TestCases`) via `set_tagged_value()`, an idempotent helper (finds and updates an existing tag by name instead of the `TaggedValues.AddNew()`-always pattern used in `bpmn_engine.py`, which would duplicate tags on repeated syncs).
+Each requirement's MD block may include `- Rationale:` (single line) and `- Test Cases:` (a `  - ` bullet list) fields alongside `- Description:`. `build_notes(repo, req)` in `generate_requirements_from_md.py` composes these into the EA element's `Notes` field with real rich-text formatting — bold `Rationale:`/`Test Cases:` section headers and a hanging-indent numbered list for test cases — so all three read clearly together when viewing the element in EA, not just as a wall of plain text.
 
-`sync_requirements_from_ea.py` reverse-syncs by reading Rationale/TestCases from Tagged Values directly, and strips the `\n\nRationale:` section back out of `Notes` before writing the `- Description:` line, to avoid duplicating that text into both fields.
+**Why not assign the Notes text directly:** setting `element.Notes = someRtfString` does *not* work — EA treats the assignment as plain text and the RTF control codes show up literally (e.g. `{\rtf1\ansi...\par}` visible as text). EA's internal Notes storage is its own HTML-like format, not plain RTF or plain text. The correct pattern (`build_notes_rtf()` + `build_notes()`): build a proper RTF document string with `\b Rationale:\b0` bold runs and `\li720\fi-360` hanging-indent numbered lines (escaping backslashes/braces/non-ASCII via `rtf_escape()`), then convert it with `repo.GetFieldFromFormat("RTF", rtf_string)` before assigning the result to `.Notes`. `GetFieldFromFormat`/`GetFormatFromField` are EA's documented converters between its internal Notes format and external formats like RTF/HTML — because `build_notes()` needs a live `Repository` for this conversion, it takes `repo` as its first argument (unlike most `build_*` helpers in this codebase, which stay pure).
+
+The same Rationale/Test Cases values are *also* written as EA Tagged Values (`Rationale`, `TestCases`) via `set_tagged_value()`, an idempotent helper (finds and updates an existing tag by name instead of the `TaggedValues.AddNew()`-always pattern used in `bpmn_engine.py`, which would duplicate tags on repeated syncs).
+
+`sync_requirements_from_ea.py` reverse-syncs by reading Rationale/TestCases from Tagged Values directly, and strips the `\r?\n\r?\n<b>Rationale:</b>` section back out of `Notes` (EA's internal format, not the original plain-text `\n\nRationale:`) before writing the `- Description:` line, to avoid duplicating that text into both fields.
 
 ## Naming Convention (added 2026-07-07)
 

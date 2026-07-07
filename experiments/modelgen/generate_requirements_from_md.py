@@ -136,16 +136,45 @@ def set_tagged_value(elem, tag_name, value):
     return False
 
 
-def build_notes(req):
-    """Compose the EA Notes text: Description, then Rationale and Test Cases
-    sections with headers, so they're all visible together on the element."""
-    parts = [req["description"]]
+def rtf_escape(text):
+    """Escape text for embedding in an RTF control-code stream."""
+    out = []
+    for ch in text:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == "{":
+            out.append("\\{")
+        elif ch == "}":
+            out.append("\\}")
+        elif ord(ch) > 127:
+            out.append(f"\\u{ord(ch)}?")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def build_notes_rtf(req):
+    """Build an RTF document for the Notes field: Description, then bold
+    Rationale/Test Cases headers with a numbered, hanging-indent test-case
+    list, matching EA's own rich-text Notes formatting."""
+    lines = [r"{\rtf1\ansi\deff0"]
+    lines.append(rtf_escape(req["description"]) + r"\par\par")
     if req.get("rationale"):
-        parts.append(f"Rationale:\n{req['rationale']}")
+        lines.append(r"\b Rationale:\b0\par")
+        lines.append(rtf_escape(req["rationale"]) + r"\par\par")
     if req.get("test_cases"):
-        test_cases_block = "\n".join(f"- {tc}" for tc in req["test_cases"])
-        parts.append(f"Test Cases:\n{test_cases_block}")
-    return "\n\n".join(parts)
+        lines.append(r"\b Test Cases:\b0\par")
+        for i, tc in enumerate(req["test_cases"], 1):
+            lines.append(r"\li720\fi-360 " + f"{i}.\\tab " + rtf_escape(tc) + r"\par")
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def build_notes(repo, req):
+    """Compose the EA Notes field in EA's internal rich-text format, via
+    Repository.GetFieldFromFormat (direct assignment of RTF is not
+    interpreted by EA — it shows the raw control codes as literal text)."""
+    return repo.GetFieldFromFormat("RTF", build_notes_rtf(req))
 
 
 def find_package(parent, name):
@@ -245,7 +274,7 @@ def main():
                 if existing.Alias != req["alias"]:
                     changes["Alias"] = (existing.Alias, req["alias"])
                     existing.Alias = req["alias"]
-                notes_text = build_notes(req)
+                notes_text = build_notes(repo, req)
                 if (existing.Notes or "").strip() != notes_text:
                     changes["Notes"] = ((existing.Notes or "").strip(), notes_text)
                     existing.Notes = notes_text
@@ -280,7 +309,7 @@ def main():
                 # Create new
                 new_el = pkg.Elements.AddNew(req["name"], "Requirement")
                 new_el.Alias = req["alias"]
-                new_el.Notes = build_notes(req)
+                new_el.Notes = build_notes(repo, req)
                 new_el.Status = req["status"]
                 new_el.Version = req["version"]
                 new_el.Update()

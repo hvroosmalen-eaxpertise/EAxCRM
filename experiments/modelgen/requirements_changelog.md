@@ -1,3 +1,241 @@
+## 2026-07-07 14:07:14 — Audit
+
+### Checkpoints
+- Parsed MD
+- Diagram complete
+
+### Updated
+| eid | Name | Type | GUID | Changes |
+|-----|------|------|------|---------|
+| eaxcrmmustsupporttheprocurementprocess | EAxCRM must support the procurement process | Requirement | {119DE89A-BFF5-44ab-AC67-6FC9DB0F8C10} | Notes: The system shall manage the end-to-end procurement workflow from receiving a supplier quote, creating a purchase record, and recording the incoming invoice. -> The system shall manage the end-to-end procurement workflow from receiving a supplier quote, creating a purchase record, and recording the incoming invoice.
+
+ |
+| eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder | EAxCRM must manage Customer organizations and their Contacts with specific roles (Primary, Purchase, Sales, License Holder) | Requirement | {C8A09A87-5B2B-4d72-896F-77C079F7C2DA} | Notes: The system shall store customer organizations and their associated contacts, each with one or more roles that determine their function in the CRM workflow. -> The system shall store customer organizations and their associated contacts, each with one or more roles that determine their function in the CRM workflow.
+
+ |
+| eaxcrmmustusesqliteasitsdatabasebackend | EAxCRM must use SQLite as its database backend | Requirement | {30EA2FCA-BEA7-4fd7-A7E8-F5ECD78B8ADF} | Notes: The system shall use a file-based SQLite database suitable for deployment on a QNAP NAS without requiring a separate database server. -> The system shall use a file-based SQLite database suitable for deployment on a QNAP NAS without requiring a separate database server.
+
+ |
+| eaxcrmmustsupportcomposingnewslettersfromscrapedarticlesonsparxsystemscomandsparxsystemseu | EAxCRM must support composing newsletters from scraped articles on SparxSystems.com and sparxsystems.eu | Requirement | {153BD677-35A4-4252-BEC1-20B170577F99} | Notes: The system shall scrape news articles from SparxSystems.com and sparxsystems.eu and allow composing an EAxNewsletter from selected article summaries and links. -> The system shall scrape news articles from SparxSystems.com and sparxsystems.eu and allow composing an EAxNewsletter from selected article summaries and links.
+
+ |
+| eaxcrmmustsupportthesalesprocess | EAXCRM must support the sales process | Requirement | {0475B655-DAC3-4672-A10B-4B1C42DC4E44} | Notes: The system shall manage the sales workflow from creating an Offer to generating a SalesInvoice for the customer. -> The system shall manage the sales workflow from creating an Offer to generating a SalesInvoice for the customer.
+
+ |
+| eaxcrmmustprovideaviewofallcustomerlicenseentitlementswithstartexpirydates | EAxCRM must provide a view of all customer license entitlements with start/expiry dates | Requirement | {695AC932-66C2-43d0-B242-A9BE87C30800} | Notes: The system shall display a consolidated view of each customer's active and expired license entitlements including their start and end dates. -> The system shall display a consolidated view of each customer's active and expired license entitlements including their start and end dates.
+
+ |
+| eaxcrmmustrecorddeliveryemailscontaininglicensefilesandorserviceagreements | EAxCRM must record delivery emails containing license files and/or service agreements | Requirement | {2553EA37-D4C2-4c1c-BA2B-65ADD9C06F80} | Notes: The system shall store delivery emails sent to customers that contain license registration files and/or service agreement documents. -> The system shall store delivery emails sent to customers that contain license registration files and/or service agreement documents.
+
+ |
+| eaxcrmmustsupportdraganddropdocumentingestionthatautomaticallyparsesandfillsentities | EAxCRM must support drag-and-drop document ingestion that automatically parses and fills entities | Requirement | {7248B806-6768-40d0-87E7-FEDE7509892A} | Notes: The system shall allow a user to drag and drop a document (PDF, TXT, email file) onto the UI, which then automatically parses the content and populates the correct entities (License, LicenseLineItem, Service, Quote, ProcurementInvoice, Communication, Contact) as accurately as possible, reducing manual data entry. -> The system shall allow a user to drag and drop a document (PDF, TXT, email file) onto the UI, which then automatically parses the content and populates the correct entities (License, LicenseLineItem, Service, Quote, ProcurementInvoice, Communication, Contact) as accurately as possible, reducing manual data entry.
+
+ |
+| procurementcanbedoneviamultipleparties | Procurement can be done via multiple parties | Requirement | {506DEB0C-8BE3-4a76-B52E-E00F3DBB672E} | Notes: There are several suppliers to EAxpertise. -> There are several suppliers to EAxpertise.
+
+ |
+| eaxcrmmustdetectserviceexpiryandnotifytheuserwhenrenewalisneeded | EAxCRM must detect service expiry and notify the user when renewal is needed | Requirement | {992E6F5B-B58C-4342-9CDE-E2B500446150} | Notes: The system shall monitor service expiry dates and alert the user when a service needs renewal, using the expiry_month and renewal_notice_sent fields. -> The system shall monitor service expiry dates and alert the user when a service needs renewal, using the expiry_month and renewal_notice_sent fields.
+
+ |
+| eaxcrmmustdistinguishprocuredservicesresoldfromavendorfromeaxpertisesownservices | EAxCRM must distinguish procured services (resold, from a Vendor) from EAxpertise's own services | Requirement | {703B044E-64E9-4d7c-BDC4-BB81228306A6} | Notes: The system shall allow services to be marked as either procured from an external vendor or provided directly by EAxpertise. -> The system shall allow services to be marked as either procured from an external vendor or provided directly by EAxpertise.
+
+ |
+| eaxcrmmustencryptsensitivedatapasswordsatrest | EAxCRM must encrypt sensitive data (passwords) at rest | Requirement | {F6EFB60E-E9F5-4ea1-8EBD-49692050E063} | Notes: The system shall encrypt stored passwords and other sensitive credentials, such as IMAP account passwords, in the database. -> The system shall encrypt stored passwords and other sensitive credentials, such as IMAP account passwords, in the database.
+
+ |
+| eaxcrmmustenforceadraftreviewsendworkflowwithmanualapproval | EAxCRM must enforce a Draft -> Review -> Send workflow with manual approval | Requirement | {8B155267-3A23-4059-B049-269CB4A7E809} | Notes: The system shall require newsletters to go through three states: Draft (composition), Review (manual approval), and Sent (dispatch). -> The system shall require newsletters to go through three states: Draft (composition), Review (manual approval), and Sent (dispatch).
+
+ |
+| eaxcrmmustenforceaminimum6weekintervalbetweennewsletters | EAxCRM must enforce a minimum 6-week interval between newsletters | Requirement | {1016A374-E514-4b33-896D-88A4F0646BC5} | Notes: The system shall prevent sending newsletters more frequently than once every six weeks to maintain appropriate communication cadence. -> The system shall prevent sending newsletters more frequently than once every six weeks to maintain appropriate communication cadence.
+
+ |
+| eaxcrmmustextractandstorelicenseentitlementsfromemailattachmentspdftxt | EAxCRM must extract and store license entitlements from email attachments (PDF/TXT) | Requirement | {670E2717-2306-45cd-A3FC-F6F8CF33D0F6} | Notes: The system shall parse PDF and TXT email attachments to extract license entitlement details and store them as License records. -> The system shall parse PDF and TXT email attachments to extract license entitlement details and store them as License records.
+
+ |
+| eaxcrmmustlinkdeliveriestothecustomerthesalesinvoicetheyfulfillandtheattachmentsincluded | EAxCRM must link deliveries to the Customer, the SalesInvoice they fulfill, and the attachments included | Requirement | {55A87EA4-3D17-4a2a-8DE6-DB0F1B57DA91} | Notes: The system shall associate each delivery record with the customer it was sent to, the sales invoice it fulfills, and the license files or documents attached. -> The system shall associate each delivery record with the customer it was sent to, the sales invoice it fulfills, and the license files or documents attached.
+
+ |
+| eaxcrmmustlinkeachsalesinvoicetoitsoriginatingoffer | EAxCRM must link each SalesInvoice to its originating Offer | Requirement | {37F7E8D8-D5BD-46ec-B91A-7ED6F2E5B781} | Notes: The system shall maintain a reference from each SalesInvoice back to the Offer that generated it, ensuring auditability of the sales process. -> The system shall maintain a reference from each SalesInvoice back to the Offer that generated it, ensuring auditability of the sales process.
+
+ |
+| eaxcrmmustoperatewithoutaidependencies | EAxCRM must operate without AI dependencies | Requirement | {6A62DFB5-CBE7-4397-8640-263F0C242661} | Notes: The system shall operate entirely without AI dependencies, using traditional parsing and scraping libraries such as PyMuPDF and BeautifulSoup. -> The system shall operate entirely without AI dependencies, using traditional parsing and scraping libraries such as PyMuPDF and BeautifulSoup.
+
+ |
+| eaxcrmmustprovideadashboardofupcomingservicerenewals | EAxCRM must provide a dashboard of upcoming service renewals | Requirement | {9646F376-4EC0-4dfc-B050-239BA21CC691} | Notes: The system shall display a dashboard showing all services approaching their expiry date, sorted by urgency, to enable proactive renewal management. -> The system shall display a dashboard showing all services approaching their expiry date, sorted by urgency, to enable proactive renewal management.
+
+ |
+| eaxcrmmustprovideprocurementreportsgroupedbyvendor | EAxCRM must provide procurement reports grouped by Vendor | Requirement | {D938A51D-6BF2-4882-9B88-035B63007259} | Notes: The system shall generate reports summarizing procurements per vendor, including quote amounts, invoice totals, and payment status. -> The system shall generate reports summarizing procurements per vendor, including quote amounts, invoice totals, and payment status.
+
+ |
+| eaxcrmmustrunonwindowsfordevelopmentanddockerqnapnasforproduction | EAxCRM must run on Windows for development and Docker/QNAP NAS for production | Requirement | {82C5CC76-459B-49e5-AD85-A406DA3E2E53} | Notes: The system shall support native Windows development and Docker-based deployment on a QNAP NAS for production use. -> The system shall support native Windows development and Docker-based deployment on a QNAP NAS for production use.
+
+ |
+| eaxcrmmustshowauxthatshowsthecurrentstateofprocurement | EAxCRM must show a UX that shows the current state of Procurement | Requirement | {2FC71345-5D8C-432b-B123-CC9F89E1B818} | Notes: The system shall display the current procurement state per vendor including which quotes have been received and which invoices are paid or pending. -> The system shall display the current procurement state per vendor including which quotes have been received and which invoices are paid or pending.
+
+ |
+| eaxcrmmuststorecommunicationhistorypercustomerretrievedfrommultipleimapaccountshaneaxpertisenlsaleseaxpertisenlinfoeaxpertisenl | EAxCRM must store communication history per customer, retrieved from multiple IMAP accounts (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) | Requirement | {7DEA2FF6-9EAC-47da-BE8B-9414FAFBF5DD} | Notes: The system shall fetch and store emails from three IMAP accounts and associate them with the relevant customer for a complete communication history. -> The system shall fetch and store emails from three IMAP accounts and associate them with the relevant customer for a complete communication history.
+
+ |
+| eaxcrmmuststoredocumentsquotesinvoicesdeliverieslinkedtocustomers | EAxCRM must store documents (quotes, invoices, deliveries) linked to customers | Requirement | {3111DD70-D016-4cad-B7CC-D8FA9D63FAF0} | Notes: The system shall store customer-facing documents such as Sparx Systems quotes, incoming invoices, and delivery notes, linked to the relevant customer record. -> The system shall store customer-facing documents such as Sparx Systems quotes, incoming invoices, and delivery notes, linked to the relevant customer record.
+
+ |
+| eaxcrmmuststorevendorbankdetailsibanbicswiftpaymentcurrency | EAxCRM must store vendor bank details (IBAN, BIC/SWIFT, payment currency) | Requirement | {C7244ED6-A70C-43a2-A6C3-4A5D8AFD6A95} | Notes: The system shall record vendor bank account information including IBAN, BIC/SWIFT code, and default payment currency for invoice processing. -> The system shall record vendor bank account information including IBAN, BIC/SWIFT code, and default payment currency for invoice processing.
+
+ |
+| eaxcrmmustsupportmulticurrencyinvoiceseurusdfromsparxsystems | EAxCRM must support multi-currency invoices (EUR, USD) from Sparx Systems | Requirement | {9615BF5D-D930-4353-858D-0F75F8DA37C5} | Notes: The system shall handle incoming invoices in both EUR and USD from Sparx Systems and its subsidiaries. -> The system shall handle incoming invoices in both EUR and USD from Sparx Systems and its subsidiaries.
+
+ |
+| eaxcrmmusttracklicenserenewalslinkedtotheoriginalpurchase | EAxCRM must track license renewals linked to the original purchase | Requirement | {B1887963-752B-404c-A21E-19BBF6A32F80} | Notes: The system shall support creating renewal licenses that reference the original purchase record, enabling tracking of the full license lifecycle. -> The system shall support creating renewal licenses that reference the original purchase record, enabling tracking of the full license lifecycle.
+
+ |
+| eaxcrmmusttrackpercontactdeliverystatussentopenedbounced | EAxCRM must track per-contact delivery status (sent, opened, bounced) | Requirement | {218F552E-5931-417c-A02B-DAE8B9F69C78} | Notes: The system shall record whether each newsletter contact received, opened, or bounced the newsletter to measure engagement. -> The system shall record whether each newsletter contact received, opened, or bounced the newsletter to measure engagement.
+
+ |
+| eaxcrmmustusethedjangoadmininterfaceasitsprimaryui | EAxCRM must use the Django Admin interface as its primary UI | Requirement | {FA4583F4-87B2-4685-9904-EB9A14B63BF3} | Notes: The system shall use Django's built-in admin interface as the primary user interface for all CRM operations. -> The system shall use Django's built-in admin interface as the primary user interface for all CRM operations.
+
+ |
+| procurementcanbedoneviaabilityengineering | Procurement can be done via Ability Engineering | Requirement | {675A33C1-835A-4fda-8B97-50BA072EAFA1} | Notes: Ability Engineering is a reseller of Sparx Systems licenses, providing an alternative procurement channel. -> Ability Engineering is a reseller of Sparx Systems licenses, providing an alternative procurement channel.
+
+ |
+| procurementcanbedoneviaprolaborate | Procurement can be done via Prolaborate | Requirement | {492044AB-6D15-4455-B6D0-7C8F950480BC} | Notes: Prolaborate sells hosting services: hosting platform of Pro Cloud and EA SaaS. -> Prolaborate sells hosting services: hosting platform of Pro Cloud and EA SaaS.
+
+ |
+| procurementcanbedoneviasparxsystemseu | Procurement can be done via Sparx Systems EU | Requirement | {CEBF5E06-3BF4-4909-96A8-D91004A36647} | Notes: Sparx Systems EU is the European reseller of Sparx Systems licenses serving the EU market. -> Sparx Systems EU is the European reseller of Sparx Systems licenses serving the EU market.
+
+ |
+| procurementcanbedoneviasparxsystemsltd | Procurement can be done via Sparx Systems LTD | Requirement | {AE2C78B0-A8C3-4aef-B5AE-3C0AB921189B} | Notes: Sparx Systems LTD is the Australian headquarters and primary reseller of Sparx Systems licenses. -> Sparx Systems LTD is the Australian headquarters and primary reseller of Sparx Systems licenses.
+
+ |
+| procurementmustbetrackablepervendorwithlinkedquoteandprocurementinvoicepdfs | Procurement must be trackable per Vendor with linked Quote and ProcurementInvoice PDFs | Requirement | {5DA68B35-5206-46cb-B4D1-A38D8D655197} | Notes: The system shall allow each procurement to be tracked per vendor, with digital copies of the original quote and the incoming invoice stored as attachments. -> The system shall allow each procurement to be tracked per vendor, with digital copies of the original quote and the incoming invoice stored as attachments.
+
+ |
+| createaccountscreencreatescustomerandcontactsatomically | CreateAccountScreen: creates Customer and Contacts atomically | Requirement | {D13E63E8-1DA9-4f10-BF1C-8AFC333666C7} | Notes: The Create Customer Account screen shall create one Customer record and one or more Contact records in a single atomic save operation. A Customer must never be persisted without at least one associated Contact, since the account-creation process treats the organization and its initial contact(s) as one unit of work.
+
+Rationale:
+Matches the existing BPMN process (EAxCRM-CustomerAccountProcess.md), where account creation is modeled as one atomic activity. Prevents orphan Customer records with no way to reach anyone at the organization.
+
+Test Cases:
+- Save with 1 Customer + 1 Contact succeeds and both rows exist.
+- Save attempt with Customer fields filled but zero Contacts fails validation.
+- A mid-save failure (e.g. DB error on second Contact) rolls back the Customer too — no partial commit. -> The Create Customer Account screen shall create one Customer record and one or more Contact records in a single atomic save operation. A Customer must never be persisted without at least one associated Contact, since the account-creation process treats the organization and its initial contact(s) as one unit of work.
+
+<b>Rationale:</b>
+Matches the existing BPMN process (EAxCRM-CustomerAccountProcess.md), where account creation is modeled as one atomic activity. Prevents orphan Customer records with no way to reach anyone at the organization.
+
+<b>Test Cases:</b>
+1.	Save with 1 Customer + 1 Contact succeeds and both rows exist.
+2.	Save attempt with Customer fields filled but zero Contacts fails validation.
+3.	A mid-save failure (e.g. DB error on second Contact) rolls back the Customer too — no partial commit.
+ |
+| createaccountscreenstructuredstreetaddressorpobox | CreateAccountScreen: structured street address or PO Box | Requirement | {D356ED58-643D-45e6-BC31-CFA401E6C7D1} | Notes: The system shall record a Customer's address as either a structured street address (Street Name, House Number, Postal Code, City, Country) or an unstructured PO Box string, selected via a mode toggle on the create screen. Address is mandatory — the rep must actively locate it if not present in the source email.
+
+Rationale:
+Real-world postal addresses aren't always street-based; forcing one shape either loses PO Box customers or forces reps to cram a PO Box into a street-shaped field.
+
+Test Cases:
+- Street mode requires all five fields before save.
+- PO Box mode requires only the PO Box text field; street fields stay null.
+- Switching modes clears/ignores the other mode's fields rather than submitting both. -> The system shall record a Customer's address as either a structured street address (Street Name, House Number, Postal Code, City, Country) or an unstructured PO Box string, selected via a mode toggle on the create screen. Address is mandatory — the rep must actively locate it if not present in the source email.
+
+<b>Rationale:</b>
+Real-world postal addresses aren't always street-based; forcing one shape either loses PO Box customers or forces reps to cram a PO Box into a street-shaped field.
+
+<b>Test Cases:</b>
+1.	Street mode requires all five fields before save.
+2.	PO Box mode requires only the PO Box text field; street fields stay null.
+3.	Switching modes clears/ignores the other mode's fields rather than submitting both.
+ |
+| primarycontactruleatleastonecontactmustalwaysbeprimary | Primary Contact Rule: at least one Contact must always be Primary | Requirement | {5E968ECB-4896-45fa-9FAE-4518F9F92ECF} | Notes: Regardless of how many Contacts are entered on account creation, exactly one must carry the role Primary. This holds even when only one Contact is entered — in that case the first (and only) Contact row defaults its role to Primary automatically rather than being left blank.
+
+Rationale:
+Ensures every account always has one unambiguous point of contact, and gives a clear successor path when combined with the Secondary role (CRM-10).
+
+Test Cases:
+- Single-contact save with role left untouched saves with role = Primary.
+- Two-contact save where neither is marked Primary is rejected.
+- Two-contact save with exactly one Primary succeeds. -> Regardless of how many Contacts are entered on account creation, exactly one must carry the role Primary. This holds even when only one Contact is entered — in that case the first (and only) Contact row defaults its role to Primary automatically rather than being left blank.
+
+<b>Rationale:</b>
+Ensures every account always has one unambiguous point of contact, and gives a clear successor path when combined with the Secondary role (CRM-10).
+
+<b>Test Cases:</b>
+1.	Single-contact save with role left untouched saves with role = Primary.
+2.	Two-contact save where neither is marked Primary is rejected.
+3.	Two-contact save with exactly one Primary succeeds.
+ |
+| contactrolerulerequiredonceasecondcontactexists | Contact Role Rule: required once a second Contact exists | Requirement | {D97412A1-AF30-45ac-AE2D-E6A4A423CF65} | Notes: Role is optional only when exactly one Contact exists on the form. As soon as a second Contact row is added, role becomes a required field for every Contact on the form, including ones already entered.
+
+Rationale:
+Prevents accounts with multiple unnamed-function contacts, where reps can no longer tell who does what.
+
+Test Cases:
+- One contact, role left at its default, saves fine (subject to CRM-8).
+- Add a second contact, leave either role blank — save is rejected.
+- Fill both roles — save succeeds. -> Role is optional only when exactly one Contact exists on the form. As soon as a second Contact row is added, role becomes a required field for every Contact on the form, including ones already entered.
+
+<b>Rationale:</b>
+Prevents accounts with multiple unnamed-function contacts, where reps can no longer tell who does what.
+
+<b>Test Cases:</b>
+1.	One contact, role left at its default, saves fine (subject to CRM-8).
+2.	Add a second contact, leave either role blank — save is rejected.
+3.	Fill both roles — save succeeds.
+ |
+| contactrolerulesecondaryroleadded | Contact Role Rule: Secondary role added | Requirement | {D37E1D4E-051B-455c-8B98-23F98FC4A551} | Notes: The Contact role choices shall include Secondary, alongside Primary/Purchase/Sales/License Holder. Secondary denotes a colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties, and is the expected successor role if the Primary contact leaves the organization.
+
+Rationale:
+Organizations commonly designate a backup point of contact; without this role it would be miscategorized as Purchase/Sales or left blank, losing the succession signal.
+
+Test Cases:
+- Role dropdown lists Secondary as a selectable option.
+- A Contact saved with role=Secondary persists and displays correctly.
+- Filtering/reporting by role can isolate Secondary contacts. -> The Contact role choices shall include Secondary, alongside Primary/Purchase/Sales/License Holder. Secondary denotes a colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties, and is the expected successor role if the Primary contact leaves the organization.
+
+<b>Rationale:</b>
+Organizations commonly designate a backup point of contact; without this role it would be miscategorized as Purchase/Sales or left blank, losing the succession signal.
+
+<b>Test Cases:</b>
+1.	Role dropdown lists Secondary as a selectable option.
+2.	A Contact saved with role=Secondary persists and displays correctly.
+3.	Filtering/reporting by role can isolate Secondary contacts.
+ |
+| newsletterconsentruleoptindefaultstofalse | Newsletter Consent Rule: opt-in defaults to false | Requirement | {EAAD0687-E661-4943-93EB-86376B3FA8EF} | Notes: Contact.opt_in shall default to False when created via Create Customer Account, and shall only be set True if the rep has explicit evidence of consent in the source email. The same field must remain independently editable later via the existing Suggest Newsletter Opt-in screen.
+
+Rationale:
+Marketing consent is a legal/compliance flag and must never be inferred just because a customer initiated contact; giving reps two deliberate checkpoints (creation-time and a later prompt) increases the chance of capturing real consent without ever defaulting to true.
+
+Test Cases:
+- New Contact via create screen has opt_in=False when the checkbox is left untouched.
+- Checking the box at creation sets opt_in=True and stamps opt_in_date.
+- opt_in can later be toggled from the Suggest Newsletter Opt-in screen independent of the create screen's state. -> Contact.opt_in shall default to False when created via Create Customer Account, and shall only be set True if the rep has explicit evidence of consent in the source email. The same field must remain independently editable later via the existing Suggest Newsletter Opt-in screen.
+
+<b>Rationale:</b>
+Marketing consent is a legal/compliance flag and must never be inferred just because a customer initiated contact; giving reps two deliberate checkpoints (creation-time and a later prompt) increases the chance of capturing real consent without ever defaulting to true.
+
+<b>Test Cases:</b>
+1.	New Contact via create screen has opt_in=False when the checkbox is left untouched.
+2.	Checking the box at creation sets opt_in=True and stamps opt_in_date.
+3.	opt_in can later be toggled from the Suggest Newsletter Opt-in screen independent of the create screen's state.
+ |
+| createaccountscreennotesandphonecapturableatcreation | CreateAccountScreen: notes and phone capturable at creation | Requirement | {0EF04071-8682-4579-A08F-8A4F75EE8713} | Notes: The create screen shall include optional fields for Customer.notes (free text) and Contact.phone, since both are sometimes directly available in the source email (footer/signature) and cheaper to capture immediately than via a later edit step.
+
+<b>Rationale:</b>
+Reduces follow-up data-entry work when the information is already visible to the rep; both remain optional since they're often absent from a first email.
+
+<b>Test Cases:</b>
+1.	Save succeeds with both fields blank.
+2.	Save succeeds with notes and/or phone filled in.
+3.	Values persist correctly on the respective Customer/Contact records. -> The create screen shall include optional fields for Customer.notes (free text) and Contact.phone, since both are sometimes directly available in the source email (footer/signature) and cheaper to capture immediately than via a later edit step.
+
+<b>Rationale:</b>
+Reduces follow-up data-entry work when the information is already visible to the rep; both remain optional since they're often absent from a first email.
+
+<b>Test Cases:</b>
+1.	Save succeeds with both fields blank.
+2.	Save succeeds with notes and/or phone filled in.
+3.	Values persist correctly on the respective Customer/Contact records.
+ |
+
 ## 2026-07-07 12:13:41 — Audit
 
 ### Checkpoints

@@ -386,7 +386,7 @@
 - Entities: Contact, Customer
 - Status: Proposed
 - Version: 1.0
-- GUID: {2D6BEC57-8134-4F3D-A8DC-F9D6A615F683}
+- GUID: {D13E63E8-1DA9-4f10-BF1C-8AFC333666C7}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -402,7 +402,7 @@
 - Entities: Customer
 - Status: Proposed
 - Version: 1.0
-- GUID: {856EE885-BA66-4377-A6D0-118E6A70A423}
+- GUID: {D356ED58-643D-45e6-BC31-CFA401E6C7D1}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -418,7 +418,7 @@
 - Entities: Contact, Customer
 - Status: Proposed
 - Version: 1.0
-- GUID: {E8BC3DBD-5F67-4536-BEB9-8C8FBA7B3A72}
+- GUID: {5E968ECB-4896-45fa-9FAE-4518F9F92ECF}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -434,7 +434,7 @@
 - Entities: Contact
 - Status: Proposed
 - Version: 1.0
-- GUID: {610277CF-CB91-4CCD-A438-FEC4EDBE9108}
+- GUID: {D97412A1-AF30-45ac-AE2D-E6A4A423CF65}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -450,7 +450,7 @@
 - Entities: Contact
 - Status: Proposed
 - Version: 1.0
-- GUID: {789B0062-94CE-44BC-B5D1-A8A1039D6670}
+- GUID: {D37E1D4E-051B-455c-8B98-23F98FC4A551}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -466,7 +466,7 @@
 - Entities: Contact
 - Status: Proposed
 - Version: 1.0
-- GUID: {1A90DB44-FBB0-49D7-9822-1441013A6F1F}
+- GUID: {EAAD0687-E661-4943-93EB-86376B3FA8EF}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
@@ -482,7 +482,7 @@
 - Entities: Contact, Customer
 - Status: Proposed
 - Version: 1.0
-- GUID: {6884068D-36D2-493B-8DC2-C41C1E00ACDF}
+- GUID: {0EF04071-8682-4579-A08F-8A4F75EE8713}
 - Parents:
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 

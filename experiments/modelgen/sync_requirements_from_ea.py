@@ -136,11 +136,12 @@ def main():
         for el in sorted_elements:
             rid = safe_id(el.Name)
             notes = (el.Notes or "").strip()
-            # Notes may contain "Rationale:" / "Test Cases:" sections appended
-            # after the description (see build_notes() in the generator) —
-            # those are sourced from Tagged Values below, so strip them here
-            # to avoid duplicating them into the Description field.
-            notes = re.split(r"\n\nRationale:", notes)[0].strip()
+            # Notes may contain bold "Rationale:" / "Test Cases:" sections
+            # appended after the description (see build_notes() in the
+            # generator, which renders them as EA rich text) — those are
+            # sourced from Tagged Values below, so strip them here to avoid
+            # duplicating them into the Description field.
+            notes = re.split(r"\r?\n\r?\n<b>Rationale:</b>", notes)[0].strip()
 
             el.TaggedValues.Refresh()
             rationale = ""
