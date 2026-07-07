@@ -136,6 +136,21 @@ def main():
         for el in sorted_elements:
             rid = safe_id(el.Name)
             notes = (el.Notes or "").strip()
+            # Notes may contain "Rationale:" / "Test Cases:" sections appended
+            # after the description (see build_notes() in the generator) —
+            # those are sourced from Tagged Values below, so strip them here
+            # to avoid duplicating them into the Description field.
+            notes = re.split(r"\n\nRationale:", notes)[0].strip()
+
+            el.TaggedValues.Refresh()
+            rationale = ""
+            test_cases = []
+            for i in range(el.TaggedValues.Count):
+                tv = el.TaggedValues.GetAt(i)
+                if tv.Name == "Rationale":
+                    rationale = (tv.Value or "").strip()
+                elif tv.Name == "TestCases":
+                    test_cases = [t for t in (tv.Value or "").split("\n") if t.strip()]
 
             lines.append(f"### Requirement\u2014{rid}")
             lines.append(f"- Name: {el.Name}")
@@ -144,6 +159,12 @@ def main():
             if notes:
                 notes_clean = " ".join(notes.split())
                 lines.append(f"- Description: {notes_clean}")
+            if rationale:
+                lines.append(f"- Rationale: {' '.join(rationale.split())}")
+            if test_cases:
+                lines.append("- Test Cases:")
+                for tc in test_cases:
+                    lines.append(f"  - {tc.strip()}")
             entity_names = entities_of.get(el.ElementID)
             if entity_names:
                 lines.append(f"- Entities: {', '.join(sorted(entity_names))}")

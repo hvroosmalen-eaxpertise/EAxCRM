@@ -21,6 +21,7 @@ def parse_md(path):
 
     requirements = []
     current = None
+    list_target = None  # tracks which multi-line list field subsequent "  - " lines belong to
 
     for line in lines:
         line = line.rstrip()
@@ -30,7 +31,9 @@ def parse_md(path):
             if current:
                 requirements.append(current)
             current = {"id": m.group(1), "name": "", "alias": "", "description": "",
+                       "rationale": "", "test_cases": [],
                        "status": "Proposed", "version": "1.0", "guid": "", "parents": []}
+            list_target = None
             continue
         if current is None:
             continue
@@ -39,39 +42,62 @@ def parse_md(path):
         m = re.match(r"^- Name:\s*(.*)", line)
         if m:
             current["name"] = m.group(1).strip()
+            list_target = None
             continue
         m = re.match(r"^- ID:\s*(.*)", line)
         if m:
             current["alias"] = m.group(1).strip()
+            list_target = None
             continue
         m = re.match(r"^- Description:\s*(.*)", line)
         if m:
             current["description"] = m.group(1).strip()
+            list_target = None
+            continue
+        m = re.match(r"^- Rationale:\s*(.*)", line)
+        if m:
+            current["rationale"] = m.group(1).strip()
+            list_target = None
+            continue
+        m = re.match(r"^- Test Cases:\s*(.*)", line)
+        if m:
+            list_target = "test_cases"
             continue
         m = re.match(r"^- Status:\s*(.*)", line)
         if m:
             current["status"] = m.group(1).strip()
+            list_target = None
             continue
         m = re.match(r"^- Version:\s*(.*)", line)
         if m:
             current["version"] = m.group(1).strip()
+            list_target = None
             continue
         m = re.match(r"^- GUID:\s*(.*)", line)
         if m:
             current["guid"] = m.group(1).strip()
+            list_target = None
             continue
         m = re.match(r"^- Entities:\s*(.*)", line)
         if m:
             entities_str = m.group(1).strip()
             if entities_str:
                 current["entities"] = [e.strip() for e in entities_str.split(",")]
+            list_target = None
+            continue
+        m = re.match(r"^- Parents:\s*(.*)", line)
+        if m:
+            list_target = "parents"
             continue
         m = re.match(r"^\s{2}-\s+(.+)", line)
-        if m and len(line) > 4 and line.startswith("  - "):
-            # Parent reference under "Parents:"
-            parent_id = m.group(1).strip()
-            if parent_id and parent_id != "(none \u2014 top-level)":
-                current.setdefault("parents", []).append(parent_id)
+        if m and len(line) > 4 and line.startswith("  - ") and list_target:
+            item = m.group(1).strip()
+            if list_target == "parents":
+                if item and item != "(none \u2014 top-level)":
+                    current.setdefault("parents", []).append(item)
+            elif list_target == "test_cases":
+                if item:
+                    current.setdefault("test_cases", []).append(item)
 
     if current:
         requirements.append(current)
@@ -89,6 +115,37 @@ def save_guid_map(guid_map):
     with open(GUID_MAP_PATH, "w", encoding="utf-8") as f:
         json.dump(guid_map, f, indent=2)
     print(f"Saved {len(guid_map)} GUID mappings to {GUID_MAP_PATH}")
+
+
+def set_tagged_value(elem, tag_name, value):
+    """Set a Tagged Value on elem, updating in place if it already exists
+    (avoids duplicate tags on repeated syncs). Returns True if changed."""
+    elem.TaggedValues.Refresh()
+    for i in range(elem.TaggedValues.Count):
+        tv = elem.TaggedValues.GetAt(i)
+        if tv.Name == tag_name:
+            if (tv.Value or "") != value:
+                tv.Value = value
+                tv.Update()
+                return True
+            return False
+    if value:
+        tv = elem.TaggedValues.AddNew(tag_name, value)
+        tv.Update()
+        return True
+    return False
+
+
+def build_notes(req):
+    """Compose the EA Notes text: Description, then Rationale and Test Cases
+    sections with headers, so they're all visible together on the element."""
+    parts = [req["description"]]
+    if req.get("rationale"):
+        parts.append(f"Rationale:\n{req['rationale']}")
+    if req.get("test_cases"):
+        test_cases_block = "\n".join(f"- {tc}" for tc in req["test_cases"])
+        parts.append(f"Test Cases:\n{test_cases_block}")
+    return "\n\n".join(parts)
 
 
 def find_package(parent, name):
@@ -188,15 +245,21 @@ def main():
                 if existing.Alias != req["alias"]:
                     changes["Alias"] = (existing.Alias, req["alias"])
                     existing.Alias = req["alias"]
-                if (existing.Notes or "").strip() != req["description"]:
-                    changes["Notes"] = ((existing.Notes or "").strip(), req["description"])
-                    existing.Notes = req["description"]
+                notes_text = build_notes(req)
+                if (existing.Notes or "").strip() != notes_text:
+                    changes["Notes"] = ((existing.Notes or "").strip(), notes_text)
+                    existing.Notes = notes_text
                 if existing.Status != req["status"]:
                     changes["Status"] = (existing.Status, req["status"])
                     existing.Status = req["status"]
                 if existing.Version != req["version"]:
                     changes["Version"] = (existing.Version, req["version"])
                     existing.Version = req["version"]
+                if set_tagged_value(existing, "Rationale", req.get("rationale", "")):
+                    changes["Rationale"] = req.get("rationale", "")
+                test_cases_str = "\n".join(req.get("test_cases", []))
+                if set_tagged_value(existing, "TestCases", test_cases_str):
+                    changes["TestCases"] = test_cases_str
                 if changes:
                     existing.Update()
                     print(f"  Updated {req['alias']:8s}  {req['name']}")
@@ -217,10 +280,12 @@ def main():
                 # Create new
                 new_el = pkg.Elements.AddNew(req["name"], "Requirement")
                 new_el.Alias = req["alias"]
-                new_el.Notes = req["description"]
+                new_el.Notes = build_notes(req)
                 new_el.Status = req["status"]
                 new_el.Version = req["version"]
                 new_el.Update()
+                set_tagged_value(new_el, "Rationale", req.get("rationale", ""))
+                set_tagged_value(new_el, "TestCases", "\n".join(req.get("test_cases", [])))
                 pkg.Elements.Refresh()
 
                 # Store GUID mapping
@@ -381,7 +446,7 @@ def main():
                 print("  Diagram already has all requirements — preserving manual layout")
 
         # --- Entity → Requirement connectors (Realisation) ---
-        print("\n--- Entity → Requirement Realizations ---")
+        print("\n--- Entity -> Requirement Realizations ---")
 
         # Find the EAxCRM Data Model package
         dm_pkg = None

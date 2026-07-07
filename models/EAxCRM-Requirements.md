@@ -374,3 +374,115 @@
 - Parents:
   - eaxcrmmustsupporttheprocurementprocess
 
+### Requirement—createaccountscreencreatescustomerandcontactsatomically
+- Name: CreateAccountScreen: creates Customer and Contacts atomically
+- ID: CRM-6
+- Description: The Create Customer Account screen shall create one Customer record and one or more Contact records in a single atomic save operation. A Customer must never be persisted without at least one associated Contact, since the account-creation process treats the organization and its initial contact(s) as one unit of work.
+- Rationale: Matches the existing BPMN process (EAxCRM-CustomerAccountProcess.md), where account creation is modeled as one atomic activity. Prevents orphan Customer records with no way to reach anyone at the organization.
+- Test Cases:
+  - Save with 1 Customer + 1 Contact succeeds and both rows exist.
+  - Save attempt with Customer fields filled but zero Contacts fails validation.
+  - A mid-save failure (e.g. DB error on second Contact) rolls back the Customer too — no partial commit.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {2D6BEC57-8134-4F3D-A8DC-F9D6A615F683}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—createaccountscreenstructuredstreetaddressorpobox
+- Name: CreateAccountScreen: structured street address or PO Box
+- ID: CRM-7
+- Description: The system shall record a Customer's address as either a structured street address (Street Name, House Number, Postal Code, City, Country) or an unstructured PO Box string, selected via a mode toggle on the create screen. Address is mandatory — the rep must actively locate it if not present in the source email.
+- Rationale: Real-world postal addresses aren't always street-based; forcing one shape either loses PO Box customers or forces reps to cram a PO Box into a street-shaped field.
+- Test Cases:
+  - Street mode requires all five fields before save.
+  - PO Box mode requires only the PO Box text field; street fields stay null.
+  - Switching modes clears/ignores the other mode's fields rather than submitting both.
+- Entities: Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {856EE885-BA66-4377-A6D0-118E6A70A423}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—primarycontactruleatleastonecontactmustalwaysbeprimary
+- Name: Primary Contact Rule: at least one Contact must always be Primary
+- ID: CRM-8
+- Description: Regardless of how many Contacts are entered on account creation, exactly one must carry the role Primary. This holds even when only one Contact is entered — in that case the first (and only) Contact row defaults its role to Primary automatically rather than being left blank.
+- Rationale: Ensures every account always has one unambiguous point of contact, and gives a clear successor path when combined with the Secondary role (CRM-10).
+- Test Cases:
+  - Single-contact save with role left untouched saves with role = Primary.
+  - Two-contact save where neither is marked Primary is rejected.
+  - Two-contact save with exactly one Primary succeeds.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {E8BC3DBD-5F67-4536-BEB9-8C8FBA7B3A72}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—contactrolerulerequiredonceasecondcontactexists
+- Name: Contact Role Rule: required once a second Contact exists
+- ID: CRM-9
+- Description: Role is optional only when exactly one Contact exists on the form. As soon as a second Contact row is added, role becomes a required field for every Contact on the form, including ones already entered.
+- Rationale: Prevents accounts with multiple unnamed-function contacts, where reps can no longer tell who does what.
+- Test Cases:
+  - One contact, role left at its default, saves fine (subject to CRM-8).
+  - Add a second contact, leave either role blank — save is rejected.
+  - Fill both roles — save succeeds.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {610277CF-CB91-4CCD-A438-FEC4EDBE9108}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—contactrolerulesecondaryroleadded
+- Name: Contact Role Rule: Secondary role added
+- ID: CRM-10
+- Description: The Contact role choices shall include Secondary, alongside Primary/Purchase/Sales/License Holder. Secondary denotes a colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties, and is the expected successor role if the Primary contact leaves the organization.
+- Rationale: Organizations commonly designate a backup point of contact; without this role it would be miscategorized as Purchase/Sales or left blank, losing the succession signal.
+- Test Cases:
+  - Role dropdown lists Secondary as a selectable option.
+  - A Contact saved with role=Secondary persists and displays correctly.
+  - Filtering/reporting by role can isolate Secondary contacts.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {789B0062-94CE-44BC-B5D1-A8A1039D6670}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—newsletterconsentruleoptindefaultstofalse
+- Name: Newsletter Consent Rule: opt-in defaults to false
+- ID: CRM-11
+- Description: Contact.opt_in shall default to False when created via Create Customer Account, and shall only be set True if the rep has explicit evidence of consent in the source email. The same field must remain independently editable later via the existing Suggest Newsletter Opt-in screen.
+- Rationale: Marketing consent is a legal/compliance flag and must never be inferred just because a customer initiated contact; giving reps two deliberate checkpoints (creation-time and a later prompt) increases the chance of capturing real consent without ever defaulting to true.
+- Test Cases:
+  - New Contact via create screen has opt_in=False when the checkbox is left untouched.
+  - Checking the box at creation sets opt_in=True and stamps opt_in_date.
+  - opt_in can later be toggled from the Suggest Newsletter Opt-in screen independent of the create screen's state.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {1A90DB44-FBB0-49D7-9822-1441013A6F1F}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—createaccountscreennotesandphonecapturableatcreation
+- Name: CreateAccountScreen: notes and phone capturable at creation
+- ID: CRM-12
+- Description: The create screen shall include optional fields for Customer.notes (free text) and Contact.phone, since both are sometimes directly available in the source email (footer/signature) and cheaper to capture immediately than via a later edit step.
+- Rationale: Reduces follow-up data-entry work when the information is already visible to the rep; both remain optional since they're often absent from a first email.
+- Test Cases:
+  - Save succeeds with both fields blank.
+  - Save succeeds with notes and/or phone filled in.
+  - Values persist correctly on the respective Customer/Contact records.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {6884068D-36D2-493B-8DC2-C41C1E00ACDF}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
