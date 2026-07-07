@@ -42,6 +42,16 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+## Testing
+
+The Django app has no test suite yet. `experiments/modelgen/` has pytest coverage:
+
+```bash
+cd experiments/modelgen
+pytest test_pure_functions.py          # pure logic, any platform, no EA needed
+pytest -m ea test_generators_regression.py   # Windows + EA required; runs generators against a sandboxed EAxCRM.qea copy
+```
+
 ## Project Structure
 
 ```
@@ -52,7 +62,9 @@ EAxCRM/
 ├── models/             # Sparx EA model files (.qea, .md) — see models/README.md
 ├── experiments/        # Isolated POCs (IMAP, PDF parsing, modelgen)
 │   ├── modelgen/       # Model generators (Markdown ↔ Sparx EA: data model, requirements, BPMN process)
-│   │   └── changelog.py        # Structured audit logging (per-run Markdown, prepend, size cap)
+│   │   ├── changelog.py        # Structured audit logging (per-run Markdown, prepend, size cap)
+│   │   ├── test_pure_functions.py       # Layout math, MD parsing, graph algorithms — no EA needed
+│   │   ├── test_generators_regression.py # Runs each generator against a sandboxed EAxCRM.qea copy
 │   │   ├── archimate_changelog.md
 │   │   ├── uml_datamodel_changelog.md
 │   │   ├── requirements_changelog.md
