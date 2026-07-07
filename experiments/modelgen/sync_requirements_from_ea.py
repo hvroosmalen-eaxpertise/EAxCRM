@@ -52,7 +52,11 @@ def main():
     pkg = find_package(root, "EAxCRM Requirements")
     if not pkg:
         print("FAIL: 'EAxCRM Requirements' package not found")
-        repo.CloseFile()
+        with ea_session.hang_guard(ea_session.get_ea_pids() - before_pids):
+            try:
+                repo.CloseFile()
+            except Exception:
+                pass
         ea_session.kill_new_ea_processes(before_pids)
         sys.exit(1)
 
@@ -208,15 +212,15 @@ def main():
         print("Done.")
 
     finally:
-        try:
-            repo.CloseFile()
-        except:
-            pass
-
-    # Kill zombie EA processes created by this script
-    killed = ea_session.kill_new_ea_processes(before_pids)
-    if killed:
-        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
+        with ea_session.hang_guard(ea_session.get_ea_pids() - before_pids):
+            try:
+                repo.CloseFile()
+            except:
+                pass
+        # Kill zombie EA processes created by this script
+        killed = ea_session.kill_new_ea_processes(before_pids)
+        if killed:
+            print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
 
 if __name__ == "__main__":

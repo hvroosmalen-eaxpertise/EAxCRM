@@ -611,19 +611,20 @@ def main():
         clog.close()
 
     finally:
-        try:
-            repo.RefreshModelView(0)  # Full model tree refresh
-            repo.RefreshOpenDiagrams(True)
-        except Exception as e:
-            print(f"  [refresh] RefreshModelView(0) failed: {e}")
-        try:
-            repo.CloseFile()
-        except:
-            pass
-
-    killed = ea_session.kill_new_ea_processes(before_pids)
-    if killed:
-        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
+        spawned_pids = ea_session.get_ea_pids() - before_pids
+        with ea_session.hang_guard(spawned_pids):
+            try:
+                repo.RefreshModelView(0)  # Full model tree refresh
+                repo.RefreshOpenDiagrams(True)
+            except Exception as e:
+                print(f"  [refresh] RefreshModelView(0) failed: {e}")
+            try:
+                repo.CloseFile()
+            except:
+                pass
+        killed = ea_session.kill_new_ea_processes(before_pids)
+        if killed:
+            print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
     print("\nDone. Open EAxCRM.qea in Sparx EA to view.")
 

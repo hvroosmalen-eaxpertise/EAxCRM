@@ -12,10 +12,48 @@ instead of spawning a clean one. That contention was the suspected cause of
 EA's "Internal application error 61704" on repo.Models.GetAt(0).
 """
 import subprocess
+import threading
 import time
 from contextlib import contextmanager
 
 import win32com.client
+
+
+@contextmanager
+def hang_guard(pids, timeout=90):
+    """Force-kill `pids` if the wrapped block hasn't finished within `timeout`.
+
+    Some EA COM calls (RefreshModelView/RefreshOpenDiagrams, CloseFile) have
+    been observed to hang indefinitely -- not raise, just never return -- with
+    no way to detect or interrupt the call itself. try/except is useless
+    against this since nothing is thrown.
+
+    The watchdog thread only ever runs `taskkill` (a plain OS command), never
+    touches the COM object -- COM objects are apartment-threaded (STA) and
+    calling one from a thread that didn't create it either fails outright or
+    corrupts state, so the watchdog must never call into `repo` itself.
+    Killing the EA.exe process out from under a blocked win32com call has
+    been confirmed (2026-07-07 incident) to reliably unblock it: the pending
+    call raises (caught by the surrounding try/except in the wrapped block)
+    rather than hanging forever.
+    """
+    cancelled = threading.Event()
+
+    def _watchdog():
+        if not cancelled.wait(timeout):
+            for pid in pids:
+                try:
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                                    capture_output=True, timeout=5)
+                except Exception:
+                    pass
+
+    t = threading.Thread(target=_watchdog, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        cancelled.set()
 
 
 def get_ea_pids():
@@ -68,15 +106,17 @@ def ea_repository(qea_path, technology=None):
     try:
         yield repo
     finally:
-        try:
-            repo.RefreshModelView(0)
-            repo.RefreshOpenDiagrams(True)
-        except Exception as e:
-            print(f"  [refresh] RefreshModelView(0) failed: {e}", flush=True)
-        try:
-            repo.CloseFile()
-        except Exception:
-            pass
+        spawned_pids = get_ea_pids() - before_pids
+        with hang_guard(spawned_pids):
+            try:
+                repo.RefreshModelView(0)
+                repo.RefreshOpenDiagrams(True)
+            except Exception as e:
+                print(f"  [refresh] RefreshModelView(0) failed: {e}", flush=True)
+            try:
+                repo.CloseFile()
+            except Exception:
+                pass
         killed = kill_new_ea_processes(before_pids)
         if killed:
             print(f"  Cleaned up {len(killed)} zombie EA process(es)", flush=True)

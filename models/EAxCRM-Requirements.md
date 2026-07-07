@@ -8,6 +8,11 @@
 - Name: EAxCRM must support the procurement process
 - ID: PRO-1
 - Description: The system shall manage the end-to-end procurement workflow from receiving a supplier quote, creating a purchase record, and recording the incoming invoice.
+- Rationale: Every license/service EAxpertise resells is first procured from a vendor; without a structured procurement record there's no way to reconcile what was bought, at what cost, against what's later sold or entitled to a customer.
+- Test Cases:
+  - A Quote can be linked to a Purchase and the Purchase linked to a ProcurementInvoice, forming a complete chain.
+  - A Purchase cannot be created without a Vendor.
+  - The procurement workflow state (quote received → purchased → invoiced) is visible per Purchase.
 - Entities: ProcurementInvoice, Purchase, Quote, Vendor
 - Status: Approved
 - Version: 1.0
@@ -19,6 +24,11 @@
 - Name: EAxCRM must manage Customer organizations and their Contacts with specific roles (Primary, Purchase, Sales, License Holder)
 - ID: CRM-1
 - Description: The system shall store customer organizations and their associated contacts, each with one or more roles that determine their function in the CRM workflow.
+- Rationale: EAxpertise sells to organizations, not individuals — but every interaction is actually with a named person, so both levels must be tracked, and the multi-role model (Primary/Purchase/Sales/License Holder) reflects that different people at the same customer often own different parts of the relationship.
+- Test Cases:
+  - A Customer can have multiple Contacts, each with one or more roles.
+  - A Contact's role can be changed without affecting Customer data.
+  - Filtering contacts by role (e.g. License Holder) returns only contacts with that role at that customer.
 - Entities: Contact, Customer
 - Status: Proposed
 - Version: 1.0
@@ -30,6 +40,11 @@
 - Name: EAxCRM must use SQLite as its database backend
 - ID: TEC-1
 - Description: The system shall use a file-based SQLite database suitable for deployment on a QNAP NAS without requiring a separate database server.
+- Rationale: The production target is a QNAP NAS with no separate database server process; SQLite's file-based, zero-admin nature avoids operating a DB server on constrained NAS hardware.
+- Test Cases:
+  - The Django app runs against a single .db file with no external DB service running.
+  - Standard Django migrations apply cleanly against the SQLite backend.
+  - The application starts and serves requests on a fresh QNAP Docker deployment with only the .db file present.
 - Status: Proposed
 - Version: 1.0
 - GUID: {30EA2FCA-BEA7-4fd7-A7E8-F5ECD78B8ADF}
@@ -40,6 +55,11 @@
 - Name: EAxCRM must support composing newsletters from scraped articles on SparxSystems.com and sparxsystems.eu
 - ID: NWS-1
 - Description: The system shall scrape news articles from SparxSystems.com and sparxsystems.eu and allow composing an EAxNewsletter from selected article summaries and links.
+- Rationale: EAxpertise doesn't produce original content for its newsletter — SparxSystems.com/.eu already publish the source material, so scraping and curating from there is cheaper than authoring from scratch and keeps the newsletter tied to what Sparx itself is announcing.
+- Test Cases:
+  - Scraping SparxSystems.com and sparxsystems.eu produces Article records with heading, summary, and source link.
+  - A Newsletter can be composed by selecting a subset of scraped Articles.
+  - Re-scraping does not duplicate Articles already stored for the same source URL.
 - Entities: Article, NewsSource, Newsletter
 - Status: Proposed
 - Version: 1.0
@@ -51,6 +71,11 @@
 - Name: EAXCRM must support the sales process
 - ID: SAL-1
 - Description: The system shall manage the sales workflow from creating an Offer to generating a SalesInvoice for the customer.
+- Rationale: Every customer-facing sale needs a documented trail from proposal to billing so revenue can be reconciled and disputes resolved — without an Offer→SalesInvoice link, there's no record of what was actually agreed before an invoice was raised.
+- Test Cases:
+  - An Offer can be created for a Customer and later converted into a SalesInvoice.
+  - A SalesInvoice cannot exist without a Customer.
+  - The sales workflow state is visible per Offer (open, accepted, invoiced).
 - Entities: Offer, SalesInvoice
 - Status: Approved
 - Version: 1.0
@@ -62,6 +87,11 @@
 - Name: EAxCRM must provide a view of all customer license entitlements with start/expiry dates
 - ID: RPT-1
 - Description: The system shall display a consolidated view of each customer's active and expired license entitlements including their start and end dates.
+- Rationale: Reps need a single place to answer "what does this customer currently own and when does it expire" without cross-referencing multiple purchase records by hand — this is the most common support/renewal question.
+- Test Cases:
+  - The view lists all License records for a customer with start and expiry dates.
+  - Expired licenses are visually distinguished from active ones.
+  - The view updates immediately after a new License is added via a Purchase.
 - Entities: Customer, License
 - Status: Proposed
 - Version: 1.0
@@ -73,6 +103,11 @@
 - Name: EAxCRM must record delivery emails containing license files and/or service agreements
 - ID: DEL-1
 - Description: The system shall store delivery emails sent to customers that contain license registration files and/or service agreement documents.
+- Rationale: Delivery emails are the customer's proof that they received their license file/agreement — without a record, support has no way to confirm what was actually sent versus what the customer claims (or fails to claim) they received.
+- Test Cases:
+  - A Delivery record captures the sent date, recipient address, subject, and body of the delivery email.
+  - A Delivery can be linked to the license file(s) or agreement document(s) it contained.
+  - Delivery status (sent/failed) is recorded and queryable.
 - Entities: Delivery
 - Status: Proposed
 - Version: 1.0
@@ -84,6 +119,11 @@
 - Name: EAxCRM must support drag-and-drop document ingestion that automatically parses and fills entities
 - ID: DOC-1
 - Description: The system shall allow a user to drag and drop a document (PDF, TXT, email file) onto the UI, which then automatically parses the content and populates the correct entities (License, LicenseLineItem, Service, Quote, ProcurementInvoice, Communication, Contact) as accurately as possible, reducing manual data entry.
+- Rationale: License PDFs, quotes, and invoices arrive as email attachments constantly; manually re-typing their contents into the CRM is slow and error-prone, so automatic parsing turns an existing document into structured data with minimal rep effort.
+- Test Cases:
+  - Dropping a license PDF creates/updates the corresponding License and LicenseLineItem records with parsed values.
+  - Dropping an unparseable or unrecognized document does not corrupt existing records — it flags for manual review instead.
+  - Parsed field values can be reviewed/corrected by the rep before being saved.
 - Entities: Attachment, Communication, Contact, Customer, License, LicenseLineItem, ProcurementInvoice, Quote, Service
 - Status: Proposed
 - Version: 1.0
@@ -95,6 +135,11 @@
 - Name: Procurement can be done via multiple parties
 - ID: PRO-5
 - Description: There are several suppliers to EAxpertise.
+- Rationale: EAxpertise doesn't buy exclusively from Sparx Systems' HQ — regional resellers (EU, LTD) and specialty partners (Ability Engineering, Prolaborate) each cover different products/regions, so the data model must support more than one Vendor per procurement category.
+- Test Cases:
+  - More than one Vendor record can exist and each can be linked to independent Purchases.
+  - A Purchase records exactly one Vendor (the party actually procured from for that transaction).
+  - Reports can be grouped/filtered by Vendor across all procurement.
 - Entities: Vendor
 - Status: Approved
 - Version: 1.0
@@ -106,6 +151,11 @@
 - Name: EAxCRM must detect service expiry and notify the user when renewal is needed
 - ID: SAL-3
 - Description: The system shall monitor service expiry dates and alert the user when a service needs renewal, using the expiry_month and renewal_notice_sent fields.
+- Rationale: Services (SaaS/Training/Support) generate recurring revenue only if renewed before they lapse; without an automatic expiry check, a rep would have to remember every service's date manually, which doesn't scale past a handful of customers.
+- Test Cases:
+  - A Service with expiry_month in the current or next period appears in the renewal alert.
+  - Once renewal_notice_sent is set, the same service isn't re-alerted for that cycle.
+  - A renewed Service (new expiry_month set) drops off the alert list.
 - Entities: Service
 - Status: Proposed
 - Version: 1.0
@@ -117,6 +167,11 @@
 - Name: EAxCRM must distinguish procured services (resold, from a Vendor) from EAxpertise's own services
 - ID: SAL-2
 - Description: The system shall allow services to be marked as either procured from an external vendor or provided directly by EAxpertise.
+- Rationale: Margin and vendor-liability differ completely between reselling someone else's service and EAxpertise's own — conflating them would corrupt procurement reporting and make it impossible to tell which services depend on a third party's continued availability.
+- Test Cases:
+  - A Service marked as procured requires a linked Vendor; a Service marked as EAxpertise's own does not.
+  - Procurement reports include only vendor-sourced Services, not EAxpertise's own.
+  - Changing a Service from procured to own clears its Vendor link.
 - Entities: Purchase, Service, Vendor
 - Status: Proposed
 - Version: 1.0
@@ -128,6 +183,11 @@
 - Name: EAxCRM must encrypt sensitive data (passwords) at rest
 - ID: TEC-2
 - Description: The system shall encrypt stored passwords and other sensitive credentials, such as IMAP account passwords, in the database.
+- Rationale: IMAP credentials for three live mailboxes are stored in the database; if the SQLite file were ever copied or leaked, plaintext passwords would hand over full mailbox access, so at-rest encryption is a baseline security requirement, not optional hardening.
+- Test Cases:
+  - Inspecting the raw SQLite file does not reveal a plaintext IMAP password.
+  - The application can still decrypt and use the stored password to authenticate an IMAP connection.
+  - Rotating an IMAP account's password re-encrypts and replaces the stored value without leaving the old value recoverable.
 - Entities: ImapAccount
 - Status: Proposed
 - Version: 1.0
@@ -139,6 +199,11 @@
 - Name: EAxCRM must enforce a Draft -> Review -> Send workflow with manual approval
 - ID: NWS-2
 - Description: The system shall require newsletters to go through three states: Draft (composition), Review (manual approval), and Sent (dispatch).
+- Rationale: A newsletter goes out to every opted-in customer at once — an unreviewed send (typo, broken link, wrong article) can't be recalled, so a mandatory human review gate before Sent is the only real safeguard.
+- Test Cases:
+  - A Newsletter cannot transition directly from Draft to Sent — Review is required in between.
+  - A Newsletter in Review can be sent back to Draft for edits.
+  - Only a Newsletter in Review state can be marked Sent, via an explicit approval action.
 - Entities: Newsletter
 - Status: Proposed
 - Version: 1.0
@@ -150,6 +215,11 @@
 - Name: EAxCRM must enforce a minimum 6-week interval between newsletters
 - ID: NWS-4
 - Description: The system shall prevent sending newsletters more frequently than once every six weeks to maintain appropriate communication cadence.
+- Rationale: Sending more frequently than the audience expects risks being perceived as spam and increases opt-outs — six weeks matches the project's stated cadence and gives enough time for genuinely new Sparx content to accumulate.
+- Test Cases:
+  - Attempting to send a newsletter less than 6 weeks after the last Sent newsletter is blocked.
+  - A newsletter exactly 6 weeks (or more) after the last Sent one is allowed.
+  - The interval is measured from the last *Sent* newsletter, not from Draft/Review timestamps.
 - Entities: Newsletter
 - Status: Proposed
 - Version: 1.0
@@ -161,6 +231,11 @@
 - Name: EAxCRM must extract and store license entitlements from email attachments (PDF/TXT)
 - ID: CRM-3
 - Description: The system shall parse PDF and TXT email attachments to extract license entitlement details and store them as License records.
+- Rationale: License PDFs/TXT attachments already contain every field a License record needs (type, dates, entitlements) — re-typing them by hand duplicates work the vendor's own document already did and introduces transcription errors.
+- Test Cases:
+  - Parsing a known-format license PDF produces a License record with correct type, start, and expiry dates.
+  - Parsing an attachment with an unrecognized format does not silently create a malformed License record.
+  - Parsed License records reference the source Attachment for traceability.
 - Entities: Attachment, License
 - Status: Proposed
 - Version: 1.0
@@ -172,6 +247,11 @@
 - Name: EAxCRM must link deliveries to the Customer, the SalesInvoice they fulfill, and the attachments included
 - ID: DEL-2
 - Description: The system shall associate each delivery record with the customer it was sent to, the sales invoice it fulfills, and the license files or documents attached.
+- Rationale: A delivery in isolation ("we sent an email") is not useful for support or auditing — it only answers something when it's tied to *who* received it, *which invoice* it fulfilled, and *what files* were actually attached.
+- Test Cases:
+  - A Delivery record references exactly one Customer and at most one SalesInvoice it fulfills.
+  - Attachments included in a Delivery are queryable from the Delivery record.
+  - Deleting a SalesInvoice does not delete Deliveries that reference it — delivery history must survive.
 - Entities: Attachment, Customer, Delivery, SalesInvoice
 - Status: Proposed
 - Version: 1.0
@@ -183,6 +263,11 @@
 - Name: EAxCRM must link each SalesInvoice to its originating Offer
 - ID: SAL-4
 - Description: The system shall maintain a reference from each SalesInvoice back to the Offer that generated it, ensuring auditability of the sales process.
+- Rationale: Without a stored reference back to the Offer, there's no way to verify an invoice actually matches what was proposed and agreed — auditability of the sales process depends on this chain being unbroken.
+- Test Cases:
+  - A SalesInvoice created from an Offer stores a reference to that Offer.
+  - Given a SalesInvoice, the originating Offer's line items/amount can be looked up.
+  - Reports can trace revenue back to the originating Offer for any SalesInvoice.
 - Entities: Offer, SalesInvoice
 - Status: Proposed
 - Version: 1.0
@@ -194,6 +279,11 @@
 - Name: EAxCRM must operate without AI dependencies
 - ID: TEC-4
 - Description: The system shall operate entirely without AI dependencies, using traditional parsing and scraping libraries such as PyMuPDF and BeautifulSoup.
+- Rationale: Keeps the system deployable and predictable on a QNAP NAS with limited compute and no external API dependency/cost — parsing and scraping needs (PDF, HTML) are well served by deterministic libraries, so an AI dependency would add operational risk for no functional gain today.
+- Test Cases:
+  - The application has zero calls to any external AI/LLM API at runtime.
+  - Document parsing (PDF/TXT) uses PyMuPDF only, with no ML-based extraction fallback.
+  - The app runs fully offline except for the deliberate IMAP/scraping network calls (no internet-dependent AI service).
 - Status: Proposed
 - Version: 1.0
 - GUID: {6A62DFB5-CBE7-4397-8640-263F0C242661}
@@ -204,6 +294,11 @@
 - Name: EAxCRM must provide a dashboard of upcoming service renewals
 - ID: RPT-2
 - Description: The system shall display a dashboard showing all services approaching their expiry date, sorted by urgency, to enable proactive renewal management.
+- Rationale: Reactive renewal handling (waiting for a customer to complain about a lapsed license) loses revenue and damages trust — a proactive, urgency-sorted dashboard lets reps reach out before expiry instead of after.
+- Test Cases:
+  - Services within the renewal window appear on the dashboard, sorted soonest-expiry first.
+  - A renewed service (expiry_month pushed out) drops off or moves down the dashboard accordingly.
+  - The dashboard reflects auto_renew status so reps don't chase renewals that are already handled automatically.
 - Entities: Service
 - Status: Proposed
 - Version: 1.0
@@ -215,6 +310,11 @@
 - Name: EAxCRM must provide procurement reports grouped by Vendor
 - ID: RPT-3
 - Description: The system shall generate reports summarizing procurements per vendor, including quote amounts, invoice totals, and payment status.
+- Rationale: Spend and payment-status visibility per vendor is needed for cash-flow planning and vendor-relationship decisions (e.g. is Sparx Systems LTD or EU cheaper for a given license type) — without grouping by vendor this comparison requires manual spreadsheet work.
+- Test Cases:
+  - A report for a given Vendor totals quote amounts and invoice totals correctly across all its Purchases.
+  - Payment status (paid/pending) is visible per procurement line in the report.
+  - Switching the report's vendor filter changes only the displayed rows, not the underlying data.
 - Entities: ProcurementInvoice, Quote, Vendor
 - Status: Proposed
 - Version: 1.0
@@ -226,6 +326,11 @@
 - Name: EAxCRM must run on Windows for development and Docker/QNAP NAS for production
 - ID: TEC-5
 - Description: The system shall support native Windows development and Docker-based deployment on a QNAP NAS for production use.
+- Rationale: The developer's daily machine is Windows, but the always-on production host is a QNAP NAS — the app must work identically in both environments without code changes, only deployment configuration differing.
+- Test Cases:
+  - The app runs correctly via `runserver` on native Windows during development.
+  - The same codebase runs unmodified inside a Docker container on QNAP Container Station.
+  - Database file paths and settings are environment-configurable, not hardcoded to a Windows path.
 - Status: Proposed
 - Version: 1.0
 - GUID: {82C5CC76-459B-49e5-AD85-A406DA3E2E53}
@@ -236,6 +341,11 @@
 - Name: EAxCRM must show a UX that shows the current state of Procurement
 - ID: RPT-4
 - Description: The system shall display the current procurement state per vendor including which quotes have been received and which invoices are paid or pending.
+- Rationale: "What's still outstanding with our vendors" is a recurring operational question (which quotes are we waiting on, which invoices are unpaid) that shouldn't require opening individual Purchase records one at a time.
+- Test Cases:
+  - The view shows, per Vendor, which quotes have been received and which are still outstanding.
+  - Invoice payment status (paid/pending) is visible alongside each procurement line.
+  - The view updates immediately when a new Quote or ProcurementInvoice is recorded.
 - Entities: ProcurementInvoice, Quote, Vendor
 - Status: Proposed
 - Version: 1.0
@@ -247,6 +357,11 @@
 - Name: EAxCRM must store communication history per customer, retrieved from multiple IMAP accounts (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl)
 - ID: CRM-2
 - Description: The system shall fetch and store emails from three IMAP accounts and associate them with the relevant customer for a complete communication history.
+- Rationale: Support and sales context lives in email threads across three different mailboxes (han@, sales@, info@) — without consolidating them per customer, a rep has to manually search three inboxes to reconstruct history with any given customer.
+- Test Cases:
+  - Emails fetched from all three configured IMAP accounts are associated with the correct Customer based on sender/recipient address matching.
+  - An email that doesn't match any known Customer is not silently dropped — it's flagged/left unassigned for manual linking.
+  - A customer's communication history view shows emails from all three mailboxes in one chronological list.
 - Entities: Communication, ImapAccount
 - Status: Proposed
 - Version: 1.0
@@ -258,6 +373,11 @@
 - Name: EAxCRM must store documents (quotes, invoices, deliveries) linked to customers
 - ID: CRM-5
 - Description: The system shall store customer-facing documents such as Sparx Systems quotes, incoming invoices, and delivery notes, linked to the relevant customer record.
+- Rationale: Quotes, invoices, and delivery notes are the paper trail of the customer relationship — keeping them attached to the Customer record, rather than scattered across email/OneDrive, means a rep can answer "what have we sent/billed this customer" in one place.
+- Test Cases:
+  - A Quote, ProcurementInvoice, and Delivery can each be linked to a specific Customer.
+  - All documents for a Customer are retrievable from that Customer's record.
+  - Documents remain linked correctly if the same Customer has multiple concurrent Purchases.
 - Entities: Customer, Delivery, ProcurementInvoice, Quote
 - Status: Proposed
 - Version: 1.0
@@ -269,6 +389,11 @@
 - Name: EAxCRM must store vendor bank details (IBAN, BIC/SWIFT, payment currency)
 - ID: PRO-3
 - Description: The system shall record vendor bank account information including IBAN, BIC/SWIFT code, and default payment currency for invoice processing.
+- Rationale: Paying an incoming invoice requires knowing where to send the money and in what currency — storing IBAN/BIC/currency once per Vendor avoids re-sourcing payment details, and risking a wrong-account payment, every time an invoice comes in.
+- Test Cases:
+  - A Vendor record stores IBAN, BIC/SWIFT, and a default payment currency.
+  - Vendor bank details are visible when processing a ProcurementInvoice for that vendor.
+  - Two Vendors can have different default payment currencies without conflict (e.g. one EUR, one USD).
 - Entities: Vendor
 - Status: Proposed
 - Version: 1.0
@@ -280,6 +405,11 @@
 - Name: EAxCRM must support multi-currency invoices (EUR, USD) from Sparx Systems
 - ID: PRO-4
 - Description: The system shall handle incoming invoices in both EUR and USD from Sparx Systems and its subsidiaries.
+- Rationale: Sparx Systems' entities invoice in different currencies depending on region/subsidiary — a single-currency assumption would make it impossible to record invoices accurately or reconcile actual spend.
+- Test Cases:
+  - A ProcurementInvoice can be recorded with currency = EUR.
+  - A ProcurementInvoice can be recorded with currency = USD.
+  - Reports correctly separate or convert totals across the two currencies rather than silently summing mismatched currencies together.
 - Entities: ProcurementInvoice
 - Status: Proposed
 - Version: 1.0
@@ -291,6 +421,11 @@
 - Name: EAxCRM must track license renewals linked to the original purchase
 - ID: CRM-4
 - Description: The system shall support creating renewal licenses that reference the original purchase record, enabling tracking of the full license lifecycle.
+- Rationale: A renewal is conceptually a continuation of an earlier license, not a brand-new unrelated purchase — keeping the link lets a rep trace a customer's full license lifecycle instead of seeing disconnected fragments.
+- Test Cases:
+  - A renewal License record references the original Purchase it renews.
+  - Querying a customer's license lifecycle shows the original purchase and all subsequent renewals in order.
+  - A renewal License does not require re-entering data already present on the original Purchase.
 - Entities: License, Purchase
 - Status: Proposed
 - Version: 1.0
@@ -302,6 +437,11 @@
 - Name: EAxCRM must track per-contact delivery status (sent, opened, bounced)
 - ID: NWS-3
 - Description: The system shall record whether each newsletter contact received, opened, or bounced the newsletter to measure engagement.
+- Rationale: Newsletter engagement is the only real signal of whether the newsletter is reaching and working for a given contact — without it, EAxpertise can't tell a stale/dead email address from an active one.
+- Test Cases:
+  - Sending a Newsletter creates a NewsletterContact record per recipient with an initial "sent" status.
+  - Opening the newsletter (tracked open) updates the corresponding NewsletterContact's opened_date.
+  - A bounced delivery marks the NewsletterContact as bounced rather than sent.
 - Entities: Contact, Newsletter, NewsletterContact
 - Status: Proposed
 - Version: 1.0
@@ -313,6 +453,11 @@
 - Name: EAxCRM must use the Django Admin interface as its primary UI
 - ID: TEC-3
 - Description: The system shall use Django's built-in admin interface as the primary user interface for all CRM operations.
+- Rationale: Building a custom UI is unnecessary effort for an internal single-tenant tool with a handful of users — Django Admin already provides CRUD, search, and filtering out of the box, keeping the project scoped to Django + SQLite with no separate frontend to maintain.
+- Test Cases:
+  - Every core entity (Customer, Contact, License, Offer, etc.) is manageable (create/edit/delete) through Django Admin.
+  - List views support the filtering/search needed for day-to-day rep use (e.g. filter contacts by role).
+  - No entity requires a custom-built page outside Django Admin to be usable.
 - Status: Proposed
 - Version: 1.0
 - GUID: {FA4583F4-87B2-4685-9904-EB9A14B63BF3}
@@ -323,6 +468,11 @@
 - Name: Procurement can be done via Ability Engineering
 - ID: PRO-5.3
 - Description: Ability Engineering is a reseller of Sparx Systems licenses, providing an alternative procurement channel.
+- Rationale: Recording Ability Engineering as its own Vendor lets purchases through this specific reseller be tracked and reported on independently of Sparx Systems' own channels.
+- Test Cases:
+  - A Vendor record for Ability Engineering can be created and linked to Purchases.
+  - Procurement reports can filter/group specifically to Ability Engineering.
+  - Ability Engineering coexists with the other Vendor records without ID or name collisions.
 - Entities: Vendor
 - Status: Approved
 - Version: 1.0
@@ -334,6 +484,11 @@
 - Name: Procurement can be done via Prolaborate
 - ID: PRO-5.4
 - Description: Prolaborate sells hosting services: hosting platform of Pro Cloud and EA SaaS.
+- Rationale: Prolaborate is a distinct procurement channel specifically for hosting rather than licenses — tracking it separately from license vendors keeps hosting spend visible on its own line rather than blended into general license procurement.
+- Test Cases:
+  - A Vendor record for Prolaborate can be created and linked to Purchases for hosting services.
+  - Procurement reports can filter/group specifically to Prolaborate.
+  - Prolaborate purchases are distinguishable from Sparx Systems license purchases in reporting.
 - Entities: Vendor
 - Status: Approved
 - Version: 1.0
@@ -345,6 +500,11 @@
 - Name: Procurement can be done via Sparx Systems EU
 - ID: PRO-5.2
 - Description: Sparx Systems EU is the European reseller of Sparx Systems licenses serving the EU market.
+- Rationale: EU-region customers are typically procured through Sparx Systems EU rather than the Australian HQ — tracking it as its own Vendor keeps regional procurement (and any EU-specific pricing/currency) separate from LTD's.
+- Test Cases:
+  - A Vendor record for Sparx Systems EU can be created and linked to Purchases.
+  - Procurement reports can filter/group specifically to Sparx Systems EU.
+  - Sparx Systems EU and Sparx Systems LTD coexist as distinct Vendor records without being conflated.
 - Entities: Vendor
 - Status: Approved
 - Version: 1.0
@@ -356,6 +516,11 @@
 - Name: Procurement can be done via Sparx Systems LTD
 - ID: PRO-5.1
 - Description: Sparx Systems LTD is the Australian headquarters and primary reseller of Sparx Systems licenses.
+- Rationale: As the Australian headquarters and primary reseller, most core Sparx EA license procurement flows through this Vendor — it needs its own record so it isn't conflated with regional resellers or specialty partners covered by the other PRO-5.x vendors.
+- Test Cases:
+  - A Vendor record for Sparx Systems LTD can be created and linked to Purchases.
+  - Procurement reports can filter/group specifically to Sparx Systems LTD.
+  - The majority of License-related Purchases can be traced back to this Vendor.
 - Entities: Vendor
 - Status: Approved
 - Version: 1.0
@@ -367,6 +532,11 @@
 - Name: Procurement must be trackable per Vendor with linked Quote and ProcurementInvoice PDFs
 - ID: PRO-2
 - Description: The system shall allow each procurement to be tracked per vendor, with digital copies of the original quote and the incoming invoice stored as attachments.
+- Rationale: A procurement record without its supporting documents can't be independently verified later — attaching the PDFs directly to the Purchase/Vendor chain means the paper trail survives even if the original email is deleted.
+- Test Cases:
+  - A Purchase stores a reference to both the original Quote PDF and the incoming ProcurementInvoice PDF.
+  - Procurements can be filtered/grouped by Vendor and show their attached documents.
+  - A Purchase missing either PDF is visibly flagged as incomplete rather than silently accepted.
 - Entities: ProcurementInvoice, Quote, Vendor
 - Status: Proposed
 - Version: 1.0

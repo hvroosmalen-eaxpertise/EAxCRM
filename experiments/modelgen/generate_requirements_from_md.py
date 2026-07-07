@@ -117,6 +117,16 @@ def save_guid_map(guid_map):
     print(f"Saved {len(guid_map)} GUID mappings to {GUID_MAP_PATH}")
 
 
+def get_tagged_value(elem, tag_name):
+    """Return the current value of a Tagged Value on elem, or "" if unset."""
+    elem.TaggedValues.Refresh()
+    for i in range(elem.TaggedValues.Count):
+        tv = elem.TaggedValues.GetAt(i)
+        if tv.Name == tag_name:
+            return tv.Value or ""
+    return ""
+
+
 def set_tagged_value(elem, tag_name, value):
     """Set a Tagged Value on elem, updating in place if it already exists
     (avoids duplicate tags on repeated syncs). Returns True if changed."""
@@ -290,11 +300,13 @@ def main():
                 if existing.Version != req["version"]:
                     changes["Version"] = (existing.Version, req["version"])
                     existing.Version = req["version"]
+                old_rationale = get_tagged_value(existing, "Rationale")
                 if set_tagged_value(existing, "Rationale", req.get("rationale", "")):
-                    changes["Rationale"] = req.get("rationale", "")
+                    changes["Rationale"] = (old_rationale, req.get("rationale", ""))
                 test_cases_str = "\n".join(req.get("test_cases", []))
+                old_test_cases = get_tagged_value(existing, "TestCases")
                 if set_tagged_value(existing, "TestCases", test_cases_str):
-                    changes["TestCases"] = test_cases_str
+                    changes["TestCases"] = (old_test_cases, test_cases_str)
                 if changes:
                     existing.Update()
                     print(f"  Updated {req['alias']:8s}  {req['name']}")
@@ -567,19 +579,20 @@ def main():
         save_guid_map(guid_map)
 
     finally:
-        try:
-            repo.RefreshModelView(0)  # Full model tree refresh
-            repo.RefreshOpenDiagrams(True)
-        except Exception as e:
-            print(f"  [refresh] RefreshModelView(0) failed: {e}")
-        try:
-            repo.CloseFile()
-        except:
-            pass
-
-    killed = ea_session.kill_new_ea_processes(before_pids)
-    if killed:
-        print(f"  Cleaned up {len(killed)} zombie EA process(es)")
+        spawned_pids = ea_session.get_ea_pids() - before_pids
+        with ea_session.hang_guard(spawned_pids):
+            try:
+                repo.RefreshModelView(0)  # Full model tree refresh
+                repo.RefreshOpenDiagrams(True)
+            except Exception as e:
+                print(f"  [refresh] RefreshModelView(0) failed: {e}")
+            try:
+                repo.CloseFile()
+            except:
+                pass
+        killed = ea_session.kill_new_ea_processes(before_pids)
+        if killed:
+            print(f"  Cleaned up {len(killed)} zombie EA process(es)")
 
 
 if __name__ == "__main__":
