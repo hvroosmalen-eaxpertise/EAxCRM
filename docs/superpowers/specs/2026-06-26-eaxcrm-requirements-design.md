@@ -91,6 +91,16 @@ Requirements properties are stored in EA's `t_object` columns:
 - CRM domain analysis: Delivery tracking, vendor management, service renewals
 - Newsletter workflow: Draft → Review → Send, 6-week cadence
 
+## Update 2026-07-07: Create Customer Account field/validation requirements (issue #7)
+
+Added 7 requirements — CRM-6 through CRM-12 — capturing the field and validation rules decided for the Create Customer Account screen (see [issue #7](https://github.com/hvroosmalen-eaxpertise/EAxCRM/issues/7)): atomic Customer+Contact creation, structured street address vs. PO Box, the "at least one Primary contact" rule, role becoming required once a second contact exists, the new Secondary contact role, opt-in defaulting to false, and opportunistic capture of notes/phone.
+
+This update also changed the Requirements Model format itself:
+- Each requirement may now carry a **Rationale** and a **Test Cases** list, in addition to Description. All three are composed together into the EA element's Notes field, with Rationale/Test Cases also stored as EA Tagged Values for structured access.
+- New requirement names lead with either the **GUI component** (`CreateAccountScreen: ...`) or a **business-rule name** (`<Rule Name> Rule: ...`), rather than a restated full-sentence "must" requirement — this only applies going forward; existing requirement names were left as-is.
+
+**Note:** this reused the CRM-6–CRM-9 ID range that a 2026-07-02 planning note (see `AGENTS.md`) had reserved for the Manage Customer Account *BPMN process*-level requirements (duplicate detection, merge, email history, opt-in suggestion). Those were never generated into EA, so no real collision occurred, but that reservation is now stale — those process-level requirements should use CRM-13 onward (and a fresh SAL-5) if/when they're written.
+
 ### Mapping from Existing EA Requirements
 
 | Existing EA ID | New ID |

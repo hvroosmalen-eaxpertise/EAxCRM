@@ -8,7 +8,7 @@ This directory contains the Sparx Enterprise Architect model files for the EAxCR
 |---|---|---|
 | `EAxCRM-Archimate.md` | ArchiMate model (Markdown, 71 elements, 107 relations, 1 diagram) |
 | `EAxCRM-DataModel.md` | Data model (Markdown, 19 entities, 30 relationships) |
-| `EAxCRM-Requirements.md` | Requirements model (Markdown, 39 requirements) |
+| `EAxCRM-Requirements.md` | Requirements model (Markdown, 41 requirements) |
 | `EAxCRM-NewsletterProcess.md` | Newsletter BPMN process (Markdown, 26 elements, 2 lanes, 16 sequence flows) |
 | `EAxCRM-SalesProcess.md` | Sales BPMN process (Markdown, 49 elements, 3 lanes, 25 sequence flows, 17 message flows, 22 data associations) |
 | `EAxCRM-CustomerAccountProcess.md` | Manage Customer Account BPMN process (Markdown, 1 CollaborationModel, 1 Lane, 14 elements, 10 sequence flows, data associations) — generated into EA (2026-07-03) |
@@ -34,7 +34,9 @@ Reads `EAxCRM-Archimate.md`, generates the elements and relationships in the sin
 ### Requirements Model
 - **Generate** (MD → EA): `python experiments/modelgen/generate_requirements_from_md.py`
 - **Sync** (EA → MD): `python experiments/modelgen/sync_requirements_from_ea.py`
-- 39 requirements with ID/Alias, Status, Version, parent hierarchy (Aggregation connectors), entity mappings (Realisation connectors)
+- 41 requirements with ID/Alias, Status, Version, parent hierarchy (Aggregation connectors), entity mappings (Realisation connectors)
+- Notes field composes Description + optional `Rationale:` / `Test Cases:` sections; Rationale/Test Cases are also stored as EA Tagged Values (added 2026-07-07, issue #7)
+- Naming convention: lead with the GUI component (`ScreenName: ...`) for screen-specific requirements, or a `<Rule Name> Rule: ...` for cross-cutting business rules — not a restated full-sentence "must" statement
 
 ### Wireframe Model (issue #4)
 - **Generate** (MD → EA): `python experiments/modelgen/generate_customeraccount_ui_from_md.py`

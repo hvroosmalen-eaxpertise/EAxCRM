@@ -31,6 +31,20 @@ Not set (same as ArchiMate — ask before assuming a value).
 
 Requirements' changelog wiring (`requirements_changelog.md`) follows the exact same pattern as the other generators — see `ea-model-common`'s changelog reference and `changelog.py` itself.
 
+## Notes Composition and Tagged Values (added 2026-07-07)
+
+Each requirement's MD block may include `- Rationale:` (single line) and `- Test Cases:` (a `  - ` bullet list) fields alongside `- Description:`. `build_notes()` in `generate_requirements_from_md.py` composes these into the EA element's `Notes` field as `{Description}\n\nRationale:\n{rationale}\n\nTest Cases:\n- item...`, so all three are visible together when viewing the element in EA — not just the Description. The same Rationale/Test Cases values are *also* written as EA Tagged Values (`Rationale`, `TestCases`) via `set_tagged_value()`, an idempotent helper (finds and updates an existing tag by name instead of the `TaggedValues.AddNew()`-always pattern used in `bpmn_engine.py`, which would duplicate tags on repeated syncs).
+
+`sync_requirements_from_ea.py` reverse-syncs by reading Rationale/TestCases from Tagged Values directly, and strips the `\n\nRationale:` section back out of `Notes` before writing the `- Description:` line, to avoid duplicating that text into both fields.
+
+## Naming Convention (added 2026-07-07)
+
+New requirement `Name` values should lead with either:
+- The **GUI component** they belong to, e.g. `CreateAccountScreen: creates Customer and Contacts atomically` — for requirements that are specific to one screen/control, or
+- The **business rule** they encode, e.g. `Primary Contact Rule: at least one Contact must always be Primary` — for cross-cutting domain rules that aren't tied to a single screen.
+
+Avoid restating the requirement as a full "EAxCRM must ..." sentence in the Name — that belongs in the Description.
+
 ## Source Files
 
 | File | Purpose |

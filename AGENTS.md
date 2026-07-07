@@ -125,7 +125,7 @@ Attachment → Delivery (included_in)
 
 ## Models (files in ../models/)
 - `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 71 elements, 107 relations, 1 diagram; v2.0 adds Sales Management, Vendor, and 7 new business objects; v2.1 adds Manage Customer Account function)
-- `EAxCRM-Requirements.md` — Requirements model (Markdown, 39 requirements)
+- `EAxCRM-Requirements.md` — Requirements model (Markdown, 41 requirements)
 - `EAxCRM-CustomerAccountProcess.md` — Manage Customer Account BPMN process (Markdown, design-only, not yet in EA)
 - `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements; Sales Process v1.1 and Manage Customer Account process still need to be generated/re-generated from MD)
 
@@ -137,6 +137,8 @@ Attachment → Delivery (included_in)
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
 - Data model has 19 entities and 30 relationships — updated 2026-06-29
 - Requirements model expanded from 8 to 34 requirements with IDs, Status, Version — updated 2026-06-29
+- Requirements model expanded from 39 to 41 requirements (CRM-6 through CRM-12) — 2026-07-07, covering the Create Customer Account screen's field/validation rules (issue #7). Notes field now composes Description + Rationale + Test Cases sections; Rationale/TestCases are also stored as EA Tagged Values for structured access. Naming convention for new requirements: lead with the GUI component name (e.g. `CreateAccountScreen: ...`) when the requirement is screen-specific, or a business-rule name (e.g. `Primary Contact Rule: ...`) when it's a cross-cutting domain rule — not a restated full-sentence "must" requirement.
+- **Note:** this reuses the CRM-6..CRM-9 ID range that a 2026-07-02 planning note (see "Requirements Model" below) had reserved for the Manage Customer Account *BPMN process*-level requirements (dedupe/merge/email-history/opt-in-suggestion). Those were never actually generated into EA, so no real collision occurred, but that reservation is now stale — when those process-level requirements are eventually written, use CRM-13 onward (and a fresh SAL-5, since SAL namespace is untouched).
 - New entities: Vendor, Delivery; expanded: Service (+5 attributes then -2), Attachment (+delivery_id)
 - New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
 - `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
@@ -334,11 +336,14 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - `sync_process_from_ea.py` (dead code, combined all processes into `EAxCRM-ProcessModel.md`) and that orphaned MD file were both deleted 2026-07-05 — superseded by the per-process sync scripts
 
 ## Requirements Model
-- `EAxCRM-Requirements.md` holds 39 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
+- `EAxCRM-Requirements.md` holds 41 requirements with ID, Status, Version, GUID, parent hierarchy, and entity mappings
 - ID stored in EA's `t_object.Alias` field, synced via COM API
 - Status and Version are standard EA `t_object` columns
 - Entity → Requirement mappings use Realisation connectors (entity is source, requirement is target)
-- New 2026-07-02 (**MD only, not yet generated into EA**): CRM-6 (create Customer Account from minimal data), CRM-7 (fuzzy-match duplicate detection + merge), CRM-8 (email history retrieval via IMAP scan), CRM-9 (role-gated opt-in suggestion requiring user confirmation), SAL-5 (verify/create Customer Account when an RFQ arrives from an unrecognized org) — all support the new Manage Customer Account process
+- Notes field (`t_object.Notes`) composes Description, then optional `Rationale:` and `Test Cases:` sections (see `build_notes()` in `generate_requirements_from_md.py`) so all three are visible together on the element. Rationale and Test Cases are *also* stored as EA Tagged Values (`Rationale`, `TestCases`) for structured/reportable access — added 2026-07-07 for CRM-6..12
+- Naming convention (2026-07-07 on): lead with the GUI component (`CreateAccountScreen: ...`) for screen-specific requirements, or a business-rule name (`<Rule Name> Rule: ...`) for cross-cutting domain rules — not a restated full-sentence "must" requirement
+- **STALE — superseded 2026-07-07**: the 2026-07-02 plan below to use CRM-6 through CRM-9 (and SAL-5) for the Manage Customer Account *BPMN process*-level requirements was never generated into EA; those IDs are now used instead by the Create Customer Account UI field/validation requirements (issue #7). If the process-level requirements below are still needed, use CRM-13 onward and a fresh SAL-5.
+- Original 2026-07-02 plan (**MD only, never generated into EA, IDs since reassigned — see note above**): create Customer Account from minimal data, fuzzy-match duplicate detection + merge, email history retrieval via IMAP scan, role-gated opt-in suggestion requiring user confirmation, and verify/create Customer Account when an RFQ arrives from an unrecognized org — all in support of the Manage Customer Account process
 - `sync_requirements_from_ea.py` — COM API only, reads from EA → MD (outputs `- Entities:` lines)
 - `seed_requirements_properties.py` — COM API only, sets ID/Status/Version in EA from spec mapping
 - `generate_requirements_from_md.py` — COM API only, creates/updates requirements in EA from MD, including parent Aggregation connectors, Realisation connectors to entities, and diagram placement (idempotent, saves GUID map)
@@ -382,7 +387,7 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Single Lane only (`EAxpertise`) — always staff-driven via the EAxCRM app, no self-service/Customer lane, no separate system/IMAP lane
 - No new Data Model entities/fields needed — reuses existing `Customer`/`Contact`/`Communication`
 - **No generator/sync script exists yet** (`generate_customeraccount_process_from_md.py` / `sync_customeraccount_process_from_ea.py`) — next step is to build these following the Sales Process generator pattern (COM API only, GUID map file `customeraccount_guid_map.json`, BPMN lane layout via `diagram_utils`) before this can be created in `EAxCRM.qea`
-- New requirements CRM-6 through CRM-9 and SAL-5 in `EAxCRM-Requirements.md` cover this process — see "Requirements Model" below
+- Requirements for this process were planned as CRM-6 through CRM-9 and SAL-5, but that ID range was reassigned 2026-07-07 to the Create Customer Account UI requirements (issue #7) before these process-level ones were ever generated into EA — write these as CRM-13+ / a fresh SAL-5 instead. See "Requirements Model" below.
 - New ArchiMate additions (v2.1): BusinessFunction `Manage Customer Account` (`e-func-account`) with 4 BusinessProcesses (`e-process-createaccount`, `e-process-dedupe`, `e-process-merge`, `e-process-emailhistory`), reusing existing `Customer Data`/`Contact Data`/`Communication Data` BusinessObjects and the `Customer Management Service`/`IMAP Fetch Service` ApplicationServices; Triggering relation from `Handle RFQ` to `Create Customer Account`
 
 ### Generator Scripts (experiments/modelgen/)
@@ -532,4 +537,4 @@ tagged-value options in EA.
 3. **Add Pools, Lanes, Tasks, Events, Gateways** to existing CollaborationModels in EA, run sync scripts to verify MD output
 4. **Extend BPMN generators** — add support for CallActivity, SubProcess, ChoreographyTask, Message, and other BPMN 2.0 element types
 5. **Build `generate_customeraccount_process_from_md.py`** (and its sync counterpart) following the Sales Process generator pattern, then run `generate_archimate.py` and `generate_sales_process_from_md.py` to push the v2.1 ArchiMate additions and Sales Process v1.1 event into `EAxCRM.qea` — test in the `Sandbox` package first per the `ea-diagram-creator` skill
-6. **Generate CRM-6..9 and SAL-5** into EA via `generate_requirements_from_md.py` once the Customer Account process is confirmed
+6. **Generate the Manage Customer Account process-level requirements** into EA via `generate_requirements_from_md.py` once the process is confirmed — use CRM-13+ and a fresh SAL-5, since CRM-6..9 were reassigned 2026-07-07 to the Create Customer Account UI requirements (issue #7)
