@@ -15,8 +15,11 @@ def main():
     parser = argparse.ArgumentParser(description="Generate Manage Customer Account process in EA")
     parser.add_argument("--qea", default=CUSTOMER_ACCOUNT.default_qea)
     parser.add_argument("--md", default=CUSTOMER_ACCOUNT.default_md)
+    parser.add_argument("--state-dir", default=None,
+                         help="Directory for the changelog and GUID-map files (default: script dir). "
+                              "Override in tests so runs against a sandboxed --qea don't touch the real ones.")
     args = parser.parse_args()
-    bpmn_engine.generate(CUSTOMER_ACCOUNT, qea_path=args.qea, md_path=args.md)
+    bpmn_engine.generate(CUSTOMER_ACCOUNT, qea_path=args.qea, md_path=args.md, state_dir=args.state_dir)
 
 
 if __name__ == "__main__":

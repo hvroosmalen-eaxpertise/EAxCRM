@@ -856,10 +856,10 @@ def set_tagged_values(elem, stereo, fields):
 # generate(): MD -> EA
 # ---------------------------------------------------------------------------
 
-def generate(config, qea_path=None, md_path=None):
+def generate(config, qea_path=None, md_path=None, state_dir=None):
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
-    guid_map_file = os.path.join(SCRIPT_DIR, config.guid_map_file)
+    guid_map_file = os.path.join(state_dir or SCRIPT_DIR, config.guid_map_file)
 
     elements, connectors = parse_md(config, md_path)
     total_conns = sum(len(v) for v in connectors.values())
@@ -868,7 +868,9 @@ def generate(config, qea_path=None, md_path=None):
 
     clog = None
     if config.changelog_file:
-        clog = ChangeLog(config.changelog_file)
+        changelog_file = (os.path.join(state_dir, os.path.basename(config.changelog_file))
+                           if state_dir else config.changelog_file)
+        clog = ChangeLog(changelog_file)
         clog.checkpoint("Parsed MD", run_id=config.model_id)
 
     elem_types = {eid: data["label"] for eid, data in elements.items()

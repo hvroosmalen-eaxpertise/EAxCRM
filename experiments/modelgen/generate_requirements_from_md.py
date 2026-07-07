@@ -192,12 +192,18 @@ def main():
     parser = argparse.ArgumentParser(description="Generate requirements in EAxCRM.qea from Markdown")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)
+    parser.add_argument("--state-dir", default=SCRIPT_DIR,
+                         help="Directory for the changelog and GUID-map files (default: script dir). "
+                              "Override in tests so runs against a sandboxed --qea don't touch the real ones.")
     args = parser.parse_args()
+
+    global GUID_MAP_PATH
+    GUID_MAP_PATH = os.path.join(args.state_dir, "requirements_guid_map.json")
 
     requirements = parse_md(args.md)
     print(f"Parsed {len(requirements)} requirements from MD")
 
-    clog = ChangeLog(os.path.join(SCRIPT_DIR, "requirements_changelog.md"))
+    clog = ChangeLog(os.path.join(args.state_dir, "requirements_changelog.md"))
     clog.checkpoint("Parsed MD")
 
     # Build lookup by safe_id

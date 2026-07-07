@@ -66,7 +66,7 @@ class TestArchimateGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_archimate.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -81,7 +81,7 @@ class TestArchimateGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_archimate.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -101,7 +101,7 @@ class TestUmlDataModelGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_uml_datamodel.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -115,7 +115,7 @@ class TestUmlDataModelGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_uml_datamodel.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -135,7 +135,7 @@ class TestRequirementsGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_requirements_from_md.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -157,7 +157,7 @@ class TestSalesProcessGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_sales_process_from_md.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -179,7 +179,7 @@ class TestNewsletterProcessGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_newsletter_process_from_md.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
@@ -201,7 +201,7 @@ class TestCustomerAccountProcessGenerator:
 
         proc = subprocess.run(
             [sys.executable, os.path.join(SCRIPT_DIR, "generate_customeraccount_process_from_md.py"),
-             "--qea", qea_path],
+             "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)

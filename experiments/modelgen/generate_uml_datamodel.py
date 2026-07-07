@@ -239,11 +239,17 @@ def main():
     parser = argparse.ArgumentParser(description="Generate UML data model in EAxCRM.qea")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)
+    parser.add_argument("--state-dir", default=SCRIPT_DIR,
+                         help="Directory for the changelog and GUID-map files (default: script dir). "
+                              "Override in tests so runs against a sandboxed --qea don't touch the real ones.")
     args = parser.parse_args()
+
+    global GUID_MAP_PATH
+    GUID_MAP_PATH = os.path.join(args.state_dir, "uml_datamodel_guid_map.json")
 
     entities, relations = parse_md(args.md)
     print(f"Parsed {len(entities)} entities, {len(relations)} relationships")
-    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
+    clog = ChangeLog(os.path.join(args.state_dir, "uml_datamodel_changelog.md"))
     clog.checkpoint("Parsed MD")
 
     guid_map = load_guid_map()
