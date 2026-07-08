@@ -54,21 +54,27 @@ def main():
         sys.exit(1)
     pkg_id = row[0]
 
-    # Read all Class elements in the package
+    # Read all Class + Enumeration elements in the package
     c.execute(
-        "SELECT Object_ID, Name, IFNULL(Note, ''), ea_guid FROM t_object "
-        "WHERE Package_ID=? AND Object_Type='Class' ORDER BY Name",
+        "SELECT Object_ID, Name, Object_Type, IFNULL(Note, ''), ea_guid FROM t_object "
+        "WHERE Package_ID=? AND Object_Type IN ('Class', 'Enumeration') ORDER BY Name",
         (pkg_id,)
     )
-    elements = c.fetchall()
-    print(f"Found {len(elements)} elements")
+    all_elements = c.fetchall()
+    elements = [e for e in all_elements if e[2] == "Class"]
+    enum_elements = [e for e in all_elements if e[2] == "Enumeration"]
+    print(f"Found {len(elements)} elements, {len(enum_elements)} enumerations")
 
-    # Build lookup: Object_ID -> {name, guid}
-    obj_info = {e[0]: {"name": e[1], "guid": e[3]} for e in elements}
+    # Build lookup: Object_ID -> {name, type, guid}
+    obj_info = {e[0]: {"name": e[1], "type": e[2], "guid": e[4]} for e in all_elements}
+    # Attribute.Type is stored/read case-sensitively as authored (e.g. "ContactRole"),
+    # but isn't linked back to the Enumeration element via Classifier (see
+    # generate_uml_datamodel.py's sync_attribute docstring) -- match by name instead.
+    enum_name_by_lower = {e[1].lower(): e[1] for e in enum_elements}
 
-    # Read attributes per element
+    # Read attributes/literals per element
     attrs_by_obj = {}
-    for el in elements:
+    for el in all_elements:
         oid = el[0]
         c.execute(
             "SELECT Name, Type, Length, IFNULL(Stereotype, ''), IFNULL(Notes, '') "
@@ -104,7 +110,7 @@ def main():
     lines.append("")
 
     for el in elements:
-        oid, name, notes, guid = el
+        oid, name, _typ, notes, guid = el
         eid = safe_id(name)
         lines.append(f"### Class—{eid}")
         lines.append(f"- Name: {name}")
@@ -117,13 +123,32 @@ def main():
         if attrs:
             for a in attrs:
                 aname, atype, alen, aster, anotes = a
-                tstr = md_type(atype, alen)
+                enum_ref = enum_name_by_lower.get(atype.lower().strip())
+                tstr = enum_ref if enum_ref else md_type(atype, alen)
                 parts = [f"  - {aname}: {tstr}"]
                 if aster:
                     parts[-1] += f" <<{aster}>>"
                 if anotes:
                     parts[-1] += f" — {anotes}"
                 lines.append(parts[-1])
+        else:
+            lines.append("  - (none)")
+        lines.append("")
+
+    for el in enum_elements:
+        oid, name, _typ, notes, guid = el
+        eid = safe_id(name)
+        lines.append(f"### Enumeration—{eid}")
+        lines.append(f"- Name: {name}")
+        if notes.strip():
+            lines.append(f"- Description: {notes.strip()}")
+        lines.append(f"- GUID: {guid}")
+        lines.append("- Literals:")
+
+        literals = attrs_by_obj.get(oid, [])
+        if literals:
+            for lit in literals:
+                lines.append(f"  - {lit[0]}")
         else:
             lines.append("  - (none)")
         lines.append("")

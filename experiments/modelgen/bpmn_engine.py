@@ -1506,7 +1506,7 @@ def _write_flat(lines, elem_by_id, parent_of, tv_by_elem, cid):
 
         notes = info["notes"].strip()
         if notes:
-            lines.append(f"- Description: {notes[:500]}")
+            lines.append(f"- Description: {notes}")
         lines.append("")
 
     return eid_by_oid
@@ -1545,7 +1545,7 @@ def _write_hierarchical(lines, elem_by_id, children_of, tv_by_elem, cid):
 
         notes = info["notes"].strip()
         if notes:
-            lines.append(f"{indent}- Description: {notes[:500]}")
+            lines.append(f"{indent}- Description: {notes}")
         lines.append("")
 
         for child_oid in children_of.get(oid, []):
@@ -1647,7 +1647,7 @@ def sync_to_md(config, qea_path=None, md_path=None):
             if v and v not in ("<memo>", ""):
                 lines.append(f"- {label}: {v}")
         if notes:
-            lines.append(f"- Description: {notes[:500]}")
+            lines.append(f"- Description: {notes}")
         lines.append("")
 
         if config.hierarchical_format:

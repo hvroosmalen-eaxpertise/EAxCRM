@@ -37,15 +37,27 @@ def parse_type_str(raw):
 
 
 def parse_md(path):
-    """Parse the Markdown model file into entities and relationships."""
+    """Parse the Markdown model file into entities, relationships, and enumerations."""
     with open(path, encoding="utf-8") as f:
         lines = f.readlines()
 
     entities = []
     relations = []
+    enumerations = []
     current = None
     section = None
     in_attrs = False
+    in_literals = False
+
+    def flush():
+        if current is None:
+            return
+        if current["kind"] == "entity":
+            entities.append(current)
+        elif current["kind"] == "enumeration":
+            enumerations.append(current)
+        else:
+            relations.append(current)
 
     for line in lines:
         line = line.rstrip()
@@ -53,34 +65,40 @@ def parse_md(path):
         if line.strip() == "## Entities":
             section = "entities"
             in_attrs = False
+            in_literals = False
             continue
         if line.strip() == "## Relationships":
             section = "relationships"
             in_attrs = False
+            in_literals = False
             continue
 
         if line.startswith("### "):
-            if current is not None:
-                if current["kind"] == "entity":
-                    entities.append(current)
-                else:
-                    relations.append(current)
+            flush()
             in_attrs = False
+            in_literals = False
 
             remainder = line[4:].strip()
             m = re.match(r"(\w+)\s*[—\-]+\s*(\S+)", remainder)
             if not m:
+                current = None
                 continue
             typ, id_ = m.group(1), m.group(2)
 
+            if typ.strip() == "Enumeration":
+                kind = "enumeration"
+            else:
+                kind = "entity" if section == "entities" else "relation"
+
             current = {
-                "kind": "entity" if section == "entities" else "relation",
+                "kind": kind,
                 "type": typ.strip(),
                 "id": id_.strip(),
                 "name": "",
                 "description": "",
                 "guid": "",
                 "attributes": [],
+                "literals": [],
                 "source": "",
                 "target": "",
                 "source_multi": "",
@@ -94,6 +112,17 @@ def parse_md(path):
         if line.strip() == "- Attributes:":
             in_attrs = True
             continue
+
+        if line.strip() == "- Literals:":
+            in_literals = True
+            continue
+
+        if in_literals:
+            if line.startswith("  - ") or line.startswith("\t- "):
+                current["literals"].append(line.lstrip(" \t-").strip())
+                continue
+            else:
+                in_literals = False
 
         if in_attrs:
             if line.startswith("  - ") or line.startswith("\t- "):
@@ -128,7 +157,7 @@ def parse_md(path):
                 in_attrs = False
 
         if line.startswith("- "):
-            if in_attrs:
+            if in_attrs or in_literals:
                 continue
             kv = line[2:].strip()
             if ": " in kv:
@@ -157,13 +186,22 @@ def parse_md(path):
                     else:
                         current["target"] = value.strip()
 
-    if current is not None:
-        if current["kind"] == "entity":
-            entities.append(current)
-        else:
-            relations.append(current)
+    flush()
 
-    return entities, relations
+    # Resolve attributes typed against a locally-defined Enumeration: keep the
+    # enum's own name as sparx_type (rather than the SPARX_TYPE_MAP "string"
+    # fallback for an unrecognized primitive) so the generator can classify it.
+    enum_names = {e["name"] for e in enumerations}
+    for ent in entities:
+        for attr in ent["attributes"]:
+            if attr["type"] in enum_names:
+                attr["sparx_type"] = attr["type"]
+                attr["length"] = None
+                attr["is_enum"] = True
+            else:
+                attr["is_enum"] = False
+
+    return entities, relations, enumerations
 
 
 def get_or_create_package(parent, name):
@@ -178,13 +216,24 @@ def get_or_create_package(parent, name):
 
 
 def sync_attribute(ea_attr, attr_def):
-    """Update or create a single attribute on an EA element."""
+    """Update or create a single attribute on an EA element.
+
+    Note: EA's Attribute Automation object doesn't expose a settable/readable
+    `Classifier` property over dynamic COM dispatch here (AttributeError on
+    access) -- enum-typed attributes are represented purely via `Type` holding
+    the Enumeration's name (e.g. "ContactRole"), matched back by name on the
+    EA->MD sync side rather than resolved through a classifier link.
+    """
     ea_attr.Name = attr_def["name"]
     ea_attr.Type = attr_def["sparx_type"]
-    if attr_def["length"]:
-        ea_attr.Length = attr_def["length"]
-    elif ea_attr.Length:
-        ea_attr.Length = 0
+    if attr_def.get("is_enum"):
+        if ea_attr.Length:
+            ea_attr.Length = 0
+    else:
+        if attr_def["length"]:
+            ea_attr.Length = attr_def["length"]
+        elif ea_attr.Length:
+            ea_attr.Length = 0
     if attr_def["stereotype"]:
         ea_attr.Stereotype = attr_def["stereotype"]
     elif ea_attr.Stereotype:
@@ -247,8 +296,8 @@ def main():
     global GUID_MAP_PATH
     GUID_MAP_PATH = os.path.join(args.state_dir, "uml_datamodel_guid_map.json")
 
-    entities, relations = parse_md(args.md)
-    print(f"Parsed {len(entities)} entities, {len(relations)} relationships")
+    entities, relations, enumerations = parse_md(args.md)
+    print(f"Parsed {len(entities)} entities, {len(relations)} relationships, {len(enumerations)} enumerations")
     clog = ChangeLog(os.path.join(args.state_dir, "uml_datamodel_changelog.md"))
     clog.checkpoint("Parsed MD")
 
@@ -282,6 +331,76 @@ def main():
     dm_pkg = get_or_create_package(data_arch, "EAxCRM Data Model")
 
     try:
+        # Phase 0: Enumerations (must exist before Phase 1 so Class attributes
+        # can be classified against them)
+        print("\n--- Enumerations ---")
+        enum_elemid_by_name = {}
+        for enum in enumerations:
+            md_guid = enum["guid"]
+            ea_guid = guid_map.get(md_guid) if md_guid else None
+            existing = None
+            if ea_guid:
+                try:
+                    existing = repo.GetElementByGuid(ea_guid)
+                except Exception:
+                    pass
+            if not existing and md_guid:
+                try:
+                    existing = repo.GetElementByGuid(md_guid)
+                except Exception:
+                    pass
+            if not existing:
+                dm_pkg.Elements.Refresh()
+                for j in range(dm_pkg.Elements.Count):
+                    e = dm_pkg.Elements.GetAt(j)
+                    if e.Name == enum["name"]:
+                        existing = e
+                        break
+
+            if existing:
+                target = existing
+                target.Name = enum["name"]
+                target.Notes = enum["description"]
+                target.Update()
+                if md_guid:
+                    guid_map[md_guid] = target.ElementGUID
+                clog.log("updated", enum["id"], enum["name"], "Enumeration", target.ElementGUID)
+            else:
+                target = dm_pkg.Elements.AddNew(enum["name"], "Enumeration")
+                target.Notes = enum["description"]
+                target.Update()
+                if md_guid:
+                    guid_map[md_guid] = target.ElementGUID
+                clog.log("created", enum["id"], enum["name"], "Enumeration", target.ElementGUID)
+
+            # EA's own convention for enumeration literals (see the built-in
+            # "Enumeration Name" template element): each literal is an
+            # Attribute with Type="int" and Stereotype="enum" -- matched here
+            # so hand-authored and generated Enumerations look identical.
+            existing_lits = {}
+            target.Attributes.Refresh()
+            for i in range(target.Attributes.Count):
+                a = target.Attributes.GetAt(i)
+                existing_lits[a.Name] = a
+            lit_names = set(enum["literals"])
+            for lit in enum["literals"]:
+                a = existing_lits.get(lit)
+                if not a:
+                    a = target.Attributes.AddNew(lit, "int")
+                a.Type = "int"
+                a.Stereotype = "enum"
+                a.Update()
+            for i in range(target.Attributes.Count - 1, -1, -1):
+                a = target.Attributes.GetAt(i)
+                if a.Name not in lit_names:
+                    target.Attributes.Delete(i)
+            target.Update()
+
+            enum_elemid_by_name[enum["name"]] = target.ElementID
+            print(f"    Synced {len(enum['literals'])} literals for {enum['name']}")
+
+        save_guid_map(guid_map)
+
         # Phase 1: Entities
         print("\n--- Entities ---")
 
@@ -353,7 +472,8 @@ def main():
                         pkg_elements_by_name[e.Name] = e
                         break
                 clog.log("created", ent["id"], ent["name"], "Class", new_elem.ElementGUID)
-                sync_attributes(new_elem, ent["attributes"], clog=clog, entity_name=ent["name"])
+                sync_attributes(new_elem, ent["attributes"], clog=clog, entity_name=ent["name"],
+                                 enum_elemid_by_name=enum_elemid_by_name)
                 print(f"    Added {len(ent['attributes'])} attributes")
 
         save_guid_map(guid_map)

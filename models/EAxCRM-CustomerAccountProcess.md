@@ -10,7 +10,7 @@
 - Diagram Name: Manage Customer Account
 - Diagram GUID: {2AC2AE34-0087-46a0-BE9F-FD5B6F64B58B}
 - Is Closed: false
-- Description: BPMN 2.0 process for creating a new Customer Account from minimal data, flagging/merging likely duplicates, retrieving the customer's email history, and suggesting newsletter opt-in for eligible Contact roles. Always staff-driven (single EAxCRM user) — the system assists (duplicate detection, email history) but never creates or merges an account automatically. Referenced from the Sales Process (see EAxCRM-SalesProcess.md, "Confirm Customer Account" message event, before RegisterRFQ) as one possi
+- Description: BPMN 2.0 process for creating a new Customer Account from minimal data, flagging/merging likely duplicates, retrieving the customer's email history, and suggesting newsletter opt-in for eligible Contact roles. Always staff-driven (single EAxCRM user) — the system assists (duplicate detection, email history) but never creates or merges an account automatically. Referenced from the Sales Process (see EAxCRM-SalesProcess.md, "Confirm Customer Account" message event, before RegisterRFQ) as one possible entry point into this process — the other being an unsolicited email, phone call, or RFQ arriving directly (see the New Customer Contact start event) with no prior Sales activity.
 
 ### Lane—EAxpertise
 - Name: EAxpertise
@@ -33,10 +33,9 @@
 - Type: Artifact
 - Stereotype: DataObject
 - GUID: {77AAEBE9-8BA5-4668-9967-629293E99856}
-- Lane: EAxpertise
 - Data In/Out: None
 - Is Collection: false
-- Description: Why: almost every step in this process reads or writes a field on the account's Contact (role, opt_in, opt_in_date) -- without an explicit DataObject, that dependency was invisible in the diagram, only implied inside 'Customer Account'. What: the single Contact record (name, email, role, opt-in status) attached to the Customer Account being processed. How: created alongside the Customer as part of Create Customer Account (role may be unset initially), later updated by Suggest Newsletter Opt-in o
+- Description: Why: almost every step in this process reads or writes a field on the account's Contact (role, opt_in, opt_in_date) -- without an explicit DataObject, that dependency was invisible in the diagram, only implied inside 'Customer Account'. What: the single Contact record (name, email, role, opt-in status) attached to the Customer Account being processed. How: created alongside the Customer as part of Create Customer Account (role may be unset initially), later updated by Suggest Newsletter Opt-in (opt_in and opt_in_date only, and only on explicit confirmation) and by Merge Customer Accounts when folded into an existing account's Contact set. Context: represents the single initial Contact created with the account, not the full Contact list once more are added later via CRM-9/CRM-10.
 
 ### Activity—CreateCustomerAccount
 - Name: Create Customer Account
@@ -134,7 +133,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Why: staff need a fast way to see everything a Customer Account has ever communicated, without manually searching three separate mailboxes. What: composes a running Email History for the account -- a list of contact moments (sender, participants, date) matched against the Contact's email address, not just a raw dump of messages. How: reads the account's Contact email as the search key, scans the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl), and appends n
+- Description: Why: staff need a fast way to see everything a Customer Account has ever communicated, without manually searching three separate mailboxes. What: composes a running Email History for the account -- a list of contact moments (sender, participants, date) matched against the Contact's email address, not just a raw dump of messages. How: reads the account's Contact email as the search key, scans the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl), and appends newly matched Communications to the Email History without duplicating ones already linked from a prior run. Context: an unmatched email is flagged for manual linking rather than silently dropped (CRM-2), and this activity is distinct from the create-time "Search Emails" domain lookup on CreateAccountScreen, which only prefills fields before the account exists.
 
 ### Activity—SuggestNewsletterOptin
 - Name: Suggest Newsletter Opt-in

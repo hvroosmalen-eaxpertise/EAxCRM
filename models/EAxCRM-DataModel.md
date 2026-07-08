@@ -33,7 +33,7 @@
 
 ### Class—communication
 - Name: Communication
-- Description: Email message retrieved from an IMAP account.
+- Description: Email message retrieved from an IMAP account. linked_to_contact is currently a boolean flag only — CRM-2 requires each Communication to be associated with the matching Customer, with unmatched emails flagged for manual linking rather than silently dropped, which needs an actual FK (to Contact and/or Customer) not yet present in this schema.
 - GUID: {94C6CD4B-43EF-4e8d-A190-EC98D38FF05B}
 - Attributes:
   - id: int <<PK>>
@@ -49,13 +49,13 @@
 
 ### Class—contact
 - Name: Contact
-- Description: A person associated with a customer, with a specific role.
+- Description: A person associated with a customer, with a specific role. Exactly one Contact per Customer must be Primary (CRM-8), and role becomes mandatory on every row once a second Contact exists (CRM-9).
 - GUID: {DEF8F388-8B44-4425-9F79-7FE63A4C6A0E}
 - Attributes:
   - id: int <<PK>>
   - name: string(200)
   - email: string(254)
-  - role: string(20)
+  - role: ContactRole
   - phone: string(50)
   - opt_in: boolean
   - opt_in_date: datetime
@@ -64,15 +64,21 @@
 
 ### Class—customer
 - Name: Customer
-- Description: An organization that uses Sparx EA and receives services from EAxpertise.
+- Description: An organization that uses Sparx EA and receives services from EAxpertise. Address is either a structured street address or a PO Box, selected via address_mode (CRM-7).
 - GUID: {700996C9-A075-4773-9696-9C9C89125192}
 - Attributes:
   - id: int <<PK>>
   - name: string(200)
-  - address: string
   - notes: string(2000)
   - created_at: datetime
   - updated_at: datetime
+  - address_mode: string(10) — "street" or "pobox"; selects which address fields below apply (CRM-7)
+  - street_name: string(200) — required when address_mode is "street"
+  - house_number: string(20) — required when address_mode is "street"
+  - postal_code: string(20) — required when address_mode is "street"
+  - city: string(100) — required when address_mode is "street"
+  - country: string(100) — required when address_mode is "street"
+  - po_box: string(200) — required when address_mode is "pobox"; unstructured free text
 
 ### Class—delivery
 - Name: Delivery
@@ -282,54 +288,73 @@
   - created_at: datetime
   - updated_at: datetime
 
+### Enumeration—contactrole
+- Name: ContactRole
+- Description: Allowed values for Contact.role (CRM-1, CRM-10). Secondary denotes a colleague-level backup to Primary with no Purchase/Sales/License duties.
+- GUID: {8D17DAE4-DC3B-40a8-B840-078D9B54DA28}
+- Literals:
+  - Primary
+  - Purchase
+  - Sales
+  - License Holder
+  - Secondary
+
 ## Relationships
 
 ### Association—r-contact-customer
 - Source: contact (*)
 - Target: customer (1)
 - Name: belongs_to
+- Description: Each Contact belongs to exactly one Customer organisation; a Customer may have multiple Contacts, each with their own role (CRM-1).
 - GUID: {C9CA64AF-AFAE-4d9a-9EF9-2014013769F5}
 
 ### Association—r-communication-imapaccount
 - Source: communication (*)
 - Target: imapaccount (1)
 - Name: retrieved_from
+- Description: Each Communication was fetched from exactly one configured IMAP account (han@/sales@/info@eaxpertise.nl).
 - GUID: {2676BB60-3D47-4de3-96BC-4D20293529F5}
 
 ### Association—r-attachment-communication
 - Source: attachment (*)
 - Target: communication (1)
 - Name: attached_to
+- Description: Each Attachment was extracted from exactly one source Communication (email).
 - GUID: {FA6FAD91-7BCF-4ee5-AF68-64E54104BF93}
 
 ### Association—r-article-newssource
 - Source: article (*)
 - Target: newssource (1)
 - Name: sourced_from
+- Description: Each scraped Article originates from exactly one NewsSource (e.g. SparxSystems.com, sparxsystems.eu).
 - GUID: {8341222A-BF61-42f4-A635-37C1DD32DC82}
 
 ### Association—r-article-newsletter
 - Source: article (*)
 - Target: newsletter (1)
 - Name: included_in
+- Description: An Article is optionally selected for inclusion in one Newsletter issue.
 - GUID: {48E2FEB9-37B8-4165-A2FD-DE27E7C538C6}
 
 ### Association—r-newslettercontact-newsletter
 - Source: newslettercontact (*)
 - Target: newsletter (1)
 - Name: for
+- Description: Each NewsletterContact join record tracks one Contact's delivery status (sent/opened/bounced) for exactly one Newsletter send.
 - GUID: {35628AA4-C765-40bd-8CC4-ACD9186AB74A}
 
 ### Association—r-newslettercontact-contact
 - Source: newslettercontact (*)
 - Target: contact (1)
 - Name: sent_to
+- Description: Each NewsletterContact join record identifies the opted-in Contact the newsletter was sent to.
 - GUID: {43479F65-F6DA-4335-A2C7-AEB3FA2CB947}
 
 ### Association—r-purchase-customer
 - Source: purchase (*)
 - Target: customer (1)
 - Name: made_by
+- Description: Each Purchase (procurement event) is made on behalf of exactly one Customer.
 - GUID: {005D5D29-0CDA-4b1e-962B-0ED9E2AACA7E}
 
 ### Association—r-purchase-quote
@@ -350,6 +375,7 @@
 - Source: license (*)
 - Target: customer (1)
 - Name: held_by
+- Description: Each License entitlement is held by exactly one Customer (RPT-1).
 - GUID: {089753EB-B3EF-43aa-A242-08921CDF4DE4}
 
 ### Association—r-license-purchase
@@ -376,6 +402,7 @@
 - Source: licenselineitem (*)
 - Target: license (1)
 - Name: line_item_of
+- Description: Each LicenseLineItem (product or service line, including 12-month service rentals) belongs to exactly one parent License.
 - GUID: {136C85F5-62C6-412a-8860-DCBC2E2A0378}
 
 ### Association—r-license-attachment
@@ -459,24 +486,28 @@
 - Source: attachment (*)
 - Target: delivery (1)
 - Name: included_in
+- Description: An Attachment (license file or service agreement) is optionally included in one Delivery email (DEL-1).
 - GUID: {1F1B9287-E051-4747-83CF-AD42A7ADCACE}
 
 ### Association—r-delivery-customer
 - Source: delivery (*)
 - Target: customer (1)
 - Name: delivered_to
+- Description: Each Delivery email is sent to exactly one Customer (DEL-1).
 - GUID: {D9841B6E-10CB-4dba-843E-F05C3A697548}
 
 ### Association—r-delivery-salesinvoice
 - Source: delivery (*)
 - Target: salesinvoice (1)
 - Name: fulfills
+- Description: A Delivery fulfills exactly one SalesInvoice — the license/agreement handover confirming what was actually sent for that invoice.
 - GUID: {EE282559-8C02-4e00-B124-F64B3114CFA4}
 
 ### Association—r-license-salesinvoice
 - Source: license (*)
 - Target: salesinvoice (1)
 - Name: billed_on
+- Description: Each License is billed on exactly one SalesInvoice, linking the entitlement to the invoice that charged the customer for it.
 - GUID: {0619E0BA-35D5-412d-9A65-691A9ED3CA4F}
 
 ### Association—r-customer-customer
