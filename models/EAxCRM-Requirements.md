@@ -4,22 +4,6 @@
 **Purpose**: Requirements for the EAxCRM system
 **Version**: 1.0
 
-### Requirement—eaxcrmmustsupporttheprocurementprocess
-- Name: EAxCRM must support the procurement process
-- ID: PRO-1
-- Description: The system shall manage the end-to-end procurement workflow from receiving a supplier quote, creating a purchase record, and recording the incoming invoice.
-- Rationale: Every license/service EAxpertise resells is first procured from a vendor; without a structured procurement record there's no way to reconcile what was bought, at what cost, against what's later sold or entitled to a customer.
-- Test Cases:
-  - A Quote can be linked to a Purchase and the Purchase linked to a ProcurementInvoice, forming a complete chain.
-  - A Purchase cannot be created without a Vendor.
-  - The procurement workflow state (quote received → purchased → invoiced) is visible per Purchase.
-- Entities: ProcurementInvoice, Purchase, Quote, Vendor
-- Status: Approved
-- Version: 1.0
-- GUID: {119DE89A-BFF5-44ab-AC67-6FC9DB0F8C10}
-- Parents:
-  - (none — top-level)
-
 ### Requirement—eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 - Name: EAxCRM must manage Customer organizations and their Contacts with specific roles (Primary, Purchase, Sales, License Holder)
 - ID: CRM-1
@@ -33,6 +17,22 @@
 - Status: Proposed
 - Version: 1.0
 - GUID: {C8A09A87-5B2B-4d72-896F-77C079F7C2DA}
+- Parents:
+  - (none — top-level)
+
+### Requirement—eaxcrmmustsupporttheprocurementprocess
+- Name: EAxCRM must support the procurement process
+- ID: PRO-1
+- Description: The system shall manage the end-to-end procurement workflow from receiving a supplier quote, creating a purchase record, and recording the incoming invoice.
+- Rationale: Every license/service EAxpertise resells is first procured from a vendor; without a structured procurement record there's no way to reconcile what was bought, at what cost, against what's later sold or entitled to a customer.
+- Test Cases:
+  - A Quote can be linked to a Purchase and the Purchase linked to a ProcurementInvoice, forming a complete chain.
+  - A Purchase cannot be created without a Vendor.
+  - The procurement workflow state (quote received → purchased → invoiced) is visible per Purchase.
+- Entities: ProcurementInvoice, Purchase, Quote, Vendor
+- Status: Approved
+- Version: 1.0
+- GUID: {119DE89A-BFF5-44ab-AC67-6FC9DB0F8C10}
 - Parents:
   - (none — top-level)
 
@@ -146,6 +146,86 @@
 - GUID: {506DEB0C-8BE3-4a76-B52E-E00F3DBB672E}
 - Parents:
   - eaxcrmmustsupporttheprocurementprocess
+
+### Requirement—contactrolerulerequiredonceasecondcontactexists
+- Name: Contact Role Rule: required once a second Contact exists
+- ID: CRM-9
+- Description: Role is optional only when exactly one Contact exists on the form. As soon as a second Contact row is added, role becomes a required field for every Contact on the form, including ones already entered.
+- Rationale: Prevents accounts with multiple unnamed-function contacts, where reps can no longer tell who does what.
+- Test Cases:
+  - One contact, role left at its default, saves fine (subject to CRM-8).
+  - Add a second contact, leave either role blank — save is rejected.
+  - Fill both roles — save succeeds.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {D97412A1-AF30-45ac-AE2D-E6A4A423CF65}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—contactrolerulesecondaryroleadded
+- Name: Contact Role Rule: Secondary role added
+- ID: CRM-10
+- Description: The Contact role choices shall include Secondary, alongside Primary/Purchase/Sales/License Holder. Secondary denotes a colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties, and is the expected successor role if the Primary contact leaves the organization.
+- Rationale: Organizations commonly designate a backup point of contact; without this role it would be miscategorized as Purchase/Sales or left blank, losing the succession signal.
+- Test Cases:
+  - Role dropdown lists Secondary as a selectable option.
+  - A Contact saved with role=Secondary persists and displays correctly.
+  - Filtering/reporting by role can isolate Secondary contacts.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {D37E1D4E-051B-455c-8B98-23F98FC4A551}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—createaccountscreencreatescustomerandcontactsatomically
+- Name: CreateAccountScreen: creates Customer and Contacts atomically
+- ID: CRM-6
+- Description: The Create Customer Account screen shall create one Customer record and one or more Contact records in a single atomic save operation. A Customer must never be persisted without at least one associated Contact, since the account-creation process treats the organization and its initial contact(s) as one unit of work.
+- Rationale: Matches the existing BPMN process (EAxCRM-CustomerAccountProcess.md), where account creation is modeled as one atomic activity. Prevents orphan Customer records with no way to reach anyone at the organization.
+- Test Cases:
+  - Save with 1 Customer + 1 Contact succeeds and both rows exist.
+  - Save attempt with Customer fields filled but zero Contacts fails validation.
+  - A mid-save failure (e.g. DB error on second Contact) rolls back the Customer too — no partial commit.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {D13E63E8-1DA9-4f10-BF1C-8AFC333666C7}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—createaccountscreennotesandphonecapturableatcreation
+- Name: CreateAccountScreen: notes and phone capturable at creation
+- ID: CRM-12
+- Description: The create screen shall include optional fields for Customer.notes (free text) and Contact.phone, since both are sometimes directly available in the source email (footer/signature) and cheaper to capture immediately than via a later edit step.
+- Rationale: Reduces follow-up data-entry work when the information is already visible to the rep; both remain optional since they're often absent from a first email.
+- Test Cases:
+  - Save succeeds with both fields blank.
+  - Save succeeds with notes and/or phone filled in.
+  - Values persist correctly on the respective Customer/Contact records.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {0EF04071-8682-4579-A08F-8A4F75EE8713}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—createaccountscreenstructuredstreetaddressorpobox
+- Name: CreateAccountScreen: structured street address or PO Box
+- ID: CRM-7
+- Description: The system shall record a Customer's address as either a structured street address (Street Name, House Number, Postal Code, City, Country) or an unstructured PO Box string, selected via a mode toggle on the create screen. Address is mandatory — the rep must actively locate it if not present in the source email.
+- Rationale: Real-world postal addresses aren't always street-based; forcing one shape either loses PO Box customers or forces reps to cram a PO Box into a street-shaped field.
+- Test Cases:
+  - Street mode requires all five fields before save.
+  - PO Box mode requires only the PO Box text field; street fields stay null.
+  - Switching modes clears/ignores the other mode's fields rather than submitting both.
+- Entities: Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {D356ED58-643D-45e6-BC31-CFA401E6C7D1}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
 ### Requirement—eaxcrmmustdetectserviceexpiryandnotifytheuserwhenrenewalisneeded
 - Name: EAxCRM must detect service expiry and notify the user when renewal is needed
@@ -464,6 +544,38 @@
 - Parents:
   - eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 
+### Requirement—newsletterconsentruleoptindefaultstofalse
+- Name: Newsletter Consent Rule: opt-in defaults to false
+- ID: CRM-11
+- Description: Contact.opt_in shall default to False when created via Create Customer Account, and shall only be set True if the rep has explicit evidence of consent in the source email. The same field must remain independently editable later via the existing Suggest Newsletter Opt-in screen.
+- Rationale: Marketing consent is a legal/compliance flag and must never be inferred just because a customer initiated contact; giving reps two deliberate checkpoints (creation-time and a later prompt) increases the chance of capturing real consent without ever defaulting to true.
+- Test Cases:
+  - New Contact via create screen has opt_in=False when the checkbox is left untouched.
+  - Checking the box at creation sets opt_in=True and stamps opt_in_date.
+  - opt_in can later be toggled from the Suggest Newsletter Opt-in screen independent of the create screen's state.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {EAAD0687-E661-4943-93EB-86376B3FA8EF}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—primarycontactruleatleastonecontactmustalwaysbeprimary
+- Name: Primary Contact Rule: at least one Contact must always be Primary
+- ID: CRM-8
+- Description: Regardless of how many Contacts are entered on account creation, exactly one must carry the role Primary. This holds even when only one Contact is entered — in that case the first (and only) Contact row defaults its role to Primary automatically rather than being left blank.
+- Rationale: Ensures every account always has one unambiguous point of contact, and gives a clear successor path when combined with the Secondary role (CRM-10).
+- Test Cases:
+  - Single-contact save with role left untouched saves with role = Primary.
+  - Two-contact save where neither is marked Primary is rejected.
+  - Two-contact save with exactly one Primary succeeds.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {5E968ECB-4896-45fa-9FAE-4518F9F92ECF}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
 ### Requirement—procurementcanbedoneviaabilityengineering
 - Name: Procurement can be done via Ability Engineering
 - ID: PRO-5.3
@@ -543,116 +655,4 @@
 - GUID: {5DA68B35-5206-46cb-B4D1-A38D8D655197}
 - Parents:
   - eaxcrmmustsupporttheprocurementprocess
-
-### Requirement—createaccountscreencreatescustomerandcontactsatomically
-- Name: CreateAccountScreen: creates Customer and Contacts atomically
-- ID: CRM-6
-- Description: The Create Customer Account screen shall create one Customer record and one or more Contact records in a single atomic save operation. A Customer must never be persisted without at least one associated Contact, since the account-creation process treats the organization and its initial contact(s) as one unit of work.
-- Rationale: Matches the existing BPMN process (EAxCRM-CustomerAccountProcess.md), where account creation is modeled as one atomic activity. Prevents orphan Customer records with no way to reach anyone at the organization.
-- Test Cases:
-  - Save with 1 Customer + 1 Contact succeeds and both rows exist.
-  - Save attempt with Customer fields filled but zero Contacts fails validation.
-  - A mid-save failure (e.g. DB error on second Contact) rolls back the Customer too — no partial commit.
-- Entities: Contact, Customer
-- Status: Proposed
-- Version: 1.0
-- GUID: {D13E63E8-1DA9-4f10-BF1C-8AFC333666C7}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—createaccountscreenstructuredstreetaddressorpobox
-- Name: CreateAccountScreen: structured street address or PO Box
-- ID: CRM-7
-- Description: The system shall record a Customer's address as either a structured street address (Street Name, House Number, Postal Code, City, Country) or an unstructured PO Box string, selected via a mode toggle on the create screen. Address is mandatory — the rep must actively locate it if not present in the source email.
-- Rationale: Real-world postal addresses aren't always street-based; forcing one shape either loses PO Box customers or forces reps to cram a PO Box into a street-shaped field.
-- Test Cases:
-  - Street mode requires all five fields before save.
-  - PO Box mode requires only the PO Box text field; street fields stay null.
-  - Switching modes clears/ignores the other mode's fields rather than submitting both.
-- Entities: Customer
-- Status: Proposed
-- Version: 1.0
-- GUID: {D356ED58-643D-45e6-BC31-CFA401E6C7D1}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—primarycontactruleatleastonecontactmustalwaysbeprimary
-- Name: Primary Contact Rule: at least one Contact must always be Primary
-- ID: CRM-8
-- Description: Regardless of how many Contacts are entered on account creation, exactly one must carry the role Primary. This holds even when only one Contact is entered — in that case the first (and only) Contact row defaults its role to Primary automatically rather than being left blank.
-- Rationale: Ensures every account always has one unambiguous point of contact, and gives a clear successor path when combined with the Secondary role (CRM-10).
-- Test Cases:
-  - Single-contact save with role left untouched saves with role = Primary.
-  - Two-contact save where neither is marked Primary is rejected.
-  - Two-contact save with exactly one Primary succeeds.
-- Entities: Contact, Customer
-- Status: Proposed
-- Version: 1.0
-- GUID: {5E968ECB-4896-45fa-9FAE-4518F9F92ECF}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—contactrolerulerequiredonceasecondcontactexists
-- Name: Contact Role Rule: required once a second Contact exists
-- ID: CRM-9
-- Description: Role is optional only when exactly one Contact exists on the form. As soon as a second Contact row is added, role becomes a required field for every Contact on the form, including ones already entered.
-- Rationale: Prevents accounts with multiple unnamed-function contacts, where reps can no longer tell who does what.
-- Test Cases:
-  - One contact, role left at its default, saves fine (subject to CRM-8).
-  - Add a second contact, leave either role blank — save is rejected.
-  - Fill both roles — save succeeds.
-- Entities: Contact
-- Status: Proposed
-- Version: 1.0
-- GUID: {D97412A1-AF30-45ac-AE2D-E6A4A423CF65}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—contactrolerulesecondaryroleadded
-- Name: Contact Role Rule: Secondary role added
-- ID: CRM-10
-- Description: The Contact role choices shall include Secondary, alongside Primary/Purchase/Sales/License Holder. Secondary denotes a colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties, and is the expected successor role if the Primary contact leaves the organization.
-- Rationale: Organizations commonly designate a backup point of contact; without this role it would be miscategorized as Purchase/Sales or left blank, losing the succession signal.
-- Test Cases:
-  - Role dropdown lists Secondary as a selectable option.
-  - A Contact saved with role=Secondary persists and displays correctly.
-  - Filtering/reporting by role can isolate Secondary contacts.
-- Entities: Contact
-- Status: Proposed
-- Version: 1.0
-- GUID: {D37E1D4E-051B-455c-8B98-23F98FC4A551}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—newsletterconsentruleoptindefaultstofalse
-- Name: Newsletter Consent Rule: opt-in defaults to false
-- ID: CRM-11
-- Description: Contact.opt_in shall default to False when created via Create Customer Account, and shall only be set True if the rep has explicit evidence of consent in the source email. The same field must remain independently editable later via the existing Suggest Newsletter Opt-in screen.
-- Rationale: Marketing consent is a legal/compliance flag and must never be inferred just because a customer initiated contact; giving reps two deliberate checkpoints (creation-time and a later prompt) increases the chance of capturing real consent without ever defaulting to true.
-- Test Cases:
-  - New Contact via create screen has opt_in=False when the checkbox is left untouched.
-  - Checking the box at creation sets opt_in=True and stamps opt_in_date.
-  - opt_in can later be toggled from the Suggest Newsletter Opt-in screen independent of the create screen's state.
-- Entities: Contact
-- Status: Proposed
-- Version: 1.0
-- GUID: {EAAD0687-E661-4943-93EB-86376B3FA8EF}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
-
-### Requirement—createaccountscreennotesandphonecapturableatcreation
-- Name: CreateAccountScreen: notes and phone capturable at creation
-- ID: CRM-12
-- Description: The create screen shall include optional fields for Customer.notes (free text) and Contact.phone, since both are sometimes directly available in the source email (footer/signature) and cheaper to capture immediately than via a later edit step.
-- Rationale: Reduces follow-up data-entry work when the information is already visible to the rep; both remain optional since they're often absent from a first email.
-- Test Cases:
-  - Save succeeds with both fields blank.
-  - Save succeeds with notes and/or phone filled in.
-  - Values persist correctly on the respective Customer/Contact records.
-- Entities: Contact, Customer
-- Status: Proposed
-- Version: 1.0
-- GUID: {0EF04071-8682-4579-A08F-8A4F75EE8713}
-- Parents:
-  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 

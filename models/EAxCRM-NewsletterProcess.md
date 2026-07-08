@@ -6,7 +6,9 @@
 
 ## BPMN Collaboration—EAxCRMNewsletterProcessArchitecture
 - Name: EAxCRM Newsletter Process Architecture
-- GUID: {9488855B-5E6D-4910-877D-F4704A4D97D4}
+- GUID: {71833B05-38F3-41c7-9A4F-2085B324EDC1}
+- Diagram Name: Newsletter Process Architecture
+- Diagram GUID: {952FA72C-BBBB-40c5-A57B-F6E2A73510E8}
 - Is Closed: false
 - Description: BPMN 2.0 collaboration model for the EAxCRM newsletter process, covering automated article scraping from news sources, manual newsletter composition, internal review workflow, and targeted distribution to opted-in contacts.
 
@@ -14,14 +16,14 @@
 - Name: EAxpertise
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {F607A12D-DF35-4e94-B4D4-4685A6636134}
+- GUID: {6973247D-950D-4573-8C1A-879FF6DEB761}
 - Description: EAxpertise team managing the newsletter lifecycle from scheduling through review and distribution.
 
 #### Gateway—6weekselapsed
   - Name: 6 weeks elapsed?
   - Type: Decision
   - Stereotype: Gateway
-  - GUID: {0DFCA552-352D-461f-B5A1-CD426917926D}
+  - GUID: {F4EE9DB2-4FD2-4346-8335-CA820CDE4A10}
   - Gateway Type: Exclusive
   - Description: Gateway checking if 6 weeks have elapsed since the last newsletter was sent.
 
@@ -29,7 +31,8 @@
   - Name: Approved Newsletter
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {B2CC93C4-32BC-4f54-98D0-BE8EFA70B3E0}
+  - GUID: {FE488401-E4A4-46bb-94B1-E4A040E83D4B}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject for the final reviewed and approved newsletter ready to send.
 
@@ -37,7 +40,7 @@
   - Name: Browse Available Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {2FDCB0FE-164B-4e4d-85C2-FA804FBEA7CD}
+  - GUID: {455033B7-11F0-4402-BF53-3486C82FABF5}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -50,7 +53,7 @@
   - Name: Check Cadence
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {3218BB8A-2F73-4b89-9F0B-8CCECB306E0D}
+  - GUID: {7631A5C3-E4F2-4187-8296-CBBC0E4A50C0}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -63,7 +66,7 @@
   - Name: Compose Newsletter
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {94905D88-3711-440a-8C43-69421780BEF8}
+  - GUID: {A42F3D07-163F-419d-875D-4990E66CCEB4}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -76,7 +79,8 @@
   - Name: Contact List
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {06DF44D0-7E1E-4175-93CF-68EE9428D156}
+  - GUID: {D9BC4C9F-7CFB-45a2-8583-0E76DD73A14F}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject storing the list of opted-in contacts to receive the newsletter.
 
@@ -84,7 +88,8 @@
   - Name: Newsletter Draft
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {D59C5A81-90BC-40b1-8EBA-C53B2108A33A}
+  - GUID: {13104C69-4C00-4b6a-9ADA-804BD2C19D5A}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject for the work-in-progress newsletter draft before submission.
 
@@ -92,14 +97,15 @@
   - Name: Newsletter Sent
   - Type: Event
   - Stereotype: EndEvent
-  - GUID: {BE7228CB-6384-4099-8E85-4A6EF2F9D093}
+  - GUID: {39C46955-C543-40b6-80DC-81D4BA479199}
+  - Event Type: None
   - Description: EndEvent marking successful newsletter distribution to all recipients.
 
 #### Gateway—ReviewApproved
   - Name: Review Approved?
   - Type: Decision
   - Stereotype: Gateway
-  - GUID: {C7A531A7-161B-46e0-BCAA-37F3226973B6}
+  - GUID: {9B1679CC-5F72-4346-A707-517769F52CF7}
   - Gateway Type: Exclusive
   - Description: Gateway checking whether the newsletter review was approved or needs revision.
 
@@ -107,7 +113,7 @@
   - Name: Select Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {09089596-99C5-4155-BBB3-1A2D5E8DD36C}
+  - GUID: {2F3FCFF5-54A1-4e9c-A0C9-3657228F3D43}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -120,7 +126,8 @@
   - Name: Selected Articles
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {3874679B-8E5C-4560-96AD-4C7974D93B2D}
+  - GUID: {637A19F4-7220-40d0-847E-3848A0FEEEEB}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject storing the curated selection of articles for the newsletter.
 
@@ -128,7 +135,7 @@
   - Name: Send Newsletter
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {A124D465-171A-403d-94DA-3843285943B2}
+  - GUID: {3F77A46D-C3EA-450e-872F-245A4462A82E}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -141,7 +148,8 @@
   - Name: Sent Newsletter
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {BDC58A19-F164-4453-9C14-1B7CDD00018C}
+  - GUID: {93163D6D-1C14-4f5b-96C1-BBF5772E41C6}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject storing the archive of the sent newsletter for audit and reference.
 
@@ -149,14 +157,15 @@
   - Name: Start Newsletter
   - Type: Event
   - Stereotype: StartEvent
-  - GUID: {A2F3FEB2-4559-4a4b-ABC7-E7BCB4E23E2C}
+  - GUID: {0AA82059-B629-4ee7-A3D5-735F2B0057C7}
+  - Event Type: None
   - Description: StartEvent triggering the newsletter composition process.
 
 #### Activity—SubmitforReview
   - Name: Submit for Review
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {39581342-E38D-4ba7-ACB5-498A99416EEC}
+  - GUID: {18B57B90-3035-4c52-865A-A5CFFAA0010A}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -169,14 +178,15 @@
 - Name: News Source
 - Type: ActivityPartition
 - Stereotype: Lane
-- GUID: {4989F926-0A9F-46a3-ABF1-2D7FFF4E31F2}
+- GUID: {44320F6A-FEF0-4542-A842-998C0635269B}
 - Description: Automated news sources (SparxSystems.com, sparxsystems.eu) providing articles for the newsletter via scheduled scraping.
 
 #### DataObject—ArticlePool
   - Name: Article Pool
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {D3C404A9-C323-4cfa-9029-42BF63A5B33B}
+  - GUID: {4607D2DC-C6CE-4c27-B0BC-CAA48E8CAD22}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject storing all scraped article metadata (heading, summary, source URL) for selection.
 
@@ -184,7 +194,7 @@
   - Name: Extract Headings and Summaries
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {3507D125-D007-4124-82D0-934D20FD422E}
+  - GUID: {2824BEE2-F8F6-4180-8BA2-2A16FF9DD879}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -197,7 +207,7 @@
   - Name: Fetch URL List
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {8C0F5662-6269-4a57-AD6E-A7C20CE51414}
+  - GUID: {7BC27FA6-8291-4ee8-A7AC-798AA7569FC8}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -210,14 +220,15 @@
   - Name: Scheduled Scrape
   - Type: Event
   - Stereotype: StartEvent
-  - GUID: {2E951233-9FA6-47fc-9545-B0B924229E9A}
+  - GUID: {7760A66A-9FD9-4f45-BB6A-0C11AD23728C}
+  - Event Type: None
   - Description: StartEvent triggering the automated scraping process on a scheduled basis.
 
 #### Activity—ScrapeArticles
   - Name: Scrape Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {963DDAE6-6090-479f-B533-7BE3D9BA7446}
+  - GUID: {AA61373F-634E-43d0-AC90-504243D1C4A2}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -230,14 +241,15 @@
   - Name: Scrape Complete
   - Type: Event
   - Stereotype: EndEvent
-  - GUID: {C6B4F238-4005-4950-B30F-387F059D03F9}
+  - GUID: {BD798C4C-6184-47ae-8D07-577B1628EC5F}
+  - Event Type: None
   - Description: EndEvent marking successful completion of the article scraping cycle.
 
 #### Activity—StoreNewArticles
   - Name: Store New Articles
   - Type: Activity
   - Stereotype: Activity
-  - GUID: {4FE6A127-F6BB-468b-8439-569A21863021}
+  - GUID: {D8C742DC-A1ED-482f-BBFD-7CBC9114F78A}
   - Completion Quantity: 1
   - Is Called Activity: false
   - Is For Compensation: false
@@ -250,7 +262,8 @@
   - Name: URL List
   - Type: Artifact
   - Stereotype: DataObject
-  - GUID: {DF204F41-0D18-4abe-B0B8-780A2A9E7482}
+  - GUID: {F87D2342-0B7D-4611-8FB0-2125288DFE8A}
+  - Data In/Out: None
   - Is Collection: false
   - Description: DataObject storing the configured list of news source URLs to scrape periodically.
 

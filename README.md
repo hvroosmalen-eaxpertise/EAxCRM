@@ -23,7 +23,7 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 
 ## Data Model
 
-**19 entities**, **30 relationships**, **41 requirements**, **2 BPMN processes** (newsletter: 26 elements, 2 lanes, 16 flows; sales: 45 elements, 3 lanes, 59 flows) — maintained in Sparx EA as the canonical source.
+**19 entities**, **30 relationships**, **41 requirements**, **3 BPMN processes** (newsletter: 26 elements, 2 lanes, 16 flows; sales: 50 elements, 3 lanes, 64 flows; customer account: 13 elements, 1 lane, 9 flows) — maintained in Sparx EA as the canonical source.
 
 | Procurement Flow | Sales Flow |
 |---|---|

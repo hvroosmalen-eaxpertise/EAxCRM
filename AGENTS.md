@@ -67,7 +67,7 @@ Unless I say "implement in Django" or "update the models.py", we stay at **model
 | Deployment | Native dev on Windows → Docker on QNAP NAS (Phase 3) |
 
 ## Data Model Summary
-**Current state (as of 2026-06-29):** 19 entities, 30 relationships
+**Current state (as of 2026-07-08):** 19 entities, 30 relationships
 
 ### Entities
 | Entity | Description | Key Attributes |
@@ -126,8 +126,8 @@ Attachment → Delivery (included_in)
 ## Models (files in ../models/)
 - `EAxCRM-Archimate.md` — ArchiMate model source of truth (Markdown, 71 elements, 107 relations, 1 diagram; v2.0 adds Sales Management, Vendor, and 7 new business objects; v2.1 adds Manage Customer Account function)
 - `EAxCRM-Requirements.md` — Requirements model (Markdown, 41 requirements)
-- `EAxCRM-CustomerAccountProcess.md` — Manage Customer Account BPMN process (Markdown, design-only, not yet in EA)
-- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements; Sales Process v1.1 and Manage Customer Account process still need to be generated/re-generated from MD)
+- `EAxCRM-CustomerAccountProcess.md` — Manage Customer Account BPMN process (Markdown, 13 elements, 9 sequence flows, data associations)
+- `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements + 3 BPMN processes + wireframe diagrams)
 
 ## Active Context
 - **Architecture decision (2026-07-08):** production database moves off SQLite to a production-grade, multi-user-capable RDBMS — SQLite's single-writer model doesn't fit reliable concurrent multi-user access. Engine intentionally not yet chosen (kept technology-abstract). Django stays as the framework (this was specifically about the DB, not the framework — a C# desktop client + remote DB + services alternative was discussed and set aside once the actual friction, SQLite, was identified). SQLite may still be fine for local dev. TEC-1 requirement revised accordingly (GUID unchanged, eid renamed `eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase`); README.md/AGENTS.md Tech Stack tables updated to match. **Sequencing:** continue modelling first; implementation (Django app, incremental, one BPMN process at a time) comes later once the model is mature enough.
@@ -137,8 +137,8 @@ Attachment → Delivery (included_in)
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype
 - GUID map has 67 entries (66 elements + 1 diagram), saved to `archimate_guid_map.json`
 - Remote configured: https://github.com/hvroosmalen-eaxpertise/EAxCRM (committed and pushed)
-- Data model has 19 entities and 30 relationships — updated 2026-06-29
-- Requirements model expanded from 8 to 34 requirements with IDs, Status, Version — updated 2026-06-29
+- Data model has 19 entities and 30 relationships — updated 2026-07-08
+- Requirements model expanded from 8 to 34 requirements with IDs, Status, Version — updated 2026-07-08
 - Requirements model expanded from 39 to 41 requirements (CRM-6 through CRM-12) — 2026-07-07, covering the Create Customer Account screen's field/validation rules (issue #7). Notes field now composes Description + Rationale + Test Cases sections; Rationale/TestCases are also stored as EA Tagged Values for structured access. Naming convention for new requirements: lead with the GUI component name (e.g. `CreateAccountScreen: ...`) when the requirement is screen-specific, or a business-rule name (e.g. `Primary Contact Rule: ...`) when it's a cross-cutting domain rule — not a restated full-sentence "must" requirement.
 - **Note:** this reuses the CRM-6..CRM-9 ID range that a 2026-07-02 planning note (see "Requirements Model" below) had reserved for the Manage Customer Account *BPMN process*-level requirements (dedupe/merge/email-history/opt-in-suggestion). Those were never actually generated into EA, so no real collision occurred, but that reservation is now stale — when those process-level requirements are eventually written, use CRM-13 onward (and a fresh SAL-5, since SAL namespace is untouched).
 - New entities: Vendor, Delivery; expanded: Service (+5 attributes then -2), Attachment (+delivery_id)
@@ -147,7 +147,7 @@ Attachment → Delivery (included_in)
 - Newsletter process parser fixed: `### ` handler now captures elements (was resetting `current=None`, losing all `### ` items)
 - Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) — removed 16 duplicate flow lines from MD
 - Newsletter model complete: 26 elements, 2 Lanes, 16 SequenceFlows, 39 total connectors, 7 scraping pipeline elements added
-- Sales process model complete: 45 elements (incl CM), 3 Lanes, 24 activities, 4 events, 2 gateways, 10 DataObjects, 20 SequenceFlows, 17 MessageFlows, 11 DataIO associations each
+- Sales process model complete: 49 elements (3 Lanes, 27 activities, 5 events, 3 gateways, 11 DataObjects), 25 SequenceFlows, 17 MessageFlows, 11 DataIO associations each — 1 CollaborationModel included in the sync count of 50
 - `diagram_utils.py` created: shared module for BPMN lane layout and diagonal layout across all generators
 - `generate_sales_process_from_md.py` created: full connector support (SequenceFlow, MessageFlow, DataInput/OutputAssoc), BPMN lane layout via diagram_utils
 - `EAxCRM-SalesProcess.md` created: flat `### ` structure with `- Lane:` fields on all 41 non-lane elements
@@ -374,7 +374,7 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - **7 scraping elements**: Scheduled Scrape, Fetch URL List, Scrape Articles, Extract Headings and Summaries, Store New Articles, URL List, Scrape Complete — completing the full newsletter pipeline from scraping through review and distribution.
 
 ## Sales Process Model
-- `EAxCRM-SalesProcess.md` holds the BPMN spec (1 CollaborationModel, 3 Lanes, 49 elements, 25 SequenceFlows, 17 MessageFlows, 11 DataOutputAssoc, 11 DataInputAssoc)
+- `EAxCRM-SalesProcess.md` holds the BPMN spec (1 CollaborationModel, 3 Lanes, 50 elements, 25 SequenceFlows, 17 MessageFlows, 11 DataOutputAssoc, 11 DataInputAssoc)
 - `generate_sales_process_from_md.py` — MD → EA generator (COM API only, full connector support)
 - `sales_guid_map.json` — GUID map for idempotent re-runs
 - Flat `### ` structure (all elements at same level, Lane field on each element indicates membership)
@@ -382,13 +382,13 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Connector existence check matches both short-form ("SequenceFlow") and long-form ("BPMN2.0::SequenceFlow") stereotypes
 - v1.1 (2026-07-02): added `ConfirmCustomerAccount` IntermediateEvent (EAxpertise lane), inserted between `CreateRFQ` and `RegisterRFQ` — `CreateRFQ → RegisterRFQ` MessageFlow replaced by `CreateRFQ → ConfirmCustomerAccount` (MessageFlow, crosses Customer/EAxpertise) + `ConfirmCustomerAccount → RegisterRFQ` (SequenceFlow, same lane). References the new Manage Customer Account process — not a literal cross-diagram BPMN link, just a design/documentation pointer plus an ArchiMate Triggering relation (`r-trigger-rfq-createaccount`)
 
-## Manage Customer Account Process (2026-07-02, design-only — not yet generated into EA)
-- `EAxCRM-CustomerAccountProcess.md` holds the BPMN spec (1 CollaborationModel, 1 Lane "EAxpertise", 12 elements, 9 SequenceFlows, 4 DataInputAssoc, 2 DataOutputAssoc). Follows the same flat `### ` + `- Lane:` format as the Sales Process.
+## Manage Customer Account Process
+- `EAxCRM-CustomerAccountProcess.md` holds the BPMN spec (1 CollaborationModel, 1 Lane "EAxpertise", 12 elements, 9 SequenceFlows, 2 DataInputAssoc, 4 DataOutputAssoc). Follows the same flat `### ` + `- Lane:` format as the Sales Process.
 - Fills a real gap: no existing process created the Customer/Contact records that Sales Process/Newsletter Management/Customer Insight all assume already exist.
-- Flow: `StartAccountRequest` → `CreateCustomerAccount` (org name + exactly one Contact, role optional) → `duplicatecheck` gateway (fuzzy match on org name + Contact email) → either `MergeCustomerAccounts` (→ `EndMerged`) or `RetrieveEmailHistory` (IMAP scan across the 3 mailboxes) → `roleCheck` gateway (Primary/License Holder?) → optionally `SuggestOptIn` (system suggests, **user must explicitly confirm** — opt_in is never set automatically) → `EndAccountCreated`
+- Flow: `NewCustomerContact` → `CreateCustomerAccount` (org name + exactly one Contact, role optional) → `Duplicatefound` gateway (fuzzy match on org name + Contact email) → either `MergeCustomerAccounts` (→ `MergedintoExistingAccount`) or `RetrieveEmailHistory` (IMAP scan across the 3 mailboxes) → `PrimaryorLicenseHolderrole` gateway → optionally `SuggestNewsletterOptin` (system suggests, **user must explicitly confirm** — opt_in is never set automatically) → `AccountReady`
 - Single Lane only (`EAxpertise`) — always staff-driven via the EAxCRM app, no self-service/Customer lane, no separate system/IMAP lane
 - No new Data Model entities/fields needed — reuses existing `Customer`/`Contact`/`Communication`
-- **No generator/sync script exists yet** (`generate_customeraccount_process_from_md.py` / `sync_customeraccount_process_from_ea.py`) — next step is to build these following the Sales Process generator pattern (COM API only, GUID map file `customeraccount_guid_map.json`, BPMN lane layout via `diagram_utils`) before this can be created in `EAxCRM.qea`
+- Generated into EA (2026-07-03) via `generate_customeraccount_process_from_md.py` / `sync_customeraccount_process_from_ea.py`; synced live from EA 2026-07-08
 - Requirements for this process were planned as CRM-6 through CRM-9 and SAL-5, but that ID range was reassigned 2026-07-07 to the Create Customer Account UI requirements (issue #7) before these process-level ones were ever generated into EA — write these as CRM-13+ / a fresh SAL-5 instead. See "Requirements Model" below.
 - New ArchiMate additions (v2.1): BusinessFunction `Manage Customer Account` (`e-func-account`) with 4 BusinessProcesses (`e-process-createaccount`, `e-process-dedupe`, `e-process-merge`, `e-process-emailhistory`), reusing existing `Customer Data`/`Contact Data`/`Communication Data` BusinessObjects and the `Customer Management Service`/`IMAP Fetch Service` ApplicationServices; Triggering relation from `Handle RFQ` to `Create Customer Account`
 

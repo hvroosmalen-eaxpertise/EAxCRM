@@ -28,15 +28,6 @@
 - Event Type: None
 - Description: The Customer Account exists, is not a duplicate, and any applicable opt-in decision has been made.
 
-### IntermediateEvent—ConfirmCustomerAccount
-- Name: Confirm Customer Account
-- Type: Event
-- Stereotype: IntermediateEvent
-- GUID: {AD32AD89-C0CA-4001-ACFB-56C1F46601AC}
-- Lane: EAxpertise
-- Event Type: Signal
-- Description: Signal checkpoint before registering the RFQ — the user verifies the requesting organisation has a Customer Account, or creates one via the Manage Customer Account process (see EAxCRM-CustomerAccountProcess.md), before continuing.
-
 ### DataObject—Contact
 - Name: Contact
 - Type: Artifact
@@ -170,7 +161,6 @@
 - PrimaryorLicenseHolderrole → SuggestNewsletterOptin [Primary or License Holder]
 - PrimaryorLicenseHolderrole → AccountReady [no]
 - SuggestNewsletterOptin → AccountReady
-- ConfirmCustomerAccount → CreateCustomerAccount
 
 ### Data Input Associations
 

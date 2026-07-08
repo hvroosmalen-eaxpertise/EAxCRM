@@ -1,3 +1,15 @@
+## 2026-07-08 12:48:51 — Audit, run cap-eacrm
+
+### Deleted
+| eid | Name | Type | GUID |
+|-----|------|------|------|
+| ConfirmCustomerAccount | Confirm Customer Account | IntermediateEvent |  |
+
+### Connectors
+| Action | Type | Source | Target | Condition |
+|--------|------|--------|--------|-----------|
+| deleted | connector | ConfirmCustomerAccount | CreateCustomerAccount |  |
+
 ## 2026-07-06 22:02:57 — Audit, run cap-eacrm
 
 ### Checkpoints

@@ -10,8 +10,8 @@ This directory contains the Sparx Enterprise Architect model files for the EAxCR
 | `EAxCRM-DataModel.md` | Data model (Markdown, 19 entities, 30 relationships) |
 | `EAxCRM-Requirements.md` | Requirements model (Markdown, 41 requirements) |
 | `EAxCRM-NewsletterProcess.md` | Newsletter BPMN process (Markdown, 26 elements, 2 lanes, 16 sequence flows) |
-| `EAxCRM-SalesProcess.md` | Sales BPMN process (Markdown, 49 elements, 3 lanes, 25 sequence flows, 17 message flows, 22 data associations) |
-| `EAxCRM-CustomerAccountProcess.md` | Manage Customer Account BPMN process (Markdown, 1 CollaborationModel, 1 Lane, 14 elements, 10 sequence flows, data associations) — generated into EA (2026-07-03) |
+| `EAxCRM-SalesProcess.md` | Sales BPMN process (Markdown, 50 elements, 3 lanes, 25 sequence flows, 17 message flows, 22 data associations) |
+| `EAxCRM-CustomerAccountProcess.md` | Manage Customer Account BPMN process (Markdown, 1 CollaborationModel, 1 Lane, 13 elements, 9 sequence flows, data associations) — generated into EA (2026-07-03) |
 | `EAxCRM-SalesProcess-CRUD.md` | Sales process CRUD matrix — maps which activities create/read/update/delete each data object, cross-referenced to data model entities |
 | `EAxCRM-CustomerAccountUI.md` | Manage Customer Account UI wireframes (Markdown, 4 screens, 26 controls, 3 navigation links) — generated into EA (2026-07-06, issue #4) |
 | `EAxCRM.qea` | Sparx EA project file (ArchiMate + data model + requirements + process architecture + wireframes) |
@@ -76,7 +76,7 @@ skill for the full layout/routing rules).
 #### Manage Customer Account Process
 - **Generate** (MD → EA): `python experiments/modelgen/generate_customeraccount_process_from_md.py`
 - **Sync** (EA → MD): `python experiments/modelgen/sync_customeraccount_process_from_ea.py`
-- 1 CollaborationModel (Manage Customer Account), 1 Lane (EAxpertise — no self-service, always staff-driven), 14 elements, 10 SequenceFlows, plus Data Input/Output Associations
+- 1 CollaborationModel (Manage Customer Account), 1 Lane (EAxpertise — no self-service, always staff-driven), 13 elements, 9 SequenceFlows, plus Data Input/Output Associations
 - Covers: create account from minimal data (org name + one Contact email), fuzzy-match duplicate detection with merge, email history retrieval via IMAP scan, and role-gated (Primary/License Holder) newsletter opt-in suggestion requiring explicit user confirmation
 
 ## ArchiMate Model

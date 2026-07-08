@@ -30,15 +30,148 @@
 - Bounds: 34, 28, 600, 880
 - GUID: {975FF198-BA12-49c7-A828-0A8C80EF2B29}
 
-#### Control—SectionDomainLabel
-- Name: Find by Domain (optional)
+#### Control—AddContactLink
+- Name: + Add Contact
+- Type: Hyperlink
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 204, 480, 150, 20
+- Description: Adds another Name/Email/Role/Phone/Opt-in row. One example row is drawn; adding a 2nd row makes Role required on every row (CRM-9).
+- GUID: {898B15F1-E781-4cef-90BE-AFFDC9E03925}
+
+#### Control—SectionAdditionalLabel
+- Name: Additional Details (optional)
 - Type: Label
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 44, 170, 300, 16
+- Bounds: 44, 694, 300, 16
+- Description: Collapsed by default in the real UI — drawn expanded here for documentation completeness (no native collapsible-section control exists in EA's Wireframing MDG).
 - Align Text: Left
 - Multiline: false
-- GUID: {C1BE2581-3547-4170-BDBF-9BCC757DE847}
+- GUID: {29782D05-51B6-47bd-AED2-5B0FA38C457E}
+
+#### Control—SectionAddressLabel
+- Name: Address
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 520, 300, 16
+- Align Text: Left
+- Multiline: false
+- GUID: {6A009E1F-EF27-48fb-BCC1-DB5B51754B29}
+
+#### Control—Cancel
+- Name: Cancel
+- Type: Button
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 191, 800, 100, 30
+- State: Normal
+- GUID: {CA831324-5B0E-4087-98C6-2FC0B2855077}
+
+#### Control—CityLabel
+- Name: City
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 654, 100, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {22E5CD87-34C2-4d95-B3B1-54F2DAC8010F}
+
+#### Control—CityField
+- Name: CityField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 148, 654, 140, 24
+- Description: Required to save when Street Address mode is active (CRM-7).
+- GUID: {4A2812AB-3D50-4ef9-8B5A-FF303648CC43}
+
+#### Control—CreateAccountEmailLabel
+- Name: Contact Email
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 348, 150, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {6F79EB95-46D2-4781-8AF0-21C923B3FC17}
+
+#### Control—CreateAccountContactNameLabel
+- Name: Contact Name
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 314, 150, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {BE9FF8C0-8C57-48f2-BB01-73D7E95AC3EB}
+
+#### Control—CreateAccountEmailField
+- Name: ContactEmailField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 204, 348, 250, 24
+- Description: Required to save on the first Contact row (Contact.email). Repeats per added Contact row.
+- GUID: {59032069-A217-43e1-853A-40192D4D0B30}
+
+#### Control—CreateAccountContactNameField
+- Name: ContactNameField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 204, 314, 250, 24
+- Description: Required to save on the first Contact row (Contact.name). Repeats per added Contact row.
+- GUID: {BAF12E7E-0B73-44f0-A59A-50701990EB61}
+
+#### Control—ContactPhoneField
+- Name: ContactPhoneField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 204, 416, 250, 24
+- Description: Optional / nice-to-have (Contact.phone) — capturable at creation when visible in the source email footer/signature (CRM-12).
+- GUID: {1DB83C3E-F1E4-492d-A1FD-BE01B8DA4ABB}
+
+#### Control—CountryLabel
+- Name: Country
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 304, 654, 80, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {B7DE5AFB-D7AB-453c-B93E-0FE5CCB88F4A}
+
+#### Control—CountryField
+- Name: CountryField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 384, 654, 120, 24
+- Description: Required to save when Street Address mode is active (CRM-7).
+- GUID: {3C7B4B53-9A09-4ed9-8216-8EE3EE85A4D8}
+
+#### Control—CustomerNotesLabel
+- Name: Customer Notes
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 724, 150, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {4669AAAE-6801-464a-B755-E37C41BB8CD0}
+
+#### Control—CustomerNotesField
+- Name: CustomerNotesField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 204, 724, 300, 50
+- Description: Optional / nice-to-have (Customer.notes) — free text, capturable opportunistically at creation (CRM-12). Drawn taller to represent multi-line entry.
+- GUID: {F672729D-FAC1-4372-8A5B-9949A0027629}
 
 #### Control—DomainLabel
 - Name: Domain
@@ -48,7 +181,7 @@
 - Bounds: 44, 200, 150, 13
 - Align Text: Left
 - Multiline: false
-- GUID: {3241C6D8-5000-4461-A097-7269E5AB6000}
+- GUID: {BF1867F4-8925-4ee4-B7F0-BAC14A14A8FB}
 
 #### Control—DomainField
 - Name: DomainField
@@ -57,17 +190,36 @@
 - Parent: CreateCustomerAccount
 - Bounds: 204, 200, 180, 24
 - Description: Email domain to search for (e.g. acme.com). Not saved to the Customer record — purely a lookup aid for prefilling the fields below.
-- GUID: {F78FC8DB-A3FE-4371-A351-ADDA75C36802}
+- GUID: {89C7EC25-6A33-4a9a-9B0E-497E5531B2DA}
 
-#### Control—SearchEmailsButton
-- Name: Search Emails
-- Type: Button
+#### Control—SectionDomainLabel
+- Name: Find by Domain (optional)
+- Type: Label
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 394, 200, 140, 24
-- Description: Scans the configured IMAP mailboxes (han@/sales@/info@eaxpertise.nl) for emails from the given domain and prefills Organisation Name, first Contact's Name/Email, and Address below from the best match, for the rep to review/edit before Save. Distinct from the downstream "Retrieve Customer Email History" screen, which retrieves the full communication history after the account already exists.
-- State: Normal
-- GUID: {6618471F-CE74-4435-9F5F-FE37697DE8D4}
+- Bounds: 44, 170, 300, 16
+- Align Text: Left
+- Multiline: false
+- GUID: {A455294B-1DD6-4b1f-A80E-0F67233DF930}
+
+#### Control—HouseNumberLabel
+- Name: House Number
+- Type: Label
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 620, 100, 13
+- Align Text: Left
+- Multiline: false
+- GUID: {B06CE72A-31B7-4511-B586-3983F3598AAA}
+
+#### Control—HouseNumberField
+- Name: HouseNumberField
+- Type: TextField
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 148, 620, 90, 24
+- Description: Required to save when Street Address mode is active (CRM-7).
+- GUID: {521AC039-592D-47aa-B994-9CB58DB3E6E0}
 
 #### Control—SectionOrgContactLabel
 - Name: Organisation & Contact
@@ -77,7 +229,7 @@
 - Bounds: 44, 250, 300, 16
 - Align Text: Left
 - Multiline: false
-- GUID: {4733839B-4E0F-4235-84B5-AA7531A8E507}
+- GUID: {C938B402-0E32-478f-A817-2C4B2EB8B099}
 
 #### Control—CreateAccountOrgLabel
 - Name: Organisation Name
@@ -98,43 +250,44 @@
 - Description: Required to save. Organisation name for the new Customer (Customer.name).
 - GUID: {1CAD9E69-C02C-4cbb-B2C0-6E8B6F3BE0AA}
 
-#### Control—CreateAccountContactNameLabel
-- Name: Contact Name
+#### Control—ContactPhoneLabel
+- Name: Phone (optional)
 - Type: Label
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 44, 314, 150, 13
+- Bounds: 44, 416, 150, 13
 - Align Text: Left
 - Multiline: false
-- GUID: {BE9FF8C0-8C57-48f2-BB01-73D7E95AC3EB}
+- GUID: {91DC1D85-F87A-4535-BD6D-FA57098D825B}
 
-#### Control—CreateAccountContactNameField
-- Name: ContactNameField
-- Type: TextField
+#### Control—AddressPOBoxTab
+- Name: PO Box
+- Type: Button
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 204, 314, 250, 24
-- Description: Required to save on the first Contact row (Contact.name). Repeats per added Contact row.
-- GUID: {BAF12E7E-0B73-44f0-A59A-50701990EB61}
+- Bounds: 188, 548, 100, 28
+- Description: Address mode toggle (CRM-7), inactive tab. Selecting it swaps the Street fields below for a single PO Box text field — not drawn on this static diagram since only one tab's fields can be foregrounded at a time; documented here instead.
+- State: Normal
+- GUID: {4267ACB2-91F5-46c2-B02B-F6DF7E9D017F}
 
-#### Control—CreateAccountEmailLabel
-- Name: Contact Email
+#### Control—PostalCodeLabel
+- Name: Postal Code
 - Type: Label
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 44, 348, 150, 13
+- Bounds: 254, 620, 90, 13
 - Align Text: Left
 - Multiline: false
-- GUID: {6F79EB95-46D2-4781-8AF0-21C923B3FC17}
+- GUID: {7D0C521E-28B5-4f88-A54B-76923BA8AEDF}
 
-#### Control—CreateAccountEmailField
-- Name: ContactEmailField
+#### Control—PostalCodeField
+- Name: PostalCodeField
 - Type: TextField
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 204, 348, 250, 24
-- Description: Required to save on the first Contact row (Contact.email). Repeats per added Contact row.
-- GUID: {59032069-A217-43e1-853A-40192D4D0B30}
+- Bounds: 344, 620, 100, 24
+- Description: Required to save when Street Address mode is active (CRM-7).
+- GUID: {CE19D8A7-0ED0-4cd1-9B42-CD337C9853DD}
 
 #### Control—CreateAccountRoleLabel
 - Name: Role
@@ -157,24 +310,53 @@
 - Items: Primary, Purchase, Sales, License Holder, Secondary
 - GUID: {00DAE181-F318-426d-93EB-1C0ADB06CFF0}
 
-#### Control—ContactPhoneLabel
-- Name: Phone (optional)
+#### Control—CreateAccountSaveButton
+- Name: Save
+- Type: Button
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 800, 100, 30
+- State: Normal
+- GUID: {C36B94EF-B3A5-4998-B56E-30495392AB2B}
+
+#### Control—SearchEmailsButton
+- Name: Search Emails
+- Type: Button
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 394, 200, 140, 24
+- Description: Scans the configured IMAP mailboxes (han@/sales@/info@eaxpertise.nl) for emails from the given domain and prefills Organisation Name, first Contact's Name/Email, and Address below from the best match, for the rep to review/edit before Save. Distinct from the downstream "Retrieve Customer Email History" screen, which retrieves the full communication history after the account already exists.
+- State: Normal
+- GUID: {F4A09847-0C8E-43f8-998D-E222C2FB2632}
+
+#### Control—AddressStreetTab
+- Name: Street Address
+- Type: Button
+- Screen: CreateAccountScreen
+- Parent: CreateCustomerAccount
+- Bounds: 44, 548, 140, 28
+- Description: Address mode toggle (CRM-7) — mandatory, mutually exclusive with PO Box. No native "Tabs" control exists in EA's Wireframing MDG (see wireframe_config.CONTROL_TYPE_TO_STEREO); represented as a pair of Buttons styled as tabs, State=Selected marking the active mode. Drawn as the default/active tab, showing the Street fields below.
+- State: Selected
+- GUID: {F3FAC591-136E-4b72-9579-84C0D32B55FF}
+
+#### Control—StreetNameLabel
+- Name: Street Name
 - Type: Label
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 44, 416, 150, 13
+- Bounds: 44, 586, 150, 13
 - Align Text: Left
 - Multiline: false
-- GUID: {2E46E322-C3D4-4D2A-9840-1E762B241D17}
+- GUID: {AF434026-ACC2-42c4-AE8C-6730CF37737D}
 
-#### Control—ContactPhoneField
-- Name: ContactPhoneField
+#### Control—StreetNameField
+- Name: StreetNameField
 - Type: TextField
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
-- Bounds: 204, 416, 250, 24
-- Description: Optional / nice-to-have (Contact.phone) — capturable at creation when visible in the source email footer/signature (CRM-12).
-- GUID: {8AD9DCDF-B1F8-4FC7-A638-D280D7DE9F3F}
+- Bounds: 204, 586, 300, 24
+- Description: Required to save when Street Address mode is active (CRM-7).
+- GUID: {8E7F0F1B-D62E-4e55-996E-CCA02C38A5B1}
 
 #### Control—ContactOptInCheckbox
 - Name: This contact has given explicit consent for the newsletter
@@ -185,189 +367,7 @@
 - Description: Contact.opt_in — unchecked by default, only set True with explicit evidence of consent in the source email (CRM-11). Per-Contact, repeats on each added row.
 - Enabled: true
 - State: Unchecked
-- GUID: {4EF63649-AD63-4CFD-93FD-A2B315F1777B}
-
-#### Control—AddContactLink
-- Name: + Add Contact
-- Type: Hyperlink
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 204, 480, 150, 20
-- Description: Adds another Name/Email/Role/Phone/Opt-in row. One example row is drawn; adding a 2nd row makes Role required on every row (CRM-9).
-- GUID: {93A4E782-8251-4148-A28C-1D2433FA3638}
-
-#### Control—SectionAddressLabel
-- Name: Address
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 520, 300, 16
-- Align Text: Left
-- Multiline: false
-- GUID: {881723A0-7932-4F69-ADA9-2B23EB355C2D}
-
-#### Control—AddressStreetTab
-- Name: Street Address
-- Type: Button
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 548, 140, 28
-- Description: Address mode toggle (CRM-7) — mandatory, mutually exclusive with PO Box. No native "Tabs" control exists in EA's Wireframing MDG (see wireframe_config.CONTROL_TYPE_TO_STEREO); represented as a pair of Buttons styled as tabs, State=Selected marking the active mode. Drawn as the default/active tab, showing the Street fields below.
-- State: Selected
-- GUID: {C98AC1BD-3A48-41C1-9CEC-FC658731FEEB}
-
-#### Control—AddressPOBoxTab
-- Name: PO Box
-- Type: Button
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 188, 548, 100, 28
-- Description: Address mode toggle (CRM-7), inactive tab. Selecting it swaps the Street fields below for a single PO Box text field — not drawn on this static diagram since only one tab's fields can be foregrounded at a time; documented here instead.
-- State: Normal
-- GUID: {B82244F8-894D-4E05-B380-B369D99AD61D}
-
-#### Control—StreetNameLabel
-- Name: Street Name
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 586, 150, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {527CE7AD-A7F8-4919-9838-8E7577629594}
-
-#### Control—StreetNameField
-- Name: StreetNameField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 204, 586, 300, 24
-- Description: Required to save when Street Address mode is active (CRM-7).
-- GUID: {87098905-3137-459D-82AC-B517C2B92238}
-
-#### Control—HouseNumberLabel
-- Name: House Number
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 620, 100, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {D81C3DF1-6806-435F-A8C9-3FD1302C796C}
-
-#### Control—HouseNumberField
-- Name: HouseNumberField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 148, 620, 90, 24
-- Description: Required to save when Street Address mode is active (CRM-7).
-- GUID: {13A39942-007E-4429-8CFA-3C07AE55AA4C}
-
-#### Control—PostalCodeLabel
-- Name: Postal Code
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 254, 620, 90, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {29B49ECE-CB2D-406E-A8B5-E496D1F95151}
-
-#### Control—PostalCodeField
-- Name: PostalCodeField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 344, 620, 100, 24
-- Description: Required to save when Street Address mode is active (CRM-7).
-- GUID: {9079544C-BED9-428C-A72E-01C9474B2163}
-
-#### Control—CityLabel
-- Name: City
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 654, 100, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {2A7E737F-6B0F-47A8-BEAC-4EDCC9EAB543}
-
-#### Control—CityField
-- Name: CityField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 148, 654, 140, 24
-- Description: Required to save when Street Address mode is active (CRM-7).
-- GUID: {D5B0AF81-0281-42AB-B90F-681E9075A921}
-
-#### Control—CountryLabel
-- Name: Country
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 304, 654, 80, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {A612D790-D4D6-4F35-94AB-B52FFB1CCB71}
-
-#### Control—CountryField
-- Name: CountryField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 384, 654, 120, 24
-- Description: Required to save when Street Address mode is active (CRM-7).
-- GUID: {1AD4EB7C-39DC-4C41-A2AA-C0E1177F0CEE}
-
-#### Control—SectionAdditionalLabel
-- Name: Additional Details (optional)
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 694, 300, 16
-- Align Text: Left
-- Multiline: false
-- Description: Collapsed by default in the real UI — drawn expanded here for documentation completeness (no native collapsible-section control exists in EA's Wireframing MDG).
-- GUID: {E83E220F-42FF-4B20-8BF9-13B0354073CB}
-
-#### Control—CustomerNotesLabel
-- Name: Customer Notes
-- Type: Label
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 724, 150, 13
-- Align Text: Left
-- Multiline: false
-- GUID: {3F1A9CA8-E999-4222-8234-0B6AFD9DD912}
-
-#### Control—CustomerNotesField
-- Name: CustomerNotesField
-- Type: TextField
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 204, 724, 300, 50
-- Description: Optional / nice-to-have (Customer.notes) — free text, capturable opportunistically at creation (CRM-12). Drawn taller to represent multi-line entry.
-- GUID: {E8B1B9D4-9A3B-4CC5-A59B-D9CB8A856DB3}
-
-#### Control—CreateAccountSaveButton
-- Name: Save
-- Type: Button
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 44, 800, 100, 30
-- State: Normal
-- GUID: {C36B94EF-B3A5-4998-B56E-30495392AB2B}
-
-#### Control—Cancel
-- Name: Cancel
-- Type: Button
-- Screen: CreateAccountScreen
-- Parent: CreateCustomerAccount
-- Bounds: 191, 800, 100, 30
-- State: Normal
-- GUID: {CA831324-5B0E-4087-98C6-2FC0B2855077}
+- GUID: {7F3E99DA-2139-4454-B4D9-19D030016C43}
 
 ### Screen—MergeAccountsScreen
 - Name: Merge Customer Accounts
