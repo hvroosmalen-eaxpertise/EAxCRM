@@ -80,7 +80,7 @@
   - Type: Artifact
   - Stereotype: DataObject
   - GUID: {D9BC4C9F-7CFB-45a2-8583-0E76DD73A14F}
-  - Data In/Out: None
+  - Data In/Out: Input
   - Is Collection: false
   - Description: DataObject storing the list of opted-in contacts to receive the newsletter.
 
@@ -149,7 +149,7 @@
   - Type: Artifact
   - Stereotype: DataObject
   - GUID: {93163D6D-1C14-4f5b-96C1-BBF5772E41C6}
-  - Data In/Out: None
+  - Data In/Out: Output
   - Is Collection: false
   - Description: DataObject storing the archive of the sent newsletter for audit and reference.
 
@@ -186,7 +186,7 @@
   - Type: Artifact
   - Stereotype: DataObject
   - GUID: {4607D2DC-C6CE-4c27-B0BC-CAA48E8CAD22}
-  - Data In/Out: None
+  - Data In/Out: Output
   - Is Collection: false
   - Description: DataObject storing all scraped article metadata (heading, summary, source URL) for selection.
 
@@ -263,7 +263,7 @@
   - Type: Artifact
   - Stereotype: DataObject
   - GUID: {F87D2342-0B7D-4611-8FB0-2125288DFE8A}
-  - Data In/Out: None
+  - Data In/Out: Input
   - Is Collection: false
   - Description: DataObject storing the configured list of news source URLs to scrape periodically.
 
