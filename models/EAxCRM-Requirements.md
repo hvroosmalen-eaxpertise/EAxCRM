@@ -640,6 +640,70 @@
 - Parents:
   - procurementcanbedoneviamultipleparties
 
+### Requirement—duplicatedetectionfuzzymatchoncontactemailandorganisationname
+- Name: Duplicate Detection: fuzzy-match on Contact email and organisation name
+- ID: CRM-13
+- Description: Immediately after Create Customer Account, the system shall fuzzy-match the new account's organisation name (Customer.name) and initial Contact.email against every existing Customer/Contact pair and flag the account as a likely duplicate if either matches closely enough. The result drives the "Duplicate found?" exclusive gateway — a match routes to Merge Customer Accounts, no match routes to Retrieve Customer Email History. Exact match thresholds/algorithm are an implementation detail deferred to build time, not fixed at the model level.
+- Rationale: A fresh account can't be trusted to be genuinely new just because the rep didn't recognise the org — the same organisation reaches out under slightly different spellings or via a different contact often enough that skipping this check would silently grow duplicate Customer records, fragmenting license/communication history across them.
+- Test Cases:
+  - Creating an account with an organisation name that closely matches an existing Customer (e.g. minor spelling variation) is flagged as a likely duplicate.
+  - Creating an account whose initial Contact.email matches an existing Contact's email is flagged as a likely duplicate, even if the organisation name differs.
+  - An account with no close match on either field is not flagged, and the process proceeds directly to Retrieve Customer Email History.
+- Entities: Contact, Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {5D5B7251-46A9-45D2-9166-394C20FBE172}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—accountmergefoldsaflaggedduplicateintoanexistingaccountwithanaudittrail
+- Name: Account Merge: folds a flagged duplicate into an existing account with an audit trail
+- ID: CRM-14
+- Description: When Merge Customer Accounts is performed on a flagged duplicate, the losing Customer's data (Contact/notes) shall be folded into the surviving Customer chosen by the user, and the losing Customer record shall be retained (not deleted) with its Customer.merged_into field set to the surviving Customer. Any resulting duplicate Contact records are removed manually by the rep as a separate action, not automatically by the merge itself. The process ends at Merged into Existing Account — no new Customer Account is created.
+- Rationale: Deleting the losing record outright would destroy the audit trail of what happened to it; merged_into keeps "what happened to Customer X" answerable after the fact, while leaving orphaned-Contact cleanup manual avoids the merge silently deleting a Contact the rep still wanted to review first.
+- Test Cases:
+  - Merging Customer A (duplicate) into Customer B sets Customer A.merged_into = Customer B and does not delete Customer A's row.
+  - After merge, Customer A's Contact(s) still exist and are queryable, pending manual removal by the rep.
+  - The process reaches the Merged into Existing Account end event, and no new Customer record is created for the flagged duplicate.
+- Entities: Customer
+- Status: Proposed
+- Version: 1.0
+- GUID: {2E43D3B1-43D2-4954-B723-534FE8E70BA6}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—emailhistoryretrievalscansonnoduplicateanddedupesonrescan
+- Name: Email History Retrieval: scans on no-duplicate and dedupes on re-scan
+- ID: CRM-15
+- Description: When the Duplicate found? gateway resolves to no duplicate, the system shall run Retrieve Customer Email History, scanning the three configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) for messages matching the account's Contact.email, and append newly matched Communications to the account's Email History. Communications already linked from a prior run of this activity are not re-added on a subsequent scan. An email that doesn't match any known Contact is flagged for manual linking rather than dropped (per CRM-2). This activity is distinct from CreateAccountScreen's "Search Emails" domain lookup, which only prefills fields before the account exists.
+- Rationale: Staff need a reliable, one-click view of everything a Customer Account has ever communicated without manually searching three mailboxes — but re-running the scan (e.g. after new mail arrives) must not double up the history with Communications already linked, or the view stops being trustworthy.
+- Test Cases:
+  - After a non-duplicate account reaches Retrieve Customer Email History, matching emails from all three IMAP mailboxes appear in the account's Email History.
+  - Re-running Retrieve Customer Email History for the same account after new mail arrives adds only the new Communications, not duplicates of ones already linked.
+  - An email whose sender/recipient doesn't match any known Contact is flagged for manual linking rather than silently discarded.
+- Entities: Communication, Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {E342B1B4-E82D-457D-A525-70D21CDBEF6F}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
+### Requirement—newsletteroptinsuggestiontriggersonlyforprimaryorlicenseholderroleandneverautosets
+- Name: Newsletter Opt-in Suggestion: triggers only for Primary/License Holder role, never auto-sets
+- ID: CRM-16
+- Description: After Retrieve Customer Email History, the system shall check the account's Contact.role at the "Primary or License Holder role?" gateway. Only when the Contact carries the Primary or License Holder role does the process route to Suggest Newsletter Opt-in; any other role (or no role) routes straight to Account Ready. Suggest Newsletter Opt-in only sets Contact.opt_in and Contact.opt_in_date after the rep explicitly confirms — the suggestion itself never sets them. This is distinct from CRM-11, which governs the opt_in default (False) at account-creation time on CreateAccountScreen.
+- Rationale: Primary and License Holder are the two roles most likely to be the right person to ask about newsletter consent, so limiting the prompt to them avoids pestering every Contact on an account; requiring explicit confirmation (rather than the gateway match itself setting opt_in) keeps consent an affirmative, auditable action rather than an inferred one, consistent with CRM-11's consent principle.
+- Test Cases:
+  - An account whose Contact role is Primary or License Holder reaches Suggest Newsletter Opt-in after email history retrieval.
+  - An account whose Contact role is Purchase, Sales, Secondary, or unset routes directly to Account Ready, skipping the suggestion.
+  - Reaching Suggest Newsletter Opt-in does not itself change Contact.opt_in — it only changes after the rep explicitly confirms.
+- Entities: Contact
+- Status: Proposed
+- Version: 1.0
+- GUID: {B69CEC39-9EE8-4B9D-9EB5-191221825829}
+- Parents:
+  - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+
 ### Requirement—procurementmustbetrackablepervendorwithlinkedquoteandprocurementinvoicepdfs
 - Name: Procurement must be trackable per Vendor with linked Quote and ProcurementInvoice PDFs
 - ID: PRO-2

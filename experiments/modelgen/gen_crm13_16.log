@@ -1,0 +1,103 @@
+Parsed 45 requirements from MD
+Loaded 75 GUID mappings
+Connected: M:\EAxCRM\models\EAxCRM.qea
+
+--- Requirements ---
+  Updated CRM-1     EAxCRM must manage Customer organizations and their Contacts with specific roles (Primary, Purchase, Sales, License Holder)
+  Updated PRO-1     EAxCRM must support the procurement process
+  Updated TEC-1     EAxCRM must use a production-grade, multi-user-capable relational database
+  Updated NWS-1     EAxCRM must support composing newsletters from scraped articles on SparxSystems.com and sparxsystems.eu
+  Updated SAL-1     EAXCRM must support the sales process
+  Updated RPT-1     EAxCRM must provide a view of all customer license entitlements with start/expiry dates
+  Updated DEL-1     EAxCRM must record delivery emails containing license files and/or service agreements
+  Updated DOC-1     EAxCRM must support drag-and-drop document ingestion that automatically parses and fills entities
+  Updated PRO-5     Procurement can be done via multiple parties
+  Updated CRM-9     Contact Role Rule: required once a second Contact exists
+  Updated CRM-10    Contact Role Rule: Secondary role added
+  Updated CRM-6     CreateAccountScreen: creates Customer and Contacts atomically
+  Updated CRM-12    CreateAccountScreen: notes and phone capturable at creation
+  Updated CRM-7     CreateAccountScreen: structured street address or PO Box
+  Updated SAL-3     EAxCRM must detect service expiry and notify the user when renewal is needed
+  Updated SAL-2     EAxCRM must distinguish procured services (resold, from a Vendor) from EAxpertise's own services
+  Updated TEC-2     EAxCRM must encrypt sensitive data (passwords) at rest
+  Updated NWS-2     EAxCRM must enforce a Draft -> Review -> Send workflow with manual approval
+  Updated NWS-4     EAxCRM must enforce a minimum 6-week interval between newsletters
+  Updated CRM-3     EAxCRM must extract and store license entitlements from email attachments (PDF/TXT)
+  Updated DEL-2     EAxCRM must link deliveries to the Customer, the SalesInvoice they fulfill, and the attachments included
+  Updated SAL-4     EAxCRM must link each SalesInvoice to its originating Offer
+  Updated TEC-4     EAxCRM must operate without AI dependencies
+  Updated RPT-2     EAxCRM must provide a dashboard of upcoming service renewals
+  Updated RPT-3     EAxCRM must provide procurement reports grouped by Vendor
+  Updated TEC-5     EAxCRM must run on Windows for development and Docker/QNAP NAS for production
+  Updated RPT-4     EAxCRM must show a UX that shows the current state of Procurement
+  Updated CRM-2     EAxCRM must store communication history per customer, retrieved from multiple IMAP accounts (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl)
+  Updated CRM-5     EAxCRM must store documents (quotes, invoices, deliveries) linked to customers
+  Updated PRO-3     EAxCRM must store vendor bank details (IBAN, BIC/SWIFT, payment currency)
+  Updated PRO-4     EAxCRM must support multi-currency invoices (EUR, USD) from Sparx Systems
+  Updated CRM-4     EAxCRM must track license renewals linked to the original purchase
+  Updated NWS-3     EAxCRM must track per-contact delivery status (sent, opened, bounced)
+  Updated TEC-3     EAxCRM must use the Django Admin interface as its primary UI
+  Updated CRM-11    Newsletter Consent Rule: opt-in defaults to false
+  Updated CRM-8     Primary Contact Rule: at least one Contact must always be Primary
+  Updated PRO-5.3   Procurement can be done via Ability Engineering
+  Updated PRO-5.4   Procurement can be done via Prolaborate
+  Updated PRO-5.2   Procurement can be done via Sparx Systems EU
+  Updated PRO-5.1   Procurement can be done via Sparx Systems LTD
+  Created CRM-13    Duplicate Detection: fuzzy-match on Contact email and organisation name  [{20FED560-3D77-42ba-9E20-48B58E3E9705}]
+  Created CRM-14    Account Merge: folds a flagged duplicate into an existing account with an audit trail  [{9DED0872-4695-449a-BF05-B42A964FD0EC}]
+  Created CRM-15    Email History Retrieval: scans on no-duplicate and dedupes on re-scan  [{A7B99078-D413-4c0b-9BC9-69371EA1861E}]
+  Created CRM-16    Newsletter Opt-in Suggestion: triggers only for Primary/License Holder role, never auto-sets  [{2C283BC7-D467-4c02-8BEB-46EA27D31FD7}]
+  Updated PRO-2     Procurement must be trackable per Vendor with linked Quote and ProcurementInvoice PDFs
+
+--- Relationships ---
+  Connector exists: procurementcanbedoneviamultipleparties -> eaxcrmmustsupporttheprocurementprocess
+  Connector exists: contactrolerulerequiredonceasecondcontactexists -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: contactrolerulesecondaryroleadded -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: createaccountscreencreatescustomerandcontactsatomically -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: createaccountscreennotesandphonecapturableatcreation -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: createaccountscreenstructuredstreetaddressorpobox -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: eaxcrmmustdetectserviceexpiryandnotifytheuserwhenrenewalisneeded -> eaxcrmmustsupportthesalesprocess
+  Connector exists: eaxcrmmustdistinguishprocuredservicesresoldfromavendorfromeaxpertisesownservices -> eaxcrmmustsupportthesalesprocess
+  Connector exists: eaxcrmmustencryptsensitivedatapasswordsatrest -> eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
+  Connector exists: eaxcrmmustenforceadraftreviewsendworkflowwithmanualapproval -> eaxcrmmustsupportcomposingnewslettersfromscrapedarticlesonsparxsystemscomandsparxsystemseu
+  Connector exists: eaxcrmmustenforceaminimum6weekintervalbetweennewsletters -> eaxcrmmustsupportcomposingnewslettersfromscrapedarticlesonsparxsystemscomandsparxsystemseu
+  Connector exists: eaxcrmmustextractandstorelicenseentitlementsfromemailattachmentspdftxt -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: eaxcrmmustlinkdeliveriestothecustomerthesalesinvoicetheyfulfillandtheattachmentsincluded -> eaxcrmmustrecorddeliveryemailscontaininglicensefilesandorserviceagreements
+  Connector exists: eaxcrmmustlinkeachsalesinvoicetoitsoriginatingoffer -> eaxcrmmustsupportthesalesprocess
+  Connector exists: eaxcrmmustoperatewithoutaidependencies -> eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
+  Connector exists: eaxcrmmustprovideadashboardofupcomingservicerenewals -> eaxcrmmustprovideaviewofallcustomerlicenseentitlementswithstartexpirydates
+  Connector exists: eaxcrmmustprovideprocurementreportsgroupedbyvendor -> eaxcrmmustprovideaviewofallcustomerlicenseentitlementswithstartexpirydates
+  Connector exists: eaxcrmmustrunonwindowsfordevelopmentanddockerqnapnasforproduction -> eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
+  Connector exists: eaxcrmmustshowauxthatshowsthecurrentstateofprocurement -> eaxcrmmustsupporttheprocurementprocess
+  Connector exists: eaxcrmmuststorecommunicationhistorypercustomerretrievedfrommultipleimapaccountshaneaxpertisenlsaleseaxpertisenlinfoeaxpertisenl -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: eaxcrmmuststoredocumentsquotesinvoicesdeliverieslinkedtocustomers -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: eaxcrmmuststorevendorbankdetailsibanbicswiftpaymentcurrency -> eaxcrmmustsupporttheprocurementprocess
+  Connector exists: eaxcrmmustsupportmulticurrencyinvoiceseurusdfromsparxsystems -> eaxcrmmustsupporttheprocurementprocess
+  Connector exists: eaxcrmmusttracklicenserenewalslinkedtotheoriginalpurchase -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: eaxcrmmusttrackpercontactdeliverystatussentopenedbounced -> eaxcrmmustsupportcomposingnewslettersfromscrapedarticlesonsparxsystemscomandsparxsystemseu
+  Connector exists: eaxcrmmustusethedjangoadmininterfaceasitsprimaryui -> eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
+  Connector exists: newsletterconsentruleoptindefaultstofalse -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: primarycontactruleatleastonecontactmustalwaysbeprimary -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: procurementcanbedoneviaabilityengineering -> procurementcanbedoneviamultipleparties
+  Connector exists: procurementcanbedoneviaprolaborate -> procurementcanbedoneviamultipleparties
+  Connector exists: procurementcanbedoneviasparxsystemseu -> procurementcanbedoneviamultipleparties
+  Connector exists: procurementcanbedoneviasparxsystemsltd -> procurementcanbedoneviamultipleparties
+  Created connector: duplicatedetectionfuzzymatchoncontactemailandorganisationname -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Created connector: accountmergefoldsaflaggedduplicateintoanexistingaccountwithanaudittrail -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Created connector: emailhistoryretrievalscansonnoduplicateanddedupesonrescan -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Created connector: newsletteroptinsuggestiontriggersonlyforprimaryorlicenseholderroleandneverautosets -> eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
+  Connector exists: procurementmustbetrackablepervendorwithlinkedquoteandprocurementinvoicepdfs -> eaxcrmmustsupporttheprocurementprocess
+
+--- Diagram ---
+Saved 79 GUID mappings to M:\EAxCRM\experiments\modelgen\requirements_guid_map.json
+  Added 4 new requirement(s) to existing diagram
+
+--- Entity -> Requirement Realizations ---
+  Created: Contact -> CRM-13
+  Created: Customer -> CRM-13
+  Created: Customer -> CRM-14
+  Created: Communication -> CRM-15
+  Created: Contact -> CRM-15
+  Created: Contact -> CRM-16
+  Created 6 new Realisation connector(s)
+Saved 79 GUID mappings to M:\EAxCRM\experiments\modelgen\requirements_guid_map.json
