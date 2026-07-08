@@ -58,7 +58,7 @@ Unless I say "implement in Django" or "update the models.py", we stay at **model
 | Layer | Choice |
 |---|---|
 | Framework | Python 3.13 + Django 6.0.6 |
-| Database | SQLite (file-based, ideal for QNAP NAS) |
+| Database | Production-grade, multi-user-capable RDBMS (engine TBD, 2026-07-08 — SQLite's single-writer model doesn't fit multi-user production; SQLite may still suit local dev) |
 | IMAP | imaplib + email stdlib |
 | PDF parsing | PyMuPDF (fitz) |
 | Scraping | requests + BeautifulSoup (no AI) |
@@ -130,6 +130,8 @@ Attachment → Delivery (included_in)
 - `EAxCRM.qea` — Sparx EA project file (populated with ArchiMate model + data model + requirements; Sales Process v1.1 and Manage Customer Account process still need to be generated/re-generated from MD)
 
 ## Active Context
+- **Architecture decision (2026-07-08):** production database moves off SQLite to a production-grade, multi-user-capable RDBMS — SQLite's single-writer model doesn't fit reliable concurrent multi-user access. Engine intentionally not yet chosen (kept technology-abstract). Django stays as the framework (this was specifically about the DB, not the framework — a C# desktop client + remote DB + services alternative was discussed and set aside once the actual friction, SQLite, was identified). SQLite may still be fine for local dev. TEC-1 requirement revised accordingly (GUID unchanged, eid renamed `eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase`); README.md/AGENTS.md Tech Stack tables updated to match. **Sequencing:** continue modelling first; implementation (Django app, incremental, one BPMN process at a time) comes later once the model is mature enough.
+- CreateAccountScreen wireframe redesigned (2026-07-08) to catch up with CRM-6..12 (issue #7) plus a user-requested "Find by Domain" email-lookup block — see `docs/superpowers/specs/2026-07-07-createaccountscreen-redesign-design.md` for the full design and its data-model cross-check (flags `Customer.address` needing decomposition into structured fields, and `Contact.role` needing a documented enum). Generated into scratch files (`models/EAxCRM-scratch-createaccountscreen*.qea`, not the real `EAxCRM.qea`) for review — not yet committed or applied to the real model.
 - ArchiMate model v2.0 **confirmed synced live in EA** (2026-07-02, after fixing the 61704 blocker) — 66 elements, 91 relationships, 1 diagram — added Sales Management function, Vendor actor, Offer/Quote/Delivery/SalesInvoice/ProcurementInvoice/Service/Vendor business objects
 - ApplicationService Object_Type fixed to 'Activity' (confirmed correct shape in EA)
 - Diagram preservation works: subsequent runs skip element placement, only update type/stereotype

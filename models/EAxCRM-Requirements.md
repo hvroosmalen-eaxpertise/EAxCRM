@@ -36,15 +36,15 @@
 - Parents:
   - (none — top-level)
 
-### Requirement—eaxcrmmustusesqliteasitsdatabasebackend
-- Name: EAxCRM must use SQLite as its database backend
+### Requirement—eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
+- Name: EAxCRM must use a production-grade, multi-user-capable relational database
 - ID: TEC-1
-- Description: The system shall use a file-based SQLite database suitable for deployment on a QNAP NAS without requiring a separate database server.
-- Rationale: The production target is a QNAP NAS with no separate database server process; SQLite's file-based, zero-admin nature avoids operating a DB server on constrained NAS hardware.
+- Description: The system shall use a production-grade relational database capable of reliable concurrent multi-user access in production. The specific database engine is not yet decided (2026-07-08) — this requirement is intentionally technology-abstract until an engine is chosen. SQLite may still be suitable for local development, but is no longer the production target.
+- Rationale: SQLite's single-writer model is a poor fit once the CRM needs to support multiple concurrent users reliably in production; a server-based RDBMS gives proper transactional isolation and concurrent write support without abandoning the Django framework.
 - Test Cases:
-  - The Django app runs against a single .db file with no external DB service running.
-  - Standard Django migrations apply cleanly against the SQLite backend.
-  - The application starts and serves requests on a fresh QNAP Docker deployment with only the .db file present.
+  - Multiple concurrent users can read and write CRM data simultaneously without lock-contention errors.
+  - Standard Django migrations apply cleanly against the chosen production database engine.
+  - The database survives an unexpected process restart without data corruption (transactional durability).
 - Status: Proposed
 - Version: 1.0
 - GUID: {30EA2FCA-BEA7-4fd7-A7E8-F5ECD78B8ADF}
@@ -193,7 +193,7 @@
 - Version: 1.0
 - GUID: {F6EFB60E-E9F5-4ea1-8EBD-49692050E063}
 - Parents:
-  - eaxcrmmustusesqliteasitsdatabasebackend
+  - eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 
 ### Requirement—eaxcrmmustenforceadraftreviewsendworkflowwithmanualapproval
 - Name: EAxCRM must enforce a Draft -> Review -> Send workflow with manual approval
@@ -288,7 +288,7 @@
 - Version: 1.0
 - GUID: {6A62DFB5-CBE7-4397-8640-263F0C242661}
 - Parents:
-  - eaxcrmmustusesqliteasitsdatabasebackend
+  - eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 
 ### Requirement—eaxcrmmustprovideadashboardofupcomingservicerenewals
 - Name: EAxCRM must provide a dashboard of upcoming service renewals
@@ -335,7 +335,7 @@
 - Version: 1.0
 - GUID: {82C5CC76-459B-49e5-AD85-A406DA3E2E53}
 - Parents:
-  - eaxcrmmustusesqliteasitsdatabasebackend
+  - eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 
 ### Requirement—eaxcrmmustshowauxthatshowsthecurrentstateofprocurement
 - Name: EAxCRM must show a UX that shows the current state of Procurement
@@ -462,7 +462,7 @@
 - Version: 1.0
 - GUID: {FA4583F4-87B2-4685-9904-EB9A14B63BF3}
 - Parents:
-  - eaxcrmmustusesqliteasitsdatabasebackend
+  - eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 
 ### Requirement—procurementcanbedoneviaabilityengineering
 - Name: Procurement can be done via Ability Engineering
