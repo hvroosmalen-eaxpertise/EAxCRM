@@ -9,4 +9,7 @@ dist/
 .vs/
 *.md.hdr
 _opencode_memory/.git/
-*changelog*.md
+# EA project journal / WAL files (crash recovery, created alongside .qea)
+*.qea-journal
+*.qea-wal
+*.qea-shm
