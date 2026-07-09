@@ -410,6 +410,18 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - To re-bootstrap (e.g. after model download fix): `bunx @mathew-cf/opencode-memory init --skip-skills` (remove the re-created `.git` afterward)
 - `.gitignore` excludes `_opencode_memory/.git/` to prevent nested repo issues if init is re-run
 
+### Current Cross-Session Notes (read these before touching EA generators, or when the topic matches)
+
+Every agent picking up work on this repo should read the relevant note below before diving in — they contain the load-bearing lessons that aren't obvious from code alone. When you add a new note under `_opencode_memory/**`, add a one-liner here so it's discoverable from AGENTS.md.
+
+| Path | Topic | Why it matters |
+|---|---|---|
+| `_opencode_memory/notes/opencode-memory-setup.md` | Plugin install + re-bootstrap steps | Reference when the memory tools are missing or the plugin has to be reinstalled. |
+| `_opencode_memory/repos/archimate-sync-blocker.md` | EA internal error 61704 | Resolved. Root cause was `Dispatch("EA.Repository")` attaching to a Running-Object-Table instance; fix was `DispatchEx("EA.App")` in a shared `ea_session.py`. Read before touching any generator's COM connection. |
+| `_opencode_memory/repos/archimate-v2.md` | ArchiMate v2.0 → v2.1 → v2.2 → v2.3 lineage | Backstory for the Sales/Customer-Account/Secondary-role additions. Read before proposing a new ArchiMate revision. |
+| `_opencode_memory/technical/ea-journal-files.md` | `.qea-journal`/`.qea-wal`/`.qea-shm` transient files | Already gitignored. Don't try to check them in or delete them — EA creates them on open. |
+| `_opencode_memory/technical/ea-sync-scripts.md` | `ea_session.ea_repository()` vs raw `DispatchEx` + GUID-map staleness | Older `sync_requirements_from_ea.py` / `sync_datamodel_from_ea.py` predate `ea_session`; they can hang on `OpenFile` if zombie EAs exist. Generators handle stale GUID maps via name-based fallback. Read before debugging a hang or a "created" log where "updated" was expected. |
+
 ## CRUD File Update Rule
 `models/EAxCRM-SalesProcess-CRUD.md` must be updated whenever:
 - Data Input/Output Associations in the sales process change
