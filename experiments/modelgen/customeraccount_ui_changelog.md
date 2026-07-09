@@ -1,3 +1,76 @@
+## 2026-07-09 16:20:23 — Audit, run cap-ui-eacrm
+
+### Checkpoints
+- Parsed MD
+- Diagram complete
+
+### Updated
+| eid | Name | Type | GUID | Changes |
+|-----|------|------|------|---------|
+| CreateAccountScreen | Create Customer Account | Screen | {D856F705-54EF-4f5b-963B-7193F99EEB38} |  |
+| MergeAccountsScreen | Merge Customer Accounts | Screen | {BD83141A-3F68-4e06-ABAA-CFB1F20D5D68} |  |
+| EmailHistoryScreen | Retrieve Customer Email History | Screen | {18A7FBC2-28B0-4043-9304-8C5068B7DD8D} |  |
+| OptInScreen | Suggest Newsletter Opt-in | Screen | {B037917E-C155-4167-A348-D4EA003F747E} |  |
+| CreateAccountHeader | Create Customer Account | Header | {95707E93-1976-4bf9-A7D6-3B14DCA7C5DF} |  |
+| CreateCustomerAccount | Create Customer Account | Frame | {975FF198-BA12-49c7-A828-0A8C80EF2B29} |  |
+| AddContactLink | + Add Contact | Hyperlink | {898B15F1-E781-4cef-90BE-AFFDC9E03925} |  |
+| SectionAdditionalLabel | Additional Details (optional) | Label | {29782D05-51B6-47bd-AED2-5B0FA38C457E} |  |
+| SectionAddressLabel | Address | Label | {6A009E1F-EF27-48fb-BCC1-DB5B51754B29} |  |
+| Cancel | Cancel | Button | {CA831324-5B0E-4087-98C6-2FC0B2855077} | Notes:  -> Discards unsaved input and closes the screen without creating a Customer or Contact. |
+| CityLabel | City | Label | {22E5CD87-34C2-4d95-B3B1-54F2DAC8010F} |  |
+| CityField | CityField | TextField | {4A2812AB-3D50-4ef9-8B5A-FF303648CC43} |  |
+| CreateAccountEmailLabel | Contact Email | Label | {6F79EB95-46D2-4781-8AF0-21C923B3FC17} |  |
+| CreateAccountContactNameLabel | Contact Name | Label | {BE9FF8C0-8C57-48f2-BB01-73D7E95AC3EB} |  |
+| CreateAccountEmailField | ContactEmailField | TextField | {59032069-A217-43e1-853A-40192D4D0B30} |  |
+| CreateAccountContactNameField | ContactNameField | TextField | {BAF12E7E-0B73-44f0-A59A-50701990EB61} |  |
+| ContactPhoneField | ContactPhoneField | TextField | {1DB83C3E-F1E4-492d-A1FD-BE01B8DA4ABB} |  |
+| CountryLabel | Country | Label | {B7DE5AFB-D7AB-453c-B93E-0FE5CCB88F4A} |  |
+| CountryField | CountryField | TextField | {3C7B4B53-9A09-4ed9-8216-8EE3EE85A4D8} |  |
+| CustomerNotesLabel | Customer Notes | Label | {4669AAAE-6801-464a-B755-E37C41BB8CD0} |  |
+| CustomerNotesField | CustomerNotesField | TextField | {F672729D-FAC1-4372-8A5B-9949A0027629} |  |
+| DomainLabel | Domain | Label | {BF1867F4-8925-4ee4-B7F0-BAC14A14A8FB} |  |
+| DomainField | DomainField | TextField | {89C7EC25-6A33-4a9a-9B0E-497E5531B2DA} |  |
+| SectionDomainLabel | Find by Domain (optional) | Label | {A455294B-1DD6-4b1f-A80E-0F67233DF930} |  |
+| HouseNumberLabel | House Number | Label | {B06CE72A-31B7-4511-B586-3983F3598AAA} |  |
+| HouseNumberField | HouseNumberField | TextField | {521AC039-592D-47aa-B994-9CB58DB3E6E0} |  |
+| SectionOrgContactLabel | Organisation & Contact | Label | {C938B402-0E32-478f-A817-2C4B2EB8B099} |  |
+| CreateAccountOrgLabel | Organisation Name | Label | {F3464C6E-98F1-4306-9E25-53DF1D727FBB} |  |
+| CreateAccountOrgField | OrgNameField | TextField | {1CAD9E69-C02C-4cbb-B2C0-6E8B6F3BE0AA} |  |
+| ContactPhoneLabel | Phone (optional) | Label | {91DC1D85-F87A-4535-BD6D-FA57098D825B} |  |
+| AddressPOBoxTab | PO Box | Button | {4267ACB2-91F5-46c2-B02B-F6DF7E9D017F} |  |
+| PostalCodeLabel | Postal Code | Label | {7D0C521E-28B5-4f88-A54B-76923BA8AEDF} |  |
+| PostalCodeField | PostalCodeField | TextField | {CE19D8A7-0ED0-4cd1-9B42-CD337C9853DD} |  |
+| CreateAccountRoleLabel | Role | Label | {64E3F738-6013-42e6-ABFF-56AEDB9A6CC2} |  |
+| CreateAccountRoleCombo | RoleCombo | ComboBox | {00DAE181-F318-426d-93EB-1C0ADB06CFF0} |  |
+| CreateAccountSaveButton | Save | Button | {C36B94EF-B3A5-4998-B56E-30495392AB2B} | Notes:  -> Persists the Customer + Contact(s) as one atomic transaction (CRM-6); on success routes to the Duplicate found? check, which decides between Merge Customer Accounts and Retrieve Customer Email History. |
+| SearchEmailsButton | Search Emails | Button | {F4A09847-0C8E-43f8-998D-E222C2FB2632} |  |
+| AddressStreetTab | Street Address | Button | {F3FAC591-136E-4b72-9579-84C0D32B55FF} |  |
+| StreetNameLabel | Street Name | Label | {AF434026-ACC2-42c4-AE8C-6730CF37737D} |  |
+| StreetNameField | StreetNameField | TextField | {8E7F0F1B-D62E-4e55-996E-CCA02C38A5B1} |  |
+| ContactOptInCheckbox | This contact has given explicit consent for the newsletter | CheckBox | {7F3E99DA-2139-4454-B4D9-19D030016C43} |  |
+| MergeCustomerAccounts | Merge Customer Accounts | Frame | {A19CE38F-D0FF-4fb4-A940-BD2201821AE2} |  |
+| MergeCancelButton | Cancel | Button | {07DB66E8-B99B-46c9-BA02-14A16B08E789} | Notes:  -> Abandons the merge and returns to Create Customer Account so the rep can reconsider the input. |
+| MergeExistingLabel | Matched Existing Account | Label | {A3AE6314-8751-439c-9A0C-6BE9A86A5F80} |  |
+| MergeButton | Merge | Button | {88E3E477-1D90-4522-B793-F14F74370696} | Notes:  -> Folds the new account's data into the flagged existing Customer Account, sets the losing Customer.merged_into to point at the survivor (CRM-14), and ends the process at Merged into Existing Account. |
+| MergeHeader | Merge Customer Accounts | Header | {88BC7565-848C-4947-ACD4-0B5F87D3CED0} |  |
+| MergeNewLabel | New Account | Label | {2BD56BBA-C370-43db-8762-B1B01BBB5884} |  |
+| MergeExistingSummary | ExistingAccountSummary | TextBlock | {D063D316-BFE7-41eb-8F63-2AF875F106BD} |  |
+| MergeNewSummary | NewAccountSummary | TextBlock | {392FF052-CB26-4cd7-8A90-EF87226FE119} |  |
+| CustomerEmailHistory | Customer Email History | Frame | {4CB10ABA-8B5F-4ce7-B9F3-06DB286BAF00} |  |
+| EmailHistoryContactLabel | Contact Domain | Label | {1E82D3EF-4658-423f-9409-BC1863997CB1} |  |
+| EmailHistoryContinueButton | Continue | Button | {DC8F0AA8-CB6E-41e2-A15A-012485C22452} | Notes:  -> Advances to the "Primary or License Holder role?" gateway — routes to Suggest Newsletter Opt-in if the Contact carries an eligible role, otherwise ends the process at Account Ready. |
+| EmailHistoryHeader | Customer Email History | Header | {62F8DACA-E86A-40b1-8BEA-4DEDE39B013F} |  |
+| EmailHistoryTable | Matched Communications | Table | {111D3E6E-E80E-43de-A809-18D9FE3B7F39} |  |
+| EmailHistoryScanButton | Scan Mailboxes | Button | {1CB3461F-6C78-45a3-8C20-78847FEF0B10} | Notes:  -> Runs the domain-based IMAP scan across han@/sales@/info@eaxpertise.nl for messages under the Contact's email domain (CRM-15), populates the Matched Communications table, and surfaces discovered addresses to link to existing Contacts or turn into new ones. |
+| EmailHistoryContactValue | ContactDomainValue | TextBlock | {A19391A0-1832-4861-8E90-4597C9A90A2F} |  |
+| SuggestNewsletteropt-in | Suggest Newsletter opt-in | Frame | {1AE3F6BA-E741-4537-B062-32A2897CDE66} |  |
+| contactemailaddress | contact email address | Label | {8171055F-E3C0-43fd-8544-1F7D12A93288} |  |
+| OptInConfirmButton | Confirm | Button | {562B3DE5-29BD-4f3e-A83E-4EB8A5E3B518} | Notes:  -> Sets Contact.opt_in=True and stamps Contact.opt_in_date (CRM-11, CRM-16); ends the process at Account Ready. |
+| OptInDeclineButton | Decline | Button | {78452001-58C2-4248-8876-9451C3FBBD43} | Notes:  -> Leaves Contact.opt_in and Contact.opt_in_date untouched; ends the process at Account Ready. |
+| OptInCheckbox | Opt -in this contact | CheckBox | {6CAF68D1-533F-4ce8-9035-104302DEAB0C} |  |
+| OptInHeader | Suggest Newsletter Opt-in | Header | {47BED7D8-662F-4bce-A8C2-94678C4C5ABB} |  |
+| OptInMessage | OptInMessage | TextBlock | {4B23955B-2AA7-46fe-8814-9BD1257C4886} |  |
+
 ## 2026-07-09 12:48:32 — Audit, run cap-ui-eacrm
 
 ### Checkpoints

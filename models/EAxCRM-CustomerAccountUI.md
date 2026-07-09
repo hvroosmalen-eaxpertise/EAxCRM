@@ -66,6 +66,7 @@
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
 - Bounds: 191, 800, 100, 30
+- Description: Discards unsaved input and closes the screen without creating a Customer or Contact.
 - State: Normal
 - GUID: {CA831324-5B0E-4087-98C6-2FC0B2855077}
 
@@ -316,6 +317,7 @@
 - Screen: CreateAccountScreen
 - Parent: CreateCustomerAccount
 - Bounds: 44, 800, 100, 30
+- Description: Persists the Customer + Contact(s) as one atomic transaction (CRM-6); on success routes to the Duplicate found? check, which decides between Merge Customer Accounts and Retrieve Customer Email History.
 - State: Normal
 - GUID: {C36B94EF-B3A5-4998-B56E-30495392AB2B}
 
@@ -391,6 +393,7 @@
 - Screen: MergeAccountsScreen
 - Parent: MergeCustomerAccounts
 - Bounds: 153, 274, 100, 30
+- Description: Abandons the merge and returns to Create Customer Account so the rep can reconsider the input.
 - State: Normal
 - GUID: {07DB66E8-B99B-46c9-BA02-14A16B08E789}
 
@@ -410,6 +413,7 @@
 - Screen: MergeAccountsScreen
 - Parent: MergeCustomerAccounts
 - Bounds: 33, 274, 100, 30
+- Description: Folds the new account's data into the flagged existing Customer Account, sets the losing Customer.merged_into to point at the survivor (CRM-14), and ends the process at Merged into Existing Account.
 - State: Normal
 - GUID: {88E3E477-1D90-4522-B793-F14F74370696}
 
@@ -481,6 +485,7 @@
 - Screen: EmailHistoryScreen
 - Parent: CustomerEmailHistory
 - Bounds: 106, 454, 100, 30
+- Description: Advances to the "Primary or License Holder role?" gateway — routes to Suggest Newsletter Opt-in if the Contact carries an eligible role, otherwise ends the process at Account Ready.
 - State: Normal
 - GUID: {DC8F0AA8-CB6E-41e2-A15A-012485C22452}
 
@@ -507,6 +512,7 @@
 - Screen: EmailHistoryScreen
 - Parent: CustomerEmailHistory
 - Bounds: 106, 204, 150, 30
+- Description: Runs the domain-based IMAP scan across han@/sales@/info@eaxpertise.nl for messages under the Contact's email domain (CRM-15), populates the Matched Communications table, and surfaces discovered addresses to link to existing Contacts or turn into new ones.
 - State: Normal
 - GUID: {1CB3461F-6C78-45a3-8C20-78847FEF0B10}
 
@@ -550,6 +556,7 @@
 - Screen: OptInScreen
 - Parent: SuggestNewsletteropt-in
 - Bounds: 79, 341, 100, 30
+- Description: Sets Contact.opt_in=True and stamps Contact.opt_in_date (CRM-11, CRM-16); ends the process at Account Ready.
 - State: Normal
 - GUID: {562B3DE5-29BD-4f3e-A83E-4EB8A5E3B518}
 
@@ -559,6 +566,7 @@
 - Screen: OptInScreen
 - Parent: SuggestNewsletteropt-in
 - Bounds: 199, 341, 100, 30
+- Description: Leaves Contact.opt_in and Contact.opt_in_date untouched; ends the process at Account Ready.
 - State: Normal
 - GUID: {78452001-58C2-4248-8876-9451C3FBBD43}
 

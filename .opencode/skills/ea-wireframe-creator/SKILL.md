@@ -89,7 +89,23 @@ diag.Update()
 
 ## Layout: Explicit Bounds, Add-and-Update on Re-run
 
-Unlike BPMN (full reflow every run) or ArchiMate/Data Model/Requirements (add-only, preserve manual layout), wireframes **push MD bounds changes through for already-placed controls too** on every `generate()` run, not just newly-added ones — a wireframe's positions are its authored content, so if the MD changes a control's `Bounds`, the diagram should reflect that on next generate. New controls are still added via the same `diagram_utils.add_missing_elements` used elsewhere; already-placed ones are compared against their MD-declared bounds and only updated if actually different.
+Unlike BPMN (which never reflows an existing diagram — see ea-bpmn-creator's "Re-run Position Management") or ArchiMate/Data Model/Requirements (add-only, preserve manual layout), wireframes **push MD bounds changes through for already-placed controls too** on every `generate()` run, not just newly-added ones — a wireframe's positions are its authored content, so if the MD changes a control's `Bounds`, the diagram should reflect that on next generate. New controls are still added via the same `diagram_utils.add_missing_elements` used elsewhere; already-placed ones are compared against their MD-declared bounds and only updated if actually different. Consequence: **any manual layout tuning done in EA's GUI on an already-authored control will be overwritten on the next generate if the MD's `Bounds` for that control disagrees.** Data-only edits (Description, Name, etc. — leaving `Bounds` alone) do NOT touch positions: the bounds-diff check reads `current_bounds == new_bounds` and skips the write.
+
+## Button Description Convention
+
+Every `Button` control's `Description` field is its **onclick contract** — what the button does, what state it changes, and where the flow goes next. Because the Notes pane is where staff (and future-me) look for behavioural intent, an unlabelled Button is a real documentation gap.
+
+Rules:
+- One-line imperative starting with the action verb (`Persists…`, `Discards…`, `Runs…`, `Sets…`, `Advances…`, `Leaves…`).
+- Cite the governing requirement ID in parentheses when one applies (e.g. `CRM-6`, `CRM-14`, `CRM-15`, `CRM-16`).
+- Plain text — no `**bold**` labels, no four-part Why/What/How/Context shape. That template is for BPMN Activities; a Button description is one thing.
+- Reference the downstream flow explicitly ("routes to X", "ends the process at Y") rather than leaving the transition implicit — it's the click contract, not just a UI label.
+
+Example (from CreateAccountScreen's Save button):
+
+> Persists the Customer + Contact(s) as one atomic transaction (CRM-6); on success routes to the Duplicate found? check, which decides between Merge Customer Accounts and Retrieve Customer Email History.
+
+**Lint** (`wireframe_engine.py`, first pass — non-fatal): each Button with no `Description` prints `[lint] Button 'X' on screen 'Y' has no Description — add one so its click contract is documented in EA.`; a tally line at the end of the run reports the total. Sync does not fail on lint hits — it's a heads-up, not a gate.
 
 ## Quick Reference
 

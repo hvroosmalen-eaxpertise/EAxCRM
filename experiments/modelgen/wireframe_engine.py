@@ -268,6 +268,22 @@ def generate(config, qea_path=None, md_path=None):
 
         flow_pkg.Elements.Refresh()
 
+        # --- Lint: warn on Buttons with no Description ---
+        # A wireframe Button's Description is its onclick contract — what it
+        # does, what it navigates to, which fields it writes. Missing one is
+        # a real documentation gap (not a hard error) since the Notes pane
+        # is where staff look for behavioural intent. Non-fatal — sync
+        # continues regardless. See ea-wireframe-creator skill.
+        buttons_missing_desc = []
+        for eid, data in controls.items():
+            if data.get("Type", "") == "Button" and not data.get("Description", "").strip():
+                buttons_missing_desc.append((eid, data.get("Name", eid), data.get("Screen", "?")))
+        for _eid, bname, bscreen in buttons_missing_desc:
+            print(f"  [lint] Button '{bname}' on screen '{bscreen}' has no Description "
+                  f"— add one so its click contract is documented in EA.")
+        if buttons_missing_desc:
+            print(f"  [lint] Wireframe lint: {len(buttons_missing_desc)} Button(s) missing Description.")
+
         # --- Pass 2: Controls (parented under their Screen, or -- via an
         # optional "- Parent:" field -- under another already-created
         # Control, e.g. a nested Frame/browser-chrome element containing
