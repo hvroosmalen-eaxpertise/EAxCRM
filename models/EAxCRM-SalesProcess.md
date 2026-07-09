@@ -45,7 +45,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer confirms receipt of license files and/or service access credentials.
+- Description: **Why:** The sales lifecycle can't be treated as complete on the seller's word alone — an explicit customer-side acceptance closes the delivery loop and unblocks invoicing without ambiguity. **What:** The customer's acknowledgement that the license files and/or service access credentials from EAxpertise's delivery package have arrived intact. **How:** The customer opens the delivery email, verifies attachments/credentials, and replies confirming receipt (or clicks a confirm link if one is offered). **Context:** Entered on the customer lane after Prepare Delivery reaches them; feeds Activate Delivery.
 
 ### Activity—AcceptOffer_Activity
 - Name: Accept Offer
@@ -59,7 +59,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer formally accepts the offer, triggering the fulfillment phase.
+- Description: **Why:** Procurement and delivery can't start until the customer has committed — without an explicit acceptance step, EAxpertise would be ordering licences on assumption and risking unpaid stock. **What:** The customer's binding acceptance of the current Offer, producing a PurchaseOrder that references the accepted offer terms. **How:** Customer replies to the offer email accepting the terms and — where applicable — attaching a Purchase Order (with any Customer PO code and invoicing details); the PurchaseOrder artifact is captured in the CRM against the Offer. **Context:** The "yes" branch out of the Accept Offer? gateway; feeds Handle Approved Offer via message flow. Alternatives on the gateway are Request Revised Offer (partial acceptance) or Reject Offer.
 
 ### Gateway—AcceptOffer_Gateway
 - Name: Accept Offer?
@@ -82,7 +82,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer activates the delivered licenses and services in their environment.
+- Description: **Why:** Delivery and activation are separate customer-side steps — an accepted delivery that isn't activated still leaves the customer unable to use what they bought, and downstream invoicing shouldn't depend on that gap. **What:** The customer applies the delivered license keys and, where applicable, logs into the delivered services/portals to confirm they are usable in their environment. **How:** Customer installs licence files into their Sparx EA (or hosted seat), signs in to any provisioned service (SaaS/support portal/training), and reports back if anything fails. **Context:** Immediately after Accept Delivery; triggers Prepare SalesInvoice via message flow, so activation success is what green-lights billing.
 
 ### IntermediateEvent—checkpayment
 - Name: check payment
@@ -114,7 +114,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer drafts and sends a Request For Quote detailing their license and service needs.
+- Description: **Why:** The sales process needs a concrete, written statement of what the customer wants before EAxpertise commits engineering time to quoting; a verbal enquiry is not enough to hang licence/service configuration off. **What:** An RFQ artifact from the customer, listing intended license types, quantities, and service needs. **How:** Customer drafts the RFQ (typically as an email with a short table or attachment) and sends it to EAxpertise's sales inbox; also emits the Confirm Customer Account signal so EAxpertise can create/verify the Customer Account before registering the RFQ. **Context:** First customer-lane activity after Start RFQ; feeds Register RFQ (via email message flow) and Confirm Customer Account (signal).
 
 ### Activity—DetermineLicenses
 - Name: Determine Licenses
@@ -128,7 +128,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Identify which Sparx EA license types and quantities the customer needs.
+- Description: **Why:** The RFQ often says "we need a few Ultimate seats" without pinning down edition/quantity/renewal-vs-new — before quoting the vendor, EAxpertise needs to convert that into an unambiguous licence line-up. **What:** A decided list of license line items (type, quantity, new vs renewal, target start date) suitable for a vendor quote. **How:** EAxpertise cross-references the RFQ against the customer's existing entitlements (renewals vs. net-new), consults with the requester where anything is ambiguous, and records the resulting line items on the offer draft. **Context:** Entered from Prepare (Revised) Offer; feeds the "licenses required?" gateway.
 
 ### Activity—DetermineServices
 - Name: Determine Services
@@ -142,7 +142,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Services can be resold from Vendor or provided by EAxpertise.
+- Description: **Why:** Services (training, support, SaaS hosting) are where a lot of the customer value sits, and the resold-vs-own distinction (SAL-2) directly affects margin and vendor liability — deciding it up front avoids re-quoting later. **What:** The set of Service line items for this offer, each tagged as procured (with a Vendor) or EAxpertise's own. **How:** EAxpertise picks the fitting services from its catalogue for the RFQ's needs, marks each as procured or own, and adds them to the offer draft; procured services will later drive Request Service Quote against the vendor. **Context:** Entered from Determine Licenses via Prepare (Revised) Offer chain; feeds the "services required?" gateway.
 
 ### EndEvent—EndRejectedSales
 - Name: End Rejected Sales
@@ -174,7 +174,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Consolidate license and service line items into the final offer document.
+- Description: **Why:** The customer needs one document to review and accept — not a mail thread of licence and service snippets — and revision cycles must not lose track of which numbered version they refer to. **What:** The Offer artifact for this iteration: a single document combining license and service line items with pricing, a version number, and an expiry date. **How:** Consolidates the confirmed license and service line items (plus vendor pricing where already received) into the offer template, generates the PDF, saves the Offer record in the CRM, and increments the version if this is a revision. **Context:** Entered when both "licenses required?" and "services required?" gateways have converged; feeds Review Offer via message flow (email to customer).
 
 ### Activity—HandleApprovedOffer
 - Name: Handle Approved Offer
@@ -188,7 +188,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Receive the accepted offer and initiate procurement of licenses and services.
+- Description: **Why:** An accepted offer is a commitment on both sides — EAxpertise must move from "quoted" to "ordering" without delay, but also without accidentally re-doing quoting work; a dedicated hand-off step captures that transition explicitly. **What:** Internal recognition that the customer has accepted (with their PurchaseOrder attached) and the split of the accepted line items into vendor-facing licence and service orders. **How:** On receipt of the acceptance email, the accepted Offer's status becomes Accepted, the PurchaseOrder is stored against it, and the line items are prepared for the parallel Request Licenses and Request Services activities. **Context:** Immediately after the customer's Accept Offer activity; forks into Request Licenses and Request Services.
 
 ### Activity—HandleRejectedOffer
 - Name: Handle Rejected Offer
@@ -202,7 +202,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Close the sales process.
+- Description: **Why:** Even a rejected offer needs a controlled shutdown — otherwise the CRM leaves an "in progress" opportunity open indefinitely, distorting pipeline reporting. **What:** The sales-side wrap-up of a rejected offer: status updates on the Offer, follow-up notes if any, no downstream fulfilment. **How:** On the RejectOffer message, EAxpertise sets the Offer status to Rejected, records any customer feedback in notes, and lets the process terminate at End Rejected Sales. **Context:** Entered only from the customer's Reject Offer activity via message flow; ends the process at End Rejected Sales.
 
 ### DataObject—LicenseDocument
 - Name: License Document
@@ -265,7 +265,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: Manual
-- Description: Customer pays the sales invoice via bank transfer.
+- Description: **Why:** Billing isn't closed until the money is in — the CRM has to distinguish "invoiced" from "paid" so RemindPayment can chase only genuinely overdue invoices. **What:** The customer's outbound bank payment for the SalesInvoice, producing the Payment artifact. **How:** Customer initiates a bank transfer for the invoice amount to EAxpertise's account; the resulting Payment is what Validate Payment later confirms. **Context:** First activity after Prepare SalesInvoice reaches the customer; feeds Validate Payment via bank-flow. Re-entered from RemindPayment when the first attempt is missed/delayed.
 
 ### DataObject—Payment
 - Name: Payment
@@ -289,7 +289,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: EAxpertise prepares a sales offer based on the customer's RFQ requirements.
+- Description: **Why:** The offer is the customer's decision document — it must reflect the RFQ (or the revised RFQ after Customer feedback) precisely, or the whole review/accept loop stalls on avoidable back-and-forth. **What:** An initial or revised draft Offer, ready to be split into licence and service line-item decisions. **How:** Reads the RFQ (or its revised version from Request Revised Offer), lays out the offer skeleton (customer, requested items, target dates), and pushes the flow into Determine Licenses and Determine Services in parallel. Revision-loop entries carry version and change history from the previous offer. **Context:** Entered right after Register RFQ (first time) or after a Request Revised Offer round; feeds Determine Licenses then Determine Services.
 
 ### Activity—PrepareDelivery
 - Name: Prepare Delivery
@@ -303,7 +303,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Create the formal handover package and delivery note for the customer.
+- Description: **Why:** The customer needs a single, auditable delivery — not a scatter of licence PDFs across separate emails — and Delivery records are the paper trail (DEL-1, DEL-2) that later prove what was actually sent. **What:** The Delivery record for this order plus the outgoing delivery email containing the LicenseDocument and ServiceDocument attachments, linked to Customer and to the SalesInvoice it fulfils. **How:** Collects the vendor-provided LicenseDocument(s) and ServiceDocument(s), attaches them to a new Delivery record referencing the Customer, composes the delivery email, sends it. **Context:** Joins after both Request Licenses and Request Services have produced vendor documents; feeds Accept Delivery via message flow.
 
 ### Activity—PrepareLicenseQuote
 - Name: Prepare License Quote
@@ -317,7 +317,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Vendor prepares a pricing quote for the requested license and service line items.
+- Description: **Why:** EAxpertise resells rather than sets its own licence prices — the vendor is authoritative on the cost side, so no offer can be finalised without a vendor quote in hand. **What:** The LicenseQuote artifact: the vendor's pricing for the requested licence line items. **How:** Vendor's sales team responds to the RequestLicenseQuote email with a pricing document; the vendor lane emits LicenseQuote back to EAxpertise via message flow. **Context:** Vendor-lane response to Request License Quote; the LicenseQuote feeds Finalise Version of Offer via the vendor artifact.
 
 ### Activity—PrepareSalesInvoice
 - Name: Prepare SalesInvoice
@@ -331,7 +331,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Generate the outgoing sales invoice based on the accepted offer.
+- Description: **Why:** An invoice must be traceable back to the offer it charges for (SAL-4) — otherwise revenue can't be reconciled against what was actually agreed, and disputes have no evidence base. **What:** The SalesInvoice artifact for this order: invoice number, amount, currency, PDF, and a link to the originating Offer. **How:** Picks up the accepted Offer plus the licence/service line items that were actually delivered, generates the invoice PDF and inserts the SalesInvoice record with a FK to the Offer; also incorporates the vendor's LicenseInvoice/ServiceInvoice amounts for reconciliation. **Context:** Entered after Activate Delivery; feeds Pay SalesInvoice via message flow.
 
 ### Activity—PrepareServiceQuote
 - Name: Prepare Service Quote
@@ -345,7 +345,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Vendor provides Service pricing.
+- Description: **Why:** Service costs (hosting, training slots, support) come from the vendor, and are needed on the same offer as licences — quoting services separately risks the customer accepting a licence-only offer and being surprised by service costs later. **What:** The ServiceQuote artifact: the vendor's pricing for the requested service line items. **How:** Vendor's sales team responds to the RequestServiceQuote email with service pricing (per-seat, per-month, one-off, etc.); the vendor lane emits ServiceQuote back to EAxpertise via message flow. **Context:** Vendor-lane response to Request Service Quote; the ServiceQuote feeds Finalise Version of Offer.
 
 ### Activity—ProvideLicenses
 - Name: Provide Licenses
@@ -359,7 +359,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Vendor delivers license files.
+- Description: **Why:** The customer's actual entitlement is the licence file itself — without a vendor-issued LicenseDocument in hand, EAxpertise has nothing to deliver, no matter what was ordered. **What:** The LicenseDocument artifact (registration file/certificate) plus a LicenseInvoice for the vendor's charge to EAxpertise. **How:** Vendor issues the licence registration file and mails it (with the invoice) to EAxpertise; the vendor lane emits LicenseDocument and LicenseInvoice back via message flow. **Context:** Vendor-lane response to Request Licenses; both artifacts feed Prepare Delivery (LicenseDocument) and Prepare SalesInvoice (LicenseInvoice).
 
 ### Activity—ProvideServices
 - Name: Provide Service(s)
@@ -373,7 +373,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Vendor activates the contracted services (support portal, training slots, SaaS tenant) and provide service agreement.
+- Description: **Why:** Services need concrete activation on the vendor side (portal seats, training bookings, SaaS tenant) and a signed service agreement — until both exist, "delivered" is a claim, not a fact. **What:** The ServiceDocument artifact (service agreement) plus a ServiceInvoice for the vendor's charge to EAxpertise, alongside the actual activation on the vendor's systems. **How:** Vendor provisions the service (creates SaaS tenant, allocates training slots, opens support portal seats), issues the service agreement PDF, and invoices EAxpertise; both artifacts return to EAxpertise via message flow. **Context:** Vendor-lane response to Request Services; both artifacts feed Prepare Delivery (ServiceDocument) and Prepare SalesInvoice (ServiceInvoice).
 
 ### DataObject—PurchaseOrder
 - Name: Purchase Order
@@ -397,7 +397,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Log the incoming RFQ into the CRM system and assign a reference number.
+- Description: **Why:** An RFQ that never enters the CRM has no history — no offer versioning, no timing, no lookup. A dedicated register step also lets Confirm Customer Account tie the enquiry to a real Customer record. **What:** An RFQ record in the CRM linked to the Customer Account, ready to spawn an Offer. **How:** Parses the incoming RFQ email into the RFQ artifact, assigns a reference number, links it to the Customer confirmed by the Confirm Customer Account signal (never before), and hands over to Prepare (Revised) Offer. **Context:** Entered from Create RFQ via email message flow, gated by the Confirm Customer Account signal; feeds Prepare (Revised) Offer.
 
 ### Activity—RejectOffer
 - Name: Reject Offer
@@ -411,7 +411,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer reject the Offer and decides not to go with Purchase.
+- Description: **Why:** The process must have a clean "no" path — otherwise a customer's silence blurs into either "still deciding" or "rejected", and EAxpertise can't close out the opportunity honestly. **What:** The customer's explicit rejection of the Offer, with no follow-up revision requested. **How:** Customer replies declining the offer (with or without a reason); the reply is what triggers EAxpertise's Handle Rejected Offer. **Context:** The "no" branch of the Accept Offer? gateway; feeds Handle Rejected Offer via message flow.
 
 ### Activity—RemindPayment
 - Name: Remind Payment
@@ -425,7 +425,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: Abstract
-- Description: Notify the Customer that Payment is not received. Reasons for non-payments could be wrong email address, bounced email, ...
+- Description: **Why:** Invoices go unpaid for benign reasons (wrong email address, bounced attachment, holiday) far more often than for malicious ones — a first-line reminder is cheap and usually enough to close the loop. **What:** A courteous reminder email to the customer that the SalesInvoice is outstanding, with the invoice PDF re-attached. **How:** Triggered by the check payment intermediate timer when Validate Payment shows no payment has arrived within the expected window; sends a reminder to the invoice-billing contact and re-routes back to Pay SalesInvoice. **Context:** Entered from the check payment timer on the "no payment" branch; feeds Pay SalesInvoice via message flow.
 
 ### Activity—RequestLicenseQuote
 - Name: Request License Quote
@@ -439,7 +439,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: Abstract
-- Description: Send a formal request to the vendor (Sparx Systems) for a pricing quote on the required license line items. The vendor responds with a LicenseQuote.
+- Description: **Why:** EAxpertise can't quote the customer for licences without knowing what the vendor will charge for those exact line items — a formal quote request is the only reliable cost input, and the multi-vendor requirement (PRO-5) means picking the right vendor per line matters. **What:** A vendor-facing email listing the licence line items EAxpertise needs pricing for, targeted at the correct Vendor per PRO-5.x. **How:** Sends a structured email (line items + quantities + intended start date) to the chosen Vendor (Sparx Systems LTD/EU, Ability Engineering); the vendor responds later with LicenseQuote via message flow into this activity. **Context:** Entered from the "licenses required?" gateway = yes; feeds Finalise Version of Offer indirectly (through the returned LicenseQuote artifact).
 
 ### Activity—RequestLicenses
 - Name: Request Licenses
@@ -453,7 +453,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Send license purchase request to the Vendor with the agreed line items.
+- Description: **Why:** At this point the customer has accepted the offer, so EAxpertise must actually procure the licences — this is what turns an agreed quote into a real order at the vendor. **What:** A formal purchase request to the Vendor referencing their earlier LicenseQuote and the accepted quantities. **How:** Sends the licence purchase message to the Vendor (typically confirming the LicenseQuote number and quantities), which triggers Provide Licenses on the vendor's side. **Context:** Parallel branch out of Handle Approved Offer alongside Request Services; feeds Prepare Delivery once the vendor's LicenseDocument arrives.
 
 ### Activity—RequestRevisedOffer
 - Name: Request Revised Offer
@@ -467,7 +467,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer request a revised offer
+- Description: **Why:** A partial acceptance is not a rejection — the customer wants most of the offer but with changes, and forcing a hard yes/no would either lose the sale or land EAxpertise with a mis-scoped commitment. **What:** The customer's structured feedback specifying what to change on the current offer (line items, quantities, pricing, timing). **How:** Customer replies to the offer with a change list; the message flows into EAxpertise's Prepare (Revised) Offer, which produces a new numbered version. **Context:** The "partial acceptance" branch of the Accept Offer? gateway; loops back to Prepare (Revised) Offer.
 
 ### Activity—RequestServiceQuote
 - Name: Request Service Quote
@@ -481,7 +481,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: Abstract
-- Description: Send a formal request to the vendor for a pricing quote on the required service line items (SaaS, training, support). The vendor responds with a ServiceQuote.
+- Description: **Why:** Service pricing is set by the vendor per configuration (seats, hours, tenant size) and can't be assumed from a rate card — the offer's service side needs a fresh quote per RFQ. **What:** A vendor-facing email listing the service line items EAxpertise needs pricing for. **How:** Sends a structured email (service type, seats/hours, start date) to the correct Vendor for that service; the vendor responds later with ServiceQuote via message flow. **Context:** Entered from "services required?" gateway = yes; feeds Finalise Version of Offer via the returned ServiceQuote artifact.
 
 ### Activity—RequestServices
 - Name: Request Services
@@ -495,7 +495,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Send service order request to the Vendor with the agreed service details.
+- Description: **Why:** Just as with licences, an accepted service offer must trigger a real vendor-side provisioning order — otherwise the customer's activation later would fail. **What:** A formal service order to the Vendor referencing the earlier ServiceQuote and the accepted service configuration. **How:** Sends the service order message to the Vendor (confirming quote number, seats/hours, start date), which triggers Provide Service(s) on the vendor side. **Context:** Parallel branch out of Handle Approved Offer alongside Request Licenses; feeds Prepare Delivery once ServiceDocument arrives.
 
 ### Activity—ReviewOffer
 - Name: Review Offer
@@ -509,7 +509,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Customer reviews the offer prepared by EAxpertise and decides whether to accept.
+- Description: **Why:** The offer is EAxpertise's proposal, not a contract — the customer needs an explicit review pass to catch scope/pricing mismatches before committing budget. **What:** A customer-side evaluation of the received Offer against the internal need, resulting in an accept/partial/reject decision. **How:** Customer receives the offer email (with the PDF), circulates internally where needed, and returns to the Accept Offer? gateway with a decision. **Context:** Entered on the customer lane from Finalise Version of Offer via message flow; feeds the Accept Offer? gateway (yes/partial acceptance/no).
 
 ### DataObject—RFQ
 - Name: RFQ
@@ -591,7 +591,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: Manual
-- Description: Manually verify in the banking portal that the customer's transfer has arrived.
+- Description: **Why:** The CRM has no live bank feed, so "paid" has to be a deliberate, human-verified state change — otherwise every unreconciled invoice would silently look outstanding and set off remind loops for no reason. **What:** Confirmation that the customer's transfer has landed in the EAxpertise bank account, matching the SalesInvoice amount. **How:** Reviewer opens the banking portal, matches incoming transfer against the SalesInvoice (by amount and invoice reference), and marks the SalesInvoice paid with paid_date; if nothing has arrived, the check payment timer eventually routes to Remind Payment. **Context:** Entered from Pay SalesInvoice via bank-flow; feeds the check payment intermediate timer, which either closes the process at End Sales or triggers Remind Payment.
 
 ### Sequence Flows
 

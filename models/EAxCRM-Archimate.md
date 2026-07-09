@@ -2,12 +2,13 @@
 
 **Model ID**: m-eacrm
 **Purpose**: Enterprise Architect Customer Relationship Manager
-**Version**: 2.2
-**Elements**: 72 (was 71)
-**Relationships**: 111 (was 107)
+**Version**: 2.3
+**Elements**: 73 (was 72)
+**Relationships**: 112 (was 111)
 **Changes in v2.0**: Added Sales Management function with 5 sub-processes, Vendor actor, and 7 new business objects with corresponding data objects and services. Updated Purchase Data description for removed attributes.
 **Changes in v2.1**: Added Manage Customer Account function with 4 sub-processes (Create Customer Account, Flag Duplicate Accounts, Merge Customer Accounts, Retrieve Customer Email History), reusing existing Customer/Contact/Communication business objects and the Customer Management/IMAP Fetch services. Added a Triggering relation from Handle RFQ to Create Customer Account.
-**Changes in v2.2**: Added a 5th Manage Customer Account sub-process, Suggest Newsletter Opt-in (was BPMN-only, missing from ArchiMate). Added Access relationships from Flag Duplicate Accounts and Retrieve Customer Email History to Contact Data — both processes touch Contact fields (email, role) per their BPMN descriptions but lacked the corresponding Access relationship.
+**Changes in v2.2**: Added a 5th Manage Customer Account sub-process, Suggest Newsletter Opt-in (realising CRM-16, was BPMN-only and missing from ArchiMate). Added Access relationships from Flag Duplicate Accounts and Retrieve Customer Email History to Contact Data — both processes touch Contact fields (email, role) per their BPMN descriptions but lacked the corresponding Access relationship.
+**Changes in v2.3**: Added Secondary Contact BusinessRole (e-role-secondary) with association from Customer, realising CRM-10 which introduced the Secondary role in the ContactRole enum. Previously the ArchiMate had only the four original roles (Primary/Purchase/Sales/License Holder).
 
 ## Elements
 
@@ -45,6 +46,12 @@
 - Name: License Holder
 - Description: Holds and manages Sparx EA license entitlements.
 - GUID: {5E37383A-2C3A-53A9-9B2C-CFAD9B873207}
+- Layer: Business
+
+### BusinessRole — e-role-secondary
+- Name: Secondary Contact
+- Description: Colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties; the expected successor role when the Primary contact leaves the organization (CRM-10).
+- GUID: {}
 - Layer: Business
 
 ### BusinessFunction — e-func-insight
@@ -464,6 +471,11 @@
 - Source: e-customer
 - Target: e-role-license
 - GUID: {E658DE11-7324-56B5-9B8C-5DAA90B648CD}
+
+### Association — r-cust-sec
+- Source: e-customer
+- Target: e-role-secondary
+- GUID: {}
 
 ### Composition — r-comp-insight-imap
 - Source: e-func-insight

@@ -665,7 +665,7 @@
   - Merging Customer A (duplicate) into Customer B sets Customer A.merged_into = Customer B and does not delete Customer A's row.
   - After merge, Customer A's Contact(s) still exist and are queryable, pending manual removal by the rep.
   - The process reaches the Merged into Existing Account end event, and no new Customer record is created for the flagged duplicate.
-- Entities: Customer
+- Entities: Contact, Customer
 - Status: Proposed
 - Version: 1.0
 - GUID: {2E43D3B1-43D2-4954-B723-534FE8E70BA6}
@@ -673,15 +673,15 @@
   - eaxcrmmustmanagecustomerorganizationsandtheircontactswithspecificrolesprimarypurchasesaleslicenseholder
 
 ### Requirement—emailhistoryretrievalscansonnoduplicateanddedupesonrescan
-- Name: Email History Retrieval: scans on no-duplicate and dedupes on re-scan
+- Name: Email History Retrieval: domain-based scan on no-duplicate and dedupes on re-scan
 - ID: CRM-15
-- Description: When the Duplicate found? gateway resolves to no duplicate, the system shall run Retrieve Customer Email History, scanning the three configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) for messages matching the account's Contact.email, and append newly matched Communications to the account's Email History. Communications already linked from a prior run of this activity are not re-added on a subsequent scan. An email that doesn't match any known Contact is flagged for manual linking rather than dropped (per CRM-2). This activity is distinct from CreateAccountScreen's "Search Emails" domain lookup, which only prefills fields before the account exists.
-- Rationale: Staff need a reliable, one-click view of everything a Customer Account has ever communicated without manually searching three mailboxes — but re-running the scan (e.g. after new mail arrives) must not double up the history with Communications already linked, or the view stops being trustworthy.
+- Description: When the Duplicate found? gateway resolves to no duplicate, the system shall run Retrieve Customer Email History, scanning the three configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl) for messages whose sender/recipient address matches the account's Contact.email *domain*, not a single email address. The scan returns the set of distinct email addresses discovered under that domain plus the matched Communications; each Communication is linked to the account's Customer, and where an address matches an existing Contact it is also linked to that Contact. Addresses that don't yet match a Contact are surfaced so the rep can either create a new Contact for them or link them to an existing Contact — they are not silently dropped (per CRM-2). Communications already linked from a prior run of this activity are not re-added on a subsequent scan. This activity is distinct from CreateAccountScreen's "Search Emails" domain lookup, which only prefills fields before the account exists.
+- Rationale: A single Contact email rarely captures a customer's full communication footprint — colleagues at the same organisation typically write from the same domain but different addresses, so a domain-based scan surfaces the real relationship history. Re-running the scan (e.g. after new mail arrives) must not double up the history with Communications already linked, or the view stops being trustworthy.
 - Test Cases:
-  - After a non-duplicate account reaches Retrieve Customer Email History, matching emails from all three IMAP mailboxes appear in the account's Email History.
+  - After a non-duplicate account reaches Retrieve Customer Email History, emails from any address matching the Contact's email domain across all three IMAP mailboxes appear in the account's Email History.
   - Re-running Retrieve Customer Email History for the same account after new mail arrives adds only the new Communications, not duplicates of ones already linked.
-  - An email whose sender/recipient doesn't match any known Contact is flagged for manual linking rather than silently discarded.
-- Entities: Communication, Contact
+  - An address discovered by the domain scan that doesn't yet match a known Contact is surfaced for the rep to either create a new Contact or link to an existing one — the Communication is stored either way, never silently discarded.
+- Entities: Communication, Contact, Customer
 - Status: Proposed
 - Version: 1.0
 - GUID: {E342B1B4-E82D-457D-A525-70D21CDBEF6F}

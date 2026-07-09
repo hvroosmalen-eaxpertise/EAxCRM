@@ -33,7 +33,7 @@
 
 ### Class—communication
 - Name: Communication
-- Description: Email message retrieved from an IMAP account. linked_to_contact is currently a boolean flag only — CRM-2 requires each Communication to be associated with the matching Customer, with unmatched emails flagged for manual linking rather than silently dropped, which needs an actual FK (to Contact and/or Customer) not yet present in this schema.
+- Description: Email message retrieved from an IMAP account. Linked to the matching Customer (and, when identifiable, the matching Contact) per CRM-2/CRM-15. Both FKs are nullable so an unmatched email can be stored and flagged for manual linking rather than silently dropped; the manual-linking flow later populates them.
 - GUID: {94C6CD4B-43EF-4e8d-A190-EC98D38FF05B}
 - Attributes:
   - id: int <<PK>>
@@ -44,7 +44,8 @@
   - body: string
   - received_date: datetime
   - raw_email: string(500)
-  - linked_to_contact: boolean
+  - contact_id: int <<FK>> — nullable; matched Contact (null when the sender/recipient email doesn't yet match a known Contact — awaiting manual linking)
+  - customer_id: int <<FK>> — nullable; matched Customer (typically Contact.customer, but stored directly to allow domain-match linking to a Customer before a specific Contact is chosen)
   - created_at: datetime
 
 ### Class—contact
@@ -308,12 +309,33 @@
 - Description: Each Contact belongs to exactly one Customer organisation; a Customer may have multiple Contacts, each with their own role (CRM-1).
 - GUID: {C9CA64AF-AFAE-4d9a-9EF9-2014013769F5}
 
+### Association—r-contact-contactrole
+- Source: contact (*)
+- Target: contactrole (1)
+- Name: has_role
+- Description: Each Contact carries exactly one role drawn from the ContactRole enumeration (CRM-1, CRM-10). The Contact.role attribute is typed against this enum; the association is made explicit for diagram clarity.
+- GUID: {}
+
 ### Association—r-communication-imapaccount
 - Source: communication (*)
 - Target: imapaccount (1)
 - Name: retrieved_from
 - Description: Each Communication was fetched from exactly one configured IMAP account (han@/sales@/info@eaxpertise.nl).
 - GUID: {2676BB60-3D47-4de3-96BC-4D20293529F5}
+
+### Association—r-communication-contact
+- Source: communication (*)
+- Target: contact (0..1)
+- Name: linked_to_contact
+- Description: Each Communication may be linked to exactly one Contact once matched; nullable to allow unmatched emails to be stored and flagged for manual linking (CRM-2, CRM-15).
+- GUID: {}
+
+### Association—r-communication-customer
+- Source: communication (*)
+- Target: customer (0..1)
+- Name: linked_to_customer
+- Description: Each Communication may be linked to exactly one Customer. Set either as Contact.customer once a Contact match is chosen, or directly when Retrieve Customer Email History matches by domain and a Customer is identifiable before a specific Contact is picked (CRM-15).
+- GUID: {}
 
 ### Association—r-attachment-communication
 - Source: attachment (*)

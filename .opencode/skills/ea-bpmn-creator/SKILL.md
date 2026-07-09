@@ -11,6 +11,28 @@ Covers the 3 BPMN 2.0 process diagrams: Sales, Newsletter, and Manage Customer A
 
 **BPMN engine (2026-07-05, issue #3):** the 3 BPMN generate scripts and their matching `sync_*_process_from_ea.py` scripts are thin config + CLI wrappers (~15 lines each) around a shared `experiments/modelgen/bpmn_config.py` (per-process `ProcessConfig` dataclass instances + shared BPMN vocabulary constants) and `experiments/modelgen/bpmn_engine.py` (`parse_md`, `generate`, `sync_to_md`, and the BPMN-only layout functions). See `docs/superpowers/specs/2026-07-03-bpmn-config-driven-engine-design.md` for the design.
 
+## Activity Description Convention (Why / What / How / Context)
+
+**Applies to `Activity` stereotypes only** — not events, not gateways, not data objects. Events/gateways stay short; their descriptions rarely benefit from the four-part shape.
+
+Every BPMN Activity's `Description` is one paragraph structured as:
+
+> **Why:** <the motivation — the pain, missing capability, or requirement this activity addresses; cite CRM-/SAL-/NWS-/DEL-/PRO- requirement IDs when relevant>. **What:** <what the activity actually produces or changes — the artifact/state transition, not the UI>. **How:** <the mechanics — inputs, systems touched, outputs, dedup/idempotency rules, defaults>. **Context:** <where this activity sits in the flow — upstream trigger, downstream feeds, references to sibling activities/screens, distinctions from lookalike activities>.
+
+Rules:
+- Sentence-cased inline labels: `**Why:** X. **What:** Y. **How:** Z. **Context:** W.` — not markdown sub-headings, not YAML.
+- All four labels present, in that order, even if a field is one sentence.
+- One paragraph, no bullets — bullets fragment the reasoning chain and read worse in EA's Notes pane.
+- Refer to requirements by ID (`CRM-6`, `SAL-4`) not by full name; refer to sibling elements by their Activity/Gateway/Screen name, not GUID.
+
+Example (from `EAxCRM-CustomerAccountProcess.md`, `Suggest Newsletter Opt-in`):
+
+> **Why:** Primary and License Holder are the two roles most likely to be the right person to ask about newsletter consent; prompting only these avoids pestering every Contact, while requiring an explicit confirmation (rather than the gateway match itself setting opt_in) keeps consent affirmative and auditable rather than inferred (CRM-16, CRM-11). **What:** a suggested opt-in for the account's Contact, with opt_in and opt_in_date only written on explicit Confirm. **How:** OptInScreen shows the eligible Contact with a message and Confirm/Decline buttons; Confirm sets Contact.opt_in=True and stamps opt_in_date, Decline leaves both untouched — either way the process ends at Account Ready. **Context:** reached only when the "Primary or License Holder role?" gateway resolves positive after Retrieve Customer Email History; the ongoing opt-in bookkeeping thereafter belongs to Newsletter Management's Manage Opt-in process, not this one.
+
+Lint (informal): a hand-authored Activity description that does not contain all four labels `Why:`, `What:`, `How:`, `Context:` is non-conformant. When adding a new Activity to any BPMN MD, populate the template even if some fields are terse — an empty Why or How usually means the activity itself is under-specified.
+
+**Rendering:** the `**bold**` markdown spans on `Why:`/`What:`/`How:`/`Context:` are converted to RTF at generate time by `bpmn_engine.set_element_notes`; EA's Notes pane shows each label in **bold** and — because `_md_bold_to_rtf` emits a `\par` break before every bold span after the first — each label starts on its own line. So although the MD source is one inline paragraph, EA renders it as four visually separated sections. Do NOT skip the conversion by setting `elem.Notes` directly — the raw asterisks will show literally, and the labels will run into one wall of text. See `ea-model-common`'s "Rich-Text Notes" section for the shared rule.
+
 ## Known BPMN-Specific Failure Modes
 
 | Failure | Symptom | Root Cause |
@@ -214,22 +236,21 @@ All of these were found and fixed by writing a **pure-Python overlap checker** (
 
 ### Re-run Position Management
 
-**Reflow-on-rerun is the default for all 3 BPMN processes** — a deliberate, user-approved behavior change, not a bug: the next `generate()` run against an existing diagram repositions ALL elements using flow layout, not just new ones. **Consequence:** any manually-tuned layout on a live diagram will be overwritten the next time its generator runs. Always preview in `Sandbox` first before running for real against a diagram with an established manual layout.
+**HARD RULE (Han, 2026-07-09) — never reflow an existing diagram.** `ProcessConfig.reflow_on_rerun` defaults to `False`. On a rerun against an existing diagram, `bpmn_engine.generate()` only:
 
-```python
-elem_pos, updated_bounds = compute_bpmn_flow_layout(...)
-for each existing diagram object:
-    if eid in elem_pos:
-        dobj.left = int(l)
-        dobj.top = int(-t)       # Y coordinate negation
-        dobj.right = int(r)
-        dobj.bottom = int(-b)    # Y coordinate negation
-        dobj.Update()
-    elif eid in updated_bounds:
-        # Also update lane bounds (width may have expanded)
-```
+- adds elements newly present in the MD (placed via `compute_bpmn_flow_layout` on the empty spots),
+- removes elements no longer referenced by the MD,
+- updates element data (name, notes, stereotype, parent) — data-only writes never touch layout.
 
-New elements (not yet in diagram) are added after repositioning existing ones.
+Existing element positions and existing connector routings/linestyles are preserved. The connector-routing block is now gated on `is_new_diag or config.reflow_on_rerun`, so an existing connector's Path/LineStyle is never reset on rerun either.
+
+Only in two cases does the full flow-aware layout run:
+1. **First-time creation** (`is_new_diag == True`): the diagram is new, so there's no user layout to preserve.
+2. **Explicit opt-in**: caller passes a `ProcessConfig` with `reflow_on_rerun=True`. This is a one-off script or a `--reflow` flag, never a default. If you're tempted to enable this permanently, don't.
+
+Older versions of this skill described "Reflow-on-rerun is the default … Consequence: any manually-tuned layout on a live diagram will be overwritten" — that behaviour has been retired. If you see a run log line `Repositioning N diagram objects using flow layout` against a diagram the user has tuned, something is wrong: verify `config.reflow_on_rerun` and stop the run.
+
+See memory `feedback_ea_no_reflow_existing_diagrams.md` for the incident that drove this rule.
 
 ## Quick Reference
 

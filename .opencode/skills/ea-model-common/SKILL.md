@@ -11,6 +11,28 @@ This skill holds the infrastructure shared by every EAxCRM diagram generator, sp
 
 All generator scripts are under **`experiments/modelgen/`**, and the shared layout utilities are in **`experiments/modelgen/diagram_utils.py`**. See each language skill for its own generator script and `docs/superpowers/specs/` for design history.
 
+## Rich-Text Notes: `Element.Notes` Does Not Interpret RTF/HTML Directly
+
+**Rule:** any Element/Requirement/Connector Notes field that needs bold/italic/lists must go through `Repository.GetFieldFromFormat("RTF", <rtf-doc>)`. Direct assignment (`elem.Notes = "\\b Why:\\b0 …"` or `elem.Notes = "<b>Why:</b> …"`) is stored as literal characters — EA's Notes pane will display the raw `\b` control codes or `<b>` tags, not render them (verified 2026-07-07 while adding bold headers + numbered test cases to Requirements Notes, and re-verified 2026-07-09 after the same lesson was accidentally re-learned in the BPMN Activity Why/What/How/Context rollout).
+
+**Working pattern:**
+
+```python
+def rtf_escape(text):
+    # RTF specials: \\ { } ; non-ASCII becomes \\uNNNN? ; \\n becomes \\par
+    ...
+
+rtf = r"{\\rtf1\\ansi\\deff0 " + <body-with-\\b markers> + "}"
+elem.Notes = repo.GetFieldFromFormat("RTF", rtf)
+elem.Update()
+```
+
+Full worked implementations:
+- Requirements: `experiments/modelgen/generate_requirements_from_md.py::build_notes` (Description + bold Rationale/Test Cases headers + hanging-indent numbered list).
+- BPMN elements: `experiments/modelgen/bpmn_engine.py::set_element_notes` + `_md_bold_to_rtf` (converts markdown `**bold**` spans in a description to `\\b...\\b0`; every bold span after the first also gets a preceding `\\par` so successive labeled sections like Why/What/How/Context each start on their own line rather than flowing into one paragraph; falls back to plain assignment when no `**` is present).
+
+**Convention when writing Notes in a new generator:** if the target field authoring style uses `**...**`, route it through the bpmn_engine helper (or copy the pattern). If it uses markdown headings/lists, extend the helper — do not go back to plain `.Notes = ...`.
+
 ## EA Coordinate System
 
 ### Rules

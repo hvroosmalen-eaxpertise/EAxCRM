@@ -593,5 +593,10 @@
 
 - CreateAccountScreen → MergeAccountsScreen [Save, duplicate found]
 - CreateAccountScreen → EmailHistoryScreen [Save, no duplicate]
+- MergeAccountsScreen → (end — Merged into Existing Account) [Merge]
+- MergeAccountsScreen → CreateAccountScreen [Cancel]
 - EmailHistoryScreen → OptInScreen [Continue, Primary or License Holder role]
+- EmailHistoryScreen → (end — Account Ready) [Continue, any other role]
+- OptInScreen → (end — Account Ready) [Confirm]
+- OptInScreen → (end — Account Ready) [Decline]
 

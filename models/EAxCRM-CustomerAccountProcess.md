@@ -49,7 +49,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Create a new Customer (organisation name) with exactly one initial Contact (email address). Role is optional at this point — it may be left unassigned or set immediately (e.g. to Primary) if known.
+- Description: **Why:** Every downstream CRM activity (offers, licenses, communications, newsletter) needs a Customer + Contact pair to attach to; without an explicit, atomic create step there is no single point where the pair comes into existence with the fields required for CRM-6..CRM-12 to hold. **What:** A new Customer record (organisation name, address per CRM-7's street-or-PO-Box mode) together with one initial Contact (name, email, optional role/phone/opt-in) — persisted as one atomic transaction (CRM-6). **How:** Staff enter the minimal required fields on CreateAccountScreen (Save is blocked until CRM-6/7 conditions are met); optional Domain-based "Search Emails" prefills fields from IMAP before Save. On commit the Customer + Contact rows are inserted together; Contact.role defaults to Primary if left unset on the sole Contact (CRM-8); Contact.opt_in defaults False (CRM-11). **Context:** Entered either from the Sales Process ("Confirm Customer Account" signal event before RegisterRFQ) or directly on unsolicited contact (New Customer Contact start event); always followed by the Duplicate found? gateway.
 
 ### DataObject—CustomerAccount
 - Name: Customer Account
@@ -92,7 +92,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: User reviews the flagged match and merges the new Contact/data into the existing Customer Account. Any resulting duplicate Contact records may be manually removed afterward (delete action).
+- Description: **Why:** Without merging on a flagged duplicate, the same organisation would silently accumulate multiple Customer records, fragmenting its licences, communications, and history across them; deleting the losing record outright would also destroy the audit trail of what happened to it (CRM-14). **What:** The losing Customer's Contact/notes are folded into the surviving Customer chosen by the rep, and the losing Customer.merged_into is set to point at the survivor — the losing row itself is retained, not deleted. **How:** On MergeAccountsScreen the rep compares the new account against the flagged match and clicks Merge; on commit, contact records move over, Customer.merged_into is set once and never cleared, and any resulting duplicate Contact rows are left in place for the rep to remove manually as a separate action. **Context:** Reached only from the Duplicate found? gateway on a positive match; terminates the process at "Merged into Existing Account" — no new Customer Account is created for this instance.
 
 ### EndEvent—MergedintoExistingAccount
 - Name: Merged into Existing Account
@@ -133,7 +133,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: Why: staff need a fast way to see everything a Customer Account has ever communicated, without manually searching three separate mailboxes. What: composes a running Email History for the account -- a list of contact moments (sender, participants, date) matched against the Contact's email address, not just a raw dump of messages. How: reads the account's Contact email as the search key, scans the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl), and appends newly matched Communications to the Email History without duplicating ones already linked from a prior run. Context: an unmatched email is flagged for manual linking rather than silently dropped (CRM-2), and this activity is distinct from the create-time "Search Emails" domain lookup on CreateAccountScreen, which only prefills fields before the account exists.
+- Description: **Why:** Staff need a fast way to see everything a Customer Account has ever communicated, without manually searching three separate mailboxes, and a single Contact email address rarely captures the full picture — colleagues at the same organisation write from the same domain but different addresses. **What:** A running Email History for the account, built by scanning on the Contact's email domain (not a single address), returning the set of distinct sender/recipient addresses discovered plus the matched messages, so staff can review which of those addresses should become new Contacts on the account and which should link to existing Contacts. **How:** Reads the account's Contact email domain as the search key, scans the configured IMAP mailboxes (han@eaxpertise.nl, sales@eaxpertise.nl, info@eaxpertise.nl), links each matched Communication to the Customer (via customer_id) and, where the sender/recipient address matches a known Contact, to that Contact (via contact_id); addresses that don't yet match any Contact are surfaced for the rep to either create a new Contact or link manually. Communications already linked from a prior run are not re-added. **Context:** Distinct from the create-time "Search Emails" domain lookup on CreateAccountScreen, which only prefills fields before the account exists.
 
 ### Activity—SuggestNewsletterOptin
 - Name: Suggest Newsletter Opt-in
@@ -147,7 +147,7 @@
 - Loop: None
 - Start Quantity: 1
 - Task Type: User
-- Description: System suggests opting the Primary/License Holder Contact in to the newsletter. opt_in and opt_in_date are only set after explicit user confirmation — never automatically.
+- Description: **Why:** Primary and License Holder are the two roles most likely to be the right person to ask about newsletter consent; prompting only these avoids pestering every Contact, while requiring an explicit confirmation (rather than the gateway match itself setting opt_in) keeps consent affirmative and auditable rather than inferred (CRM-16, CRM-11). **What:** A suggested opt-in for the account's Contact, with opt_in and opt_in_date only written on explicit Confirm. **How:** OptInScreen shows the eligible Contact with a message and Confirm/Decline buttons; Confirm sets Contact.opt_in=True and stamps opt_in_date, Decline leaves both untouched — either way the process ends at Account Ready. **Context:** Reached only when the "Primary or License Holder role?" gateway resolves positive after Retrieve Customer Email History; the ongoing opt-in bookkeeping thereafter belongs to Newsletter Management's Manage Opt-in process, not this one.
 
 ### Sequence Flows
 

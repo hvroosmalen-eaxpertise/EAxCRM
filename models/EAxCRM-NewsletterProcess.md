@@ -47,7 +47,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to browse the article pool and identify suitable content for the newsletter.
+  - Description: **Why:** The article pool contains every scraped article going back multiple cycles; the composer needs a curated shortlist per issue, not a raw dump, or the newsletter becomes an inbox of everything Sparx has published. **What:** A human review pass over the current Article Pool, marking candidates worth including in this issue and setting aside stale/duplicate/irrelevant items. **How:** The composer scans Article Pool entries (heading + summary + source URL) in the CRM, flags interesting ones, and moves to Select Articles for the final cut. **Context:** First composition step after Check Cadence gives a green light; feeds Select Articles.
 
 #### Activity—CheckCadence
   - Name: Check Cadence
@@ -60,7 +60,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity checking whether 6 weeks have elapsed since the last newsletter was sent, ensuring the target cadence is maintained.
+  - Description: **Why:** Sending more frequently than the audience expects risks being perceived as spam and increases opt-outs (NWS-4); the cadence check is the single guard keeping the interval honest. **What:** A check of the interval since the most recent Sent newsletter against the 6-week minimum, producing a yes/no signal for the "6 weeks elapsed?" gateway. **How:** Reads the last Sent Newsletter's sent_date, compares to today; only Sent newsletters count — Drafts and in-Review issues do not reset the clock. **Context:** Entered directly after Start Newsletter; feeds the "6 weeks elapsed?" gateway, which either releases the composition flow or short-circuits to Newsletter Sent (no-op) when the window hasn't opened yet.
 
 #### Activity—ComposeNewsletter
   - Name: Compose Newsletter
@@ -73,7 +73,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to write and format the newsletter content using selected articles and the standard EAxNewsletter template (logo + article pointers).
+  - Description: **Why:** Raw selected articles are pointers, not a newsletter — the issue still needs framing text, branding, and layout before it can go out; without a dedicated compose step the send stage would ship half-formed content. **What:** A formatted EAxNewsletter draft built from the SelectedArticles set, applying the standard template (logo, article pointers with heading/summary/link), producing the NewsletterDraft artifact. **How:** The composer opens the Newsletter draft record, pulls in each SelectedArticles entry as a formatted pointer block, adds intro/outro copy where needed, and saves as Draft. Re-entered from Review Approved? = no for revisions. **Context:** Immediately after Select Articles; feeds Submit for Review. Loop-back point for a rejected review.
 
 #### DataObject—ContactList
   - Name: Contact List
@@ -120,7 +120,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to pick specific articles from the pool, typically 5 article pointers (heading + summary + link).
+  - Description: **Why:** The browsed shortlist may still be too broad — the newsletter's format targets a fixed handful of pointers (typically 5) so the reader isn't overwhelmed and each item gets attention. **What:** The final subset of Article Pool entries chosen for this issue, materialised as the SelectedArticles artifact. **How:** The composer picks ~5 articles from the browsed shortlist, ordered for the newsletter; the selection is a snapshot for this issue and does not remove articles from the pool for future issues. **Context:** Between Browse Available Articles and Compose Newsletter.
 
 #### DataObject—SelectedArticles
   - Name: Selected Articles
@@ -142,7 +142,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to dispatch the approved newsletter to all opted-in contacts via email.
+  - Description: **Why:** An approved newsletter delivers no value until it reaches the audience; the send step is also the moment engagement tracking (NWS-3) starts, so it must produce one NewsletterContact record per recipient. **What:** Dispatch of the ApprovedNewsletter to every Contact on the current ContactList (opted-in Contacts only), archived afterwards as SentNewsletter. **How:** Iterates the ContactList, sends the newsletter via SMTP per recipient, creates a NewsletterContact row per recipient with status=sent and sent_date=now; opens/bounces are captured later by tracking. Marks the Newsletter status Sent, resetting the cadence clock for NWS-4. **Context:** Entered only when Review Approved? = yes; ends the process at Newsletter Sent.
 
 #### DataObject—SentNewsletter
   - Name: Sent Newsletter
@@ -172,7 +172,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to submit the completed newsletter draft for internal review before sending.
+  - Description: **Why:** A newsletter goes out to every opted-in Contact in one shot — an unreviewed send (typo, broken link, wrong article) can't be recalled, so a mandatory human review gate is the only safeguard (NWS-2). **What:** Transition of the NewsletterDraft into the Review state so an approver can examine it end-to-end. **How:** The composer clicks Submit; the Newsletter status changes Draft → Review, and it becomes visible on the reviewer's queue. No content mutation happens here — only the state transition and hand-off. **Context:** Last composition-side step; feeds the Review Approved? gateway. On rejection the flow returns to Compose Newsletter for revisions; on approval it proceeds to Send Newsletter.
 
 ### Lane—NewsSource
 - Name: News Source
@@ -201,7 +201,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to parse scraped article content and extract headings and summaries for newsletter use.
+  - Description: **Why:** Raw scraped HTML is unusable in a newsletter directly — the composer needs heading + short summary + link, and doing that manually on every scrape cycle would swamp the value of automating the scrape itself. **What:** Structured Article records (heading, summary, source_url) derived from the scraped HTML content. **How:** Parses each fetched page with BeautifulSoup, extracts the visible title as heading and the lede/first paragraph as summary, keeping the source URL as the canonical link; deterministic parsing only (TEC-4 — no LLM). **Context:** Between Scrape Articles and Store New Articles.
 
 #### Activity—FetchURLList
   - Name: Fetch URL List
@@ -214,7 +214,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to retrieve the configured list of news source URLs to scrape.
+  - Description: **Why:** The scrape has to run against an intentional, configured set of NewsSource URLs — not a hard-coded list — so adding or removing a source is a data change, not a code change. **What:** The current URLList, i.e. the enabled NewsSource entries at scrape-cycle start. **How:** Reads NewsSource rows where enabled=true and materialises the URL List artifact for the rest of the scrape pipeline. **Context:** First automated step after the Scheduled Scrape start event; feeds Scrape Articles.
 
 #### StartEvent—ScheduledScrape
   - Name: Scheduled Scrape
@@ -235,7 +235,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to fetch article HTML content from news source URLs using requests and BeautifulSoup.
+  - Description: **Why:** The article pool that Compose Newsletter draws from has to be continuously topped up from SparxSystems.com/.eu; without an automated fetch, the composer would be back to manually copy-pasting from those sites (NWS-1). **What:** Raw article HTML pages for every URL in the URLList, ready for parsing. **How:** Iterates the URLList, GETs each source page (and any linked article detail pages it exposes) with `requests`, holding the raw HTML in memory for the next step; deterministic HTTP only (TEC-4). **Context:** Between Fetch URL List and Extract Headings and Summaries.
 
 #### EndEvent—ScrapeComplete
   - Name: Scrape Complete
@@ -256,7 +256,7 @@
   - Loop: None
   - Start Quantity: 1
   - Task Type: Abstract
-  - Description: Activity to persist newly scraped articles to the database, avoiding duplicates.
+  - Description: **Why:** Re-scraping the same sources every cycle would silently duplicate every Article — the pool would rot into thousands of copies and become useless for browsing (NWS-1). **What:** The Article Pool grown with only newly-seen articles from this cycle. **How:** For each extracted article, upserts into the Article table keyed on source_url — existing rows are skipped, new rows inserted with heading/summary/discovered_date. **Context:** Last automated step of the scrape flow; ends at Scrape Complete, and the resulting Article Pool is what Browse Available Articles reads next cycle.
 
 #### DataObject—URLList
   - Name: URL List

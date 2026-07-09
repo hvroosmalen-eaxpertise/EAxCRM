@@ -416,6 +416,11 @@ def main():
                     guid_map[ent["guid"]] = e.ElementGUID
 
         entity_by_id = {}
+        # Enums are also valid relationship endpoints (e.g. contact -> contactrole
+        # for the has_role association). Seed them first so Phase 2 can resolve
+        # both Class -> Class and Class -> Enum relationships.
+        for enum in enumerations:
+            entity_by_id[enum["id"]] = enum
         for ent in entities:
             entity_by_id[ent["id"]] = ent
             md_guid = ent["guid"]

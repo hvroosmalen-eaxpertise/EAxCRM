@@ -28,6 +28,78 @@ from diagram_utils import get_placed_ids, add_missing_elements, create_diagram_o
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def _rtf_escape(text):
+    """Escape text for embedding in an RTF control-code stream. Non-ASCII
+    becomes \\uNNNN? per RTF's unicode escape convention. Newlines become
+    \\par so multi-paragraph descriptions render as paragraphs, not runs of
+    literal '\\n'."""
+    out = []
+    for ch in text:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == "{":
+            out.append("\\{")
+        elif ch == "}":
+            out.append("\\}")
+        elif ch == "\r":
+            continue
+        elif ch == "\n":
+            out.append(r"\par ")
+        elif ord(ch) > 127:
+            out.append(f"\\u{ord(ch)}?")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _md_bold_to_rtf(text):
+    """Convert markdown **bold** spans in `text` to an RTF document with
+    \\b...\\b0 emphasis. Every bold span after the first also gets a
+    preceding \\par break so successive labeled sections (Why/What/How/
+    Context in Activity descriptions) each start on their own line in EA's
+    Notes pane, rather than flowing into one paragraph. Trailing whitespace
+    on the preceding plain segment is trimmed so the new line doesn't
+    inherit a stray leading space.
+
+    Returns a full RTF document string ready to be handed to
+    Repository.GetFieldFromFormat("RTF", ...) — direct assignment to
+    Element.Notes does NOT get interpreted (verified 2026-07-07 in the
+    requirements generator, same lesson applies here)."""
+    parts = re.split(r"\*\*(.+?)\*\*", text)
+    body_bits = []
+    bold_index = 0
+    for i, part in enumerate(parts):
+        if i % 2 == 1:  # captured group — was inside **...**
+            if bold_index > 0:
+                # Trim trailing whitespace from the previous plain segment
+                # so the paragraph break lands cleanly.
+                if body_bits:
+                    body_bits[-1] = body_bits[-1].rstrip()
+                body_bits.append(r"\par ")
+            # Brace-scoped bold ({\b …}) rather than \b…\b0, because RTF
+            # treats the space after \b0 as the control-word terminator and
+            # eats it — the following character would render flush against
+            # the label ("Why:without"). Braces scope the bold and let the
+            # subsequent literal space in the source survive intact.
+            body_bits.append(r"{\b " + _rtf_escape(part) + "}")
+            bold_index += 1
+        else:
+            body_bits.append(_rtf_escape(part))
+    return r"{\rtf1\ansi\deff0 " + "".join(body_bits) + "}"
+
+
+def set_element_notes(repo, elem, description):
+    """Set an EA element's Notes field. If `description` contains markdown
+    **bold** spans, convert to RTF via GetFieldFromFormat("RTF", ...) so EA
+    renders the bold labels instead of showing literal asterisks. Plain-text
+    descriptions (no **) are assigned directly for backwards compatibility
+    with all existing short descriptions across the three BPMN files."""
+    if "**" in (description or ""):
+        elem.Notes = repo.GetFieldFromFormat("RTF", _md_bold_to_rtf(description))
+    else:
+        elem.Notes = description or ""
+
 CATEGORY_HEADING = {
     "SequenceFlow": "Sequence Flows",
     "MessageFlow": "Message Flows",
@@ -951,7 +1023,7 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
                 old_name = existing.Name
                 existing.Name = name
                 existing.StereotypeEx = f"BPMN2.0::{stereo}"
-                existing.Notes = notes
+                set_element_notes(repo, existing, notes)
                 if parent_elem:
                     existing.ParentID = parent_elem.ElementID
                 existing.Update()
@@ -971,7 +1043,7 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
             else:
                 new_elem = proc_arch.Elements.AddNew(name, obj_type)
                 new_elem.StereotypeEx = f"BPMN2.0::{stereo}"
-                new_elem.Notes = notes
+                set_element_notes(repo, new_elem, notes)
                 if parent_elem:
                     new_elem.ParentID = parent_elem.ElementID
                 new_elem.Update()
@@ -1310,8 +1382,15 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
                     diag.Update()
                     print(f"  Placed {count} elements on diagram")
 
-        # Line style + border-centered connector routing (all processes)
-        if diag:
+        # Line style + border-centered connector routing.
+        #
+        # HARD RULE (Han, 2026-07-09): on an existing diagram, DO NOT touch
+        # existing connector routing/linestyle. The routing block below only
+        # runs when the diagram was just created this run OR the caller has
+        # explicitly opted into reflow_on_rerun. Otherwise EA's own defaults
+        # apply to any new connectors added this run, and the user's manual
+        # routing on existing connectors is preserved.
+        if diag and (is_new_diag or config.reflow_on_rerun):
             try:
                 diag.DiagramLinks.Refresh()
                 diag.DiagramObjects.Refresh()
@@ -1348,6 +1427,8 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
                     print(f"  Set Orthogonal Rounded linestyle + centered routing on {link_count} connector(s)")
             except Exception as e:
                 print(f"  [linestyle] Failed: {e}")
+        elif diag:
+            print("  Existing diagram — preserving connector routing/linestyle (no reflow)")
 
         if collab_elem:
             guid_map["_collaboration_model"] = collab_elem.ElementGUID
