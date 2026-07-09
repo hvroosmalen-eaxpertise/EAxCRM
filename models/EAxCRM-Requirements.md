@@ -39,8 +39,8 @@
 ### Requirement—eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase
 - Name: EAxCRM must use a production-grade, multi-user-capable relational database
 - ID: TEC-1
-- Description: The system shall use a production-grade relational database capable of reliable concurrent multi-user access in production. The specific database engine is not yet decided (2026-07-08) — this requirement is intentionally technology-abstract until an engine is chosen. SQLite may still be suitable for local development, but is no longer the production target.
-- Rationale: SQLite's single-writer model is a poor fit once the CRM needs to support multiple concurrent users reliably in production; a server-based RDBMS gives proper transactional isolation and concurrent write support without abandoning the Django framework.
+- Description: The system shall use a production-grade relational database capable of reliable concurrent multi-user access in production. The chosen engine (2026-07-09) is PostgreSQL, deployed as a Docker container on QNAP Container Station alongside the Django application container. SQLite remains the local dev/test database on the developer's Windows workstation but is no longer the production target.
+- Rationale: SQLite's single-writer model is a poor fit once the CRM needs to support multiple concurrent users reliably in production. PostgreSQL provides proper transactional isolation (MVCC) and concurrent write support out of the box, is Django's reference backend (via psycopg — the best-tested combination in the Django ecosystem), is free with no licensing tiers, and runs comfortably in a small Docker container on QNAP Container Station.
 - Test Cases:
   - Multiple concurrent users can read and write CRM data simultaneously without lock-contention errors.
   - Standard Django migrations apply cleanly against the chosen production database engine.

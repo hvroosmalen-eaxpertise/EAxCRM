@@ -2,13 +2,14 @@
 
 **Model ID**: m-eacrm
 **Purpose**: Enterprise Architect Customer Relationship Manager
-**Version**: 2.3
-**Elements**: 73 (was 72)
-**Relationships**: 112 (was 111)
+**Version**: 2.4
+**Elements**: 77 (was 73)
+**Relationships**: 118 (was 112)
 **Changes in v2.0**: Added Sales Management function with 5 sub-processes, Vendor actor, and 7 new business objects with corresponding data objects and services. Updated Purchase Data description for removed attributes.
 **Changes in v2.1**: Added Manage Customer Account function with 4 sub-processes (Create Customer Account, Flag Duplicate Accounts, Merge Customer Accounts, Retrieve Customer Email History), reusing existing Customer/Contact/Communication business objects and the Customer Management/IMAP Fetch services. Added a Triggering relation from Handle RFQ to Create Customer Account.
 **Changes in v2.2**: Added a 5th Manage Customer Account sub-process, Suggest Newsletter Opt-in (realising CRM-16, was BPMN-only and missing from ArchiMate). Added Access relationships from Flag Duplicate Accounts and Retrieve Customer Email History to Contact Data — both processes touch Contact fields (email, role) per their BPMN descriptions but lacked the corresponding Access relationship.
 **Changes in v2.3**: Added Secondary Contact BusinessRole (e-role-secondary) with association from Customer, realising CRM-10 which introduced the Secondary role in the ContactRole enum. Previously the ArchiMate had only the four original roles (Primary/Purchase/Sales/License Holder).
+**Changes in v2.4** (issue #11): Split the Technology layer into a production environment (QNAP NAS) and a dev/test environment (Windows Dev Workstation), reflecting TEC-1's decision to run PostgreSQL 16 as the production RDBMS while SQLite remains as the local dev/test database. Added Node e-node-devws + Device e-device-devws, added SystemSoftware e-sw-rdbms (PostgreSQL 16) + Artifact e-art-db-prod, retitled e-sw-sqlite and e-art-db to name their dev/test scope, moved r-assign-sw-sqlite from the QNAP Node to the DevWS Node, added r-assign-sw-django-dev (Django also runs on the dev workstation, per TEC-5), added r-assign-sw-rdbms (QNAP → PostgreSQL), and added Serving relationships from both DBs to the Django ApplicationComponent — filling a today-orphan gap where no relationship connected the app to any database.
 
 ## Elements
 
@@ -410,7 +411,7 @@
 
 ### Node — e-node-nas
 - Name: QNAP NAS
-- Description: The target deployment environment running the application locally.
+- Description: Production deployment environment running the EAxCRM application and PostgreSQL 16, both containerised on QNAP Container Station (TEC-5).
 - GUID: {87B0EDE5-B6F8-5D65-AFCF-3FF4C92C8CD2}
 - Layer: Technology
 
@@ -420,6 +421,18 @@
 - GUID: {B1D03642-187F-57D8-AACF-7CA7D6C2AAFB}
 - Layer: Technology
 
+### Node — e-node-devws
+- Name: Windows Dev Workstation
+- Description: Local development and test environment (Han's daily machine) running Django natively against a SQLite file — used for authoring and pre-production verification before promotion to the QNAP NAS. See TEC-5.
+- GUID: {}
+- Layer: Technology
+
+### Device — e-device-devws
+- Name: Windows Dev Hardware
+- Description: The developer's Windows 11 workstation hosting the dev/test environment.
+- GUID: {}
+- Layer: Technology
+
 ### SystemSoftware — e-sw-django
 - Name: Django 6.x + Python 3.13
 - Description: The web framework and runtime powering the CRM application.
@@ -427,9 +440,15 @@
 - Layer: Technology
 
 ### SystemSoftware — e-sw-sqlite
-- Name: SQLite
-- Description: Embedded database engine, file-based, zero-configuration, ideal for NAS deployment.
+- Name: SQLite (local dev/test)
+- Description: Embedded database engine used for local development and test only (TEC-1). Not the production target — SQLite's single-writer model is unsuitable for concurrent multi-user access.
 - GUID: {33F1813D-51B7-52DB-B6F0-6981E7A0CE90}
+- Layer: Technology
+
+### SystemSoftware — e-sw-rdbms
+- Name: PostgreSQL 16
+- Description: Production RDBMS chosen for TEC-1 — server-based, transactional (MVCC), supports concurrent multi-user writes. Django's reference backend (via psycopg); no licensing cost. Runs as a Docker container on QNAP Container Station alongside the Django application container.
+- GUID: {}
 - Layer: Technology
 
 ### SystemSoftware — e-sw-container
@@ -445,9 +464,15 @@
 - Layer: Technology
 
 ### Artifact — e-art-db
-- Name: SQLite Database File
-- Description: The file-based SQLite database storing all CRM data.
+- Name: SQLite Database File (dev/test)
+- Description: The file-based SQLite database used in local dev/test only. Never the production data store.
 - GUID: {48E6E353-BD82-5D9D-8FB3-0AFF8CF07E18}
+- Layer: Technology
+
+### Artifact — e-art-db-prod
+- Name: PostgreSQL Database Instance
+- Description: The production PostgreSQL 16 database instance holding all CRM data in production — realising e-sw-rdbms.
+- GUID: {}
 - Layer: Technology
 
 ## Relationships
@@ -743,7 +768,7 @@
 - GUID: {C295BFE6-243B-5A46-9B9A-AF2AA1D8B6CD}
 
 ### Assignment — r-assign-sw-sqlite
-- Source: e-node-nas
+- Source: e-node-devws
 - Target: e-sw-sqlite
 - GUID: {C07C8120-B807-5B5C-A4F0-A5A12317E849}
 
@@ -766,6 +791,41 @@
 - Source: e-art-dockerfile
 - Target: e-sw-container
 - GUID: {D8033287-7DC1-5A3C-823C-86825A100A73}
+
+### Composition — r-comp-devws-device
+- Source: e-node-devws
+- Target: e-device-devws
+- GUID: {}
+
+### Assignment — r-assign-sw-rdbms
+- Source: e-node-nas
+- Target: e-sw-rdbms
+- Description: PostgreSQL runs as a Docker container on the QNAP Container Station node.
+- GUID: {}
+
+### Assignment — r-assign-sw-django-dev
+- Source: e-node-devws
+- Target: e-sw-django
+- Description: The same Django codebase runs natively on the Windows dev workstation, per TEC-5. Django (SystemSoftware) is now assigned to both nodes.
+- GUID: {}
+
+### Realization — r-realize-art-db-prod-sw
+- Source: e-art-db-prod
+- Target: e-sw-rdbms
+- Description: The production database instance realises the PostgreSQL SystemSoftware, mirroring the pattern used by e-art-db → e-sw-sqlite.
+- GUID: {}
+
+### Serving — r-serve-rdbms-app
+- Source: e-sw-rdbms
+- Target: e-app-django
+- Description: PostgreSQL serves the EAxCRM Django ApplicationComponent as its production data store. Fills the today-orphan gap where no relationship connected the app to any database.
+- GUID: {}
+
+### Serving — r-serve-sqlite-app-dev
+- Source: e-sw-sqlite
+- Target: e-app-django
+- Description: SQLite serves the EAxCRM Django ApplicationComponent as its dev/test data store — symmetric with the production RDBMS serving relationship, so both environments are explicit in the model.
+- GUID: {}
 
 ### Composition — r-comp-sales-rfq
 - Source: e-func-sales
