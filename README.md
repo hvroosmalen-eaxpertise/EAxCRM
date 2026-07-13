@@ -14,7 +14,7 @@ A Django CRM for managing Sparx EA customers, their communications, license enti
 | Layer | Choice |
 |---|---|
 | Framework | Python 3.13 + Django 6.x |
-| Database | Production-grade, multi-user-capable RDBMS (engine TBD — SQLite may still suit local dev, is no longer the production target) |
+| Database | PostgreSQL (dev/test + prod, chosen 2026-07-09 — see `EAxCRM-Archimate.md` v2.4 Technology layer split) |
 | IMAP | imaplib + email stdlib |
 | PDF parsing | PyMuPDF (fitz) |
 | Scraping | requests + BeautifulSoup |

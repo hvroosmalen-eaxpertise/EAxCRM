@@ -31,6 +31,13 @@ Reads `EAxCRM-Archimate.md`, generates the elements and relationships in the sin
 - **Sync** (EA → MD): `python experiments/modelgen/sync_datamodel_from_ea.py`
 - 19 class entities with attributes, 30 associations with cardinality, named directionally
 
+### Physical Data Model (experimental, issue #16)
+- **Design**: `docs/superpowers/specs/2026-07-09-physical-data-model-experiment-design.md`
+- **Plan**: `docs/superpowers/plans/2026-07-09-physical-data-model-experiment-plan.md`
+- **Where**: `Sandbox → Database Architecture` package in `EAxCRM.qea` — scratch by convention, but currently committed as the reference shape for the experiment (`Table1`, `Table2`, one FK association)
+- **Target DBMS**: PostgreSQL
+- Not the source of truth for the schema — the logical `EAxCRM-DataModel.md` still is. Adoption decision after the phased experiment; if we adopt, a permanent `Data Architecture → Physical Data Model` package will replace the sandbox reference.
+
 ### Requirements Model
 - **Generate** (MD → EA): `python experiments/modelgen/generate_requirements_from_md.py`
 - **Sync** (EA → MD): `python experiments/modelgen/sync_requirements_from_ea.py`
