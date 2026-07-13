@@ -136,17 +136,75 @@ shape.
 
 ## 7. Findings
 
-_To be filled in during Phases A–D. Each finding has the same shape:
-question → observed EA behaviour → evidence (screenshot or COM excerpt) →
-implication for adoption._
+_Filled during Phases A–D. Each finding has the same shape: question →
+observed EA behaviour → evidence → implication for adoption._
 
-- **F1** — NotNull encoding (pending)
-- **F2** — PK-implicit NotNull in generated DDL (pending)
-- **F3** — Whether package-level Generate DDL covers all tables in one run
-  (pending)
-- **F4** — CHECK-constraint representation for enum-like columns (pending)
-- **F5** — Round-trip cost: single-column type change → regenerate → diff
-  (pending)
+### F1 — NotNull encoding (Phase A, 2026-07-09)
+
+**Question**: which EA property records column-level `NOT NULL`?
+
+**Observation**: `Attribute.AllowDuplicates` is the storage — inverted.
+`AllowDuplicates=False` ⇔ DDL emits `NOT NULL`. `AllowDuplicates=True` ⇔
+DDL emits `NULL`. EA repurposes the UML "isUnique" flag for the physical
+model when the attribute is stereotyped `column`.
+
+**Evidence**: `experiments/pdm/sandbox_before.txt` shows `Table1.attribute 1`
+with `AllowDuplicates=True`; after Han toggled NotNull on that column,
+`experiments/pdm/sandbox_after_A2.txt` shows it as `AllowDuplicates=False`.
+The DDL diff between `table1_baseline.sql` (NotNull on) and
+`table1_baseline-null.sql` (NotNull off) has a single functional line
+change: `varchar(50) NOT NULL` → `varchar(50) NULL`. Every other line is
+identical modulo the generation timestamp.
+
+**Implication**: NotNull is reachable and stable. No adoption blocker. When
+building the slice in Phase B, tick "Not Null" in the column editor for
+every column that should be non-nullable — the setting persists correctly
+across saves and regenerations.
+
+### F2 — PK-implicit NotNull in generated DDL (Phase A, 2026-07-09)
+
+**Question**: does EA emit `NOT NULL` on PK columns automatically, or must
+the column also be flagged NotNull explicitly?
+
+**Observation**: EA emits `NOT NULL` on the PK column in the `CREATE TABLE`
+statement even when the column-level NotNull is not set — the `PRIMARY KEY`
+constraint is added by a separate `ALTER TABLE`.
+
+**Evidence**: `sandbox_baseline.sql` line 20 emits `id uuid NOT NULL,` and
+line 40 adds `ALTER TABLE "Table1" ADD CONSTRAINT "PK_Table1" PRIMARY KEY
+(id)`. The `id` column has `AllowDuplicates=True` on disk yet still gets
+`NOT NULL` in the DDL.
+
+**Implication**: no adoption blocker. When modelling PK columns in Phase B,
+do not also set NotNull on them — EA handles it. Setting both is harmless
+but redundant.
+
+### F3 — Package-level Generate DDL covers all tables in one run (Phase A, 2026-07-09)
+
+**Question**: does the "Generate DDL" wizard scope automatically to every
+table in the selected package, or one table per invocation?
+
+**Observation**: right-clicking the **package** (not a table) and running
+"Generate DDL" produces a single SQL script covering every table plus all
+their PKs, indexes, and FKs, in the correct application order (drops with
+CASCADE → creates → PKs+indexes → FKs).
+
+**Evidence**: `sandbox_baseline.sql` contains both `Table1` and `Table2`
+`CREATE TABLE`s, both `PK_TableN` `ALTER TABLE`s, the `IXFK_Table1_Table2`
+`CREATE INDEX`, and the `FK_Table1_Table2` `ALTER TABLE`. Compare with
+`table1_baseline.sql` which was generated on Table1 alone and omits
+Table2's `CREATE TABLE` entirely (leaving the FK dangling).
+
+**Implication**: no adoption blocker. Phase C's step C1 stands as written —
+package-level generation is the right scope. The one-table-only
+right-click *is* possible and produces broken output; document this as a
+gotcha for anyone running the workflow later.
+
+### F4 — CHECK-constraint representation for enum-like columns
+_(pending — Phase B4)_
+
+### F5 — Round-trip cost: single-column type change → regenerate → diff
+_(pending — Phase C4)_
 
 ## 8. Success criteria
 
