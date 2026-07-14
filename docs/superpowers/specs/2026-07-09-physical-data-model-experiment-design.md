@@ -203,8 +203,51 @@ package-level generation is the right scope. The one-table-only
 right-click *is* possible and produces broken output; document this as a
 gotcha for anyone running the workflow later.
 
-### F4 — CHECK-constraint representation for enum-like columns
-_(pending — Phase B4)_
+### F4 — CHECK-constraint representation for enum-like columns (Phase B4, 2026-07-14)
+
+**Question**: how does EA store a table-level CHECK constraint so the DDL
+generator emits `ALTER TABLE ... ADD CONSTRAINT ... CHECK (<expression>)`?
+
+**Observation**: another Operation on the table, stereotyped **`check`**, named
+`CK_<table>_<column>` — same pattern as PK/FK/index. **The load-bearing field
+is `t_operation.Code`** (`Method.Code` in COM), where the Database Builder UI
+writes the expression when you paste it into the constraint editor. EA's
+Postgres DDL template `%DDLCheckConstraint%` emits
+`CHECK (%constraintProperty:"CHECKSTATEMENT"%)`, and `constraintProperty:"CHECKSTATEMENT"`
+resolves to `Code` on the operation. A tagged value literally named
+`CHECKSTATEMENT` also *works* as a fallback, but is redundant — an empirical
+removal (delete the tagged value, keep only `Code`, regenerate) still
+produced the correct `CHECK (role IN (...))` in the DDL, confirming `Code`
+alone drives the emission.
+
+Constraint-storage tables (`t_objectconstraint`, `t_attributeconstraint`,
+`t_connectorconstraint`, `t_operationconstraint`) are NOT used — even though
+the Database Builder UI has a "Constraints" tab, the actual CHECK ends up as
+a stereotyped Operation, alongside PK/FK/index.
+
+Notes on a check-op will emit as `COMMENT ON CONSTRAINT ... IS '...'` in the
+Postgres DDL — useful for documentation but not the load-bearing field for
+the CHECK clause itself.
+
+**Evidence**: `experiments/pdm/Customer-Contact-Contactrole-PostgreSQL.sql`
+(generated 2026-07-14 14:10) emits
+`ALTER TABLE contact ADD CONSTRAINT "CK_contact_role" CHECK (role IN
+('Primary','Purchase','Sales','License Holder','Secondary'))` once
+`t_operationtag` has a row with `Property='CHECKSTATEMENT'` and the
+expression as `VALUE`. Earlier runs with the expression only in
+`t_operation.Notes` (with no CHECKSTATEMENT tagged value) emitted `CHECK ()`
+empty and moved the expression to a `COMMENT ON CONSTRAINT`.
+
+Investigation trail: `t_xref` for the check-op only carries its stereotype
+cross-ref; four constraint tables all empty; the answer came from reading
+EA's own DDL template sources (`DDLCreateTableConstraints` → dispatches on
+`constraintProperty:"TYPE"` → `%DDLCheckConstraint%` reads
+`constraintProperty:"CHECKSTATEMENT"`).
+
+**Implication**: no adoption blocker; automation writes the expression to
+`Method.Code` on a check-stereotyped Operation (matches Database Builder UI
+convention; no tagged value needed). Lookup-table variant vs CHECK variant
+is a modelling choice, not a mechanics limitation.
 
 ### F5 — Round-trip cost: single-column type change → regenerate → diff
 _(pending — Phase C4)_
