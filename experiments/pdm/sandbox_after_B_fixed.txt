@@ -1,0 +1,282 @@
+  Spawning isolated EA.App instance (DispatchEx)...
+  Opening M:\EAxCRM\models\EAxCRM.qea ...
+Connected: M:\EAxCRM\models\EAxCRM.qea
+### Package: Database Architecture (id=29)
+
+### Diagram: Database Architecture  type='Logical'  stereo='' metatype='Extended::Data Modeling' extType='HideRel=0;ShowTags=0;ShowReqs=0;ShowCons=0;OpParams=1;ShowSN=0;ScalePI=0;PPgs.cx=0;PPgs.cy=0;PSize=9;ShowIcons=1;SuppCN=0;HideProps=0;HideParents=0;UseAlias=0;HideAtts=0;HideOps=0;HideStereo=0;HideEStereo=0;ShowRec=1;ShowRes=0;ShowShape=1;FormName=;' styleEx='ExcludeRTF=0;DocAll=0;HideQuals=0;AttPkg=1;ShowTests=0;ShowMaint=0;SuppressFOC=1;MatrixActive=0;SwimlanesActive=1;KanbanActive=0;MatrixLineWidth=1;MatrixLineClr=0;MatrixLocked=0;TConnectorNotation=Information Engineering;TExplicitNavigability=0;AdvancedElementProps=1;AdvancedFeatureProps=1;AdvancedConnectorProps=1;m_bElementClassifier=1;SPT=1;MDGDgm=Extended::Data Modeling;STBLDgm=;ShowNotes=0;VisibleAttributeDetail=0;ShowOpRetType=1;SuppressBrackets=0;SuppConnectorLabels=0;PrintPageHeadFoot=0;ShowAsList=0;SuppressedCompartments=;Theme=:119;SaveTag=DE324F5C;'
+
+### Element: contact  type=Class  stereo='table'  guid={65ACBCF6-8CB4-4158-848C-F885EEC7EDC0}
+   .element.Version='1.0'  Alias=''
+   .el-tv DBVersion=''  notes=''
+   .el-tv Owner=''  notes=''
+   .el-tv Tablespace=''  notes=''
+   .attr id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr name: varchar  stereo='column'  len='200'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr email: varchar  stereo='column'  len='254'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr phone: varchar  stereo='column'  len='50'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr opt_in: boolean  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr opt_in_date: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr role: varchar  stereo='column'  len='30'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr customer_id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr created_at: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr updated_at: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .op 'FK_contact_contactrole'  stereo='FK'  returnType=''  notes=''
+     .op-param role: varchar  kind='in'
+     .op-tv Delete='No Action'  notes=''
+     .op-tv property='Delete No Action=1;Update No Action=1;'  notes=''
+     .op-tv Update='No Action'  notes=''
+   .op 'FK_contact_customer'  stereo='FK'  returnType=''  notes=''
+     .op-param customer_id: uuid  kind='in'
+     .op-tv Delete='No Action'  notes=''
+     .op-tv property='Delete No Action=1;Update No Action=1;'  notes=''
+     .op-tv Update='No Action'  notes=''
+   .op 'IXFK_contact_contactrole'  stereo='index'  returnType=''  notes=''
+     .op-param role: varchar  kind='in'
+   .op 'IXFK_contact_customer'  stereo='index'  returnType=''  notes=''
+     .op-param customer_id: uuid  kind='in'
+   .op 'PK_contact'  stereo='PK'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={5E36A63A-5BA8-413c-A13C-F5138FC9F87E}
+     .conn.supp id=2014 end.role='PK_customer' card='1' nav='Navigable' agg=0 stereo=''
+     .conn.cli  id=2015 end.role='FK_contact_customer' card='0..*' nav='Non-Navigable' agg=0 stereo=''
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={4CD53527-5CFE-4f23-8E6B-D1022C2172FF}
+     .conn.supp id=2016 end.role='PK_contactrole' card='1' nav='Navigable' agg=0 stereo=''
+     .conn.cli  id=2015 end.role='FK_contact_contactrole' card='0..*' nav='Non-Navigable' agg=0 stereo=''
+
+### Element: contactrole  type=Class  stereo='table'  guid={C88B6C25-E248-44d0-A871-FC540C2153E6}
+   .element.Version='1.0'  Alias=''
+   .el-tv DBVersion=''  notes=''
+   .el-tv Owner=''  notes=''
+   .el-tv Tablespace=''  notes=''
+   .attr code: varchar  stereo='column'  len='30'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr label: varchar  stereo='column'  len='100'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .op 'PK_contactrole'  stereo='PK'  returnType=''  notes=''
+     .op-param code: varchar  kind='in'
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={4CD53527-5CFE-4f23-8E6B-D1022C2172FF}
+     .conn.supp id=2016 end.role='PK_contactrole' card='1' nav='Navigable' agg=0 stereo=''
+     .conn.cli  id=2015 end.role='FK_contact_contactrole' card='0..*' nav='Non-Navigable' agg=0 stereo=''
+
+### Element: customer  type=Class  stereo='table'  guid={76A2FFE0-34CD-44bd-8BE3-64C6C64D152B}
+   .element.Version='1.0'  Alias=''
+   .el-tv DBVersion=''  notes=''
+   .el-tv Owner=''  notes=''
+   .el-tv Tablespace=''  notes=''
+   .attr id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr name: varchar  stereo='column'  len='200'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr notes: varchar  stereo='column'  len='2000'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr address_mode: varchar  stereo='column'  len='10'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr street_name: varchar  stereo='column'  len='200'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr house_number: varchar  stereo='column'  len='20'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr postal_code: varchar  stereo='column'  len='20'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr city: varchar  stereo='column'  len='100'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr country: varchar  stereo='column'  len='100'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr po_box: varchar  stereo='column'  len='200'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr created_at: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr updated_at: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr merged_into_id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .op 'FK_customer_customer'  stereo='FK'  returnType=''  notes=''
+     .op-param merged_into_id: uuid  kind='in'
+     .op-tv Delete='No Action'  notes=''
+     .op-tv property='Delete No Action=1;Update No Action=1;'  notes=''
+     .op-tv Update='No Action'  notes=''
+   .op 'IXFK_customer_customer'  stereo='index'  returnType=''  notes=''
+     .op-param merged_into_id: uuid  kind='in'
+   .op 'PK_customer'  stereo='PK'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={D0E2E78F-219E-4da1-ABFC-66A4A452F730}
+     .conn.supp id=2014 end.role='PK_customer' card='1' nav='Navigable' agg=0 stereo=''
+     .conn.cli  id=2014 end.role='FK_customer_customer' card='0..*' nav='Non-Navigable' agg=0 stereo=''
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={5E36A63A-5BA8-413c-A13C-F5138FC9F87E}
+     .conn.supp id=2014 end.role='PK_customer' card='1' nav='Navigable' agg=0 stereo=''
+     .conn.cli  id=2015 end.role='FK_contact_customer' card='0..*' nav='Non-Navigable' agg=0 stereo=''
+
+### Element: Table1  type=Class  stereo='table'  guid={6827E422-0897-499e-B562-D1B957E5FE07}
+   .element.Version='1.0'  Alias=''
+   .el-tv DBVersion=''  notes=''
+   .el-tv Owner=''  notes=''
+   .el-tv Tablespace=''  notes=''
+   .attr id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=True  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=True
+     .attr.Alias=''
+   .attr attribute 1: varchar  stereo='column'  len='50'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr attribute 2: timestamp with time zone  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .attr attribute 3: integer  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .op 'FK_Table1_Table2'  stereo='FK'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+     .op-tv Delete='No Action'  notes=''
+     .op-tv property='Delete No Action=1;Update No Action=1;'  notes=''
+     .op-tv Update='No Action'  notes=''
+   .op 'IXFK_Table1_Table2'  stereo='index'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+   .op 'PK_Table1'  stereo='PK'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={9344CF82-375D-41c1-AC0F-07617206B8B4}
+     .conn.supp id=2010 end.role='PK_Table2' card='1' nav='Unspecified' agg=0 stereo=''
+     .conn.cli  id=2009 end.role='FK_Table1_Table2' card='0..*' nav='Unspecified' agg=0 stereo=''
+
+### Element: Table2  type=Class  stereo='table'  guid={4BE8A5A0-21E4-4a56-B980-AE549C6BF6AA}
+   .element.Version='1.0'  Alias=''
+   .el-tv DBVersion=''  notes=''
+   .el-tv Owner=''  notes=''
+   .el-tv Tablespace=''  notes=''
+   .attr id: uuid  stereo='column'  len='0'  prec='0'  default=''  isCollection=False  allowDup=True  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=True
+     .attr.Alias=''
+   .attr sttribute2_2: real  stereo='column'  len='50'  prec='0'  default=''  isCollection=False  allowDup=False  lowerBound='1'  upperBound='1'  notes=''
+     .attr.IsConst=False
+     .attr.IsDerived=False
+     .attr.IsStatic=False
+     .attr.IsOrdered=False
+     .attr.Alias=''
+   .op 'PK_Table2'  stereo='PK'  returnType=''  notes=''
+     .op-param id: uuid  kind='in'
+   .conn name='' type=Association stereo='FK' direction='Source -> Destination' guid={9344CF82-375D-41c1-AC0F-07617206B8B4}
+     .conn.supp id=2010 end.role='PK_Table2' card='1' nav='Unspecified' agg=0 stereo=''
+     .conn.cli  id=2009 end.role='FK_Table1_Table2' card='0..*' nav='Unspecified' agg=0 stereo=''
+  Cleaned up 1 zombie EA process(es)

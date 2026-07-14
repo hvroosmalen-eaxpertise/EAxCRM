@@ -139,27 +139,30 @@ shape.
 _Filled during Phases A–D. Each finding has the same shape: question →
 observed EA behaviour → evidence → implication for adoption._
 
-### F1 — NotNull encoding (Phase A, 2026-07-09)
+### F1 — NotNull encoding (Phase A, 2026-07-09, polarity corrected Phase B)
 
 **Question**: which EA property records column-level `NOT NULL`?
 
-**Observation**: `Attribute.AllowDuplicates` is the storage — inverted.
-`AllowDuplicates=False` ⇔ DDL emits `NOT NULL`. `AllowDuplicates=True` ⇔
-DDL emits `NULL`. EA repurposes the UML "isUnique" flag for the physical
-model when the attribute is stereotyped `column`.
+**Observation**: `Attribute.AllowDuplicates` is the storage — **NOT
+inverted**. `AllowDuplicates=True` ⇔ DDL emits `NOT NULL`.
+`AllowDuplicates=False` ⇔ DDL emits `NULL`. Phase A recorded the polarity
+backwards; Phase B's DDL against a slice built with `AllowDuplicates=False`
+for intended-NOT-NULL columns proved every column came out `NULL`,
+forcing the correction.
 
-**Evidence**: `experiments/pdm/sandbox_before.txt` shows `Table1.attribute 1`
-with `AllowDuplicates=True`; after Han toggled NotNull on that column,
-`experiments/pdm/sandbox_after_A2.txt` shows it as `AllowDuplicates=False`.
-The DDL diff between `table1_baseline.sql` (NotNull on) and
-`table1_baseline-null.sql` (NotNull off) has a single functional line
-change: `varchar(50) NOT NULL` → `varchar(50) NULL`. Every other line is
-identical modulo the generation timestamp.
+**Evidence**: pre-toggle sandbox showed `Table1.attribute 1` with
+`AllowDuplicates=True` and `table1_baseline.sql` emitting `NOT NULL`; the
+post-toggle sandbox (Han flipped NotNull *off*) showed
+`AllowDuplicates=False` and `table1_baseline-null.sql` emitting `NULL`.
+Re-checked in Phase B: the `Customer-Contact-Contactrole-PostgreSQL.sql`
+generated from tables where `AllowDuplicates=False` on all
+intended-NOT-NULL columns emits every column as `NULL` — confirming the
+opposite of Phase A's original conclusion.
 
-**Implication**: NotNull is reachable and stable. No adoption blocker. When
-building the slice in Phase B, tick "Not Null" in the column editor for
-every column that should be non-nullable — the setting persists correctly
-across saves and regenerations.
+**Implication**: no adoption blocker; the mapping is stable, just the
+opposite of what UML "isUnique" would suggest. When automating table
+creation via COM, write `Attribute.AllowDuplicates = True` for a NOT NULL
+column.
 
 ### F2 — PK-implicit NotNull in generated DDL (Phase A, 2026-07-09)
 
@@ -205,6 +208,51 @@ _(pending — Phase B4)_
 
 ### F5 — Round-trip cost: single-column type change → regenerate → diff
 _(pending — Phase C4)_
+
+### F6 — FK parent resolution requires FKINFO on connector StyleEx (Phase B, 2026-07-09)
+
+**Question**: with the three-artefact FK pattern (FK op + index op + Association
+connector with role names), what makes EA's DDL generator emit
+`REFERENCES <parent_table> (<parent_column>)` instead of `REFERENCES  ()`?
+
+**Observation**: the Association connector's `StyleEx` field must carry
+`FKINFO=SRC=<fk_op_name>:DST=<pk_op_name>:;`. Without it, DDL emits an empty
+`REFERENCES  ()` even when the connector's SupplierID, ClientEnd.Role, and
+SupplierEnd.Role are all correct. `Method.StyleEx='FKIDX=<index_op_id>;'` on
+the FK op is also required (pairs FK with its index), but on its own it's
+insufficient — both StyleEx encodings are needed.
+
+**Evidence**: `experiments/pdm/Customer-Contact-Contactrole-PostgreSQL.sql`
+generated with `FKIDX` set but connector StyleEx empty emitted
+`FOREIGN KEY (customer_id) REFERENCES  ()`. After adding
+`FKINFO=SRC=FK_contact_customer:DST=PK_customer:;` to the same connector's
+StyleEx (nothing else changed), regeneration produced
+`FOREIGN KEY (customer_id) REFERENCES customer (id)`. The raw `t_connector`
+row for Table1's reference FK shows the same encoding.
+
+**Implication**: no adoption blocker, but any automation script must set both
+`Method.StyleEx=FKIDX=...` on the FK op and `Connector.StyleEx=FKINFO=...`
+on its Association. The EA Database Builder UI does this transparently
+when you add a foreign key.
+
+### F7 — Target DBMS lives on Element.GenType (mirrored to PDATA2) (Phase B, 2026-07-09)
+
+**Question**: which EA property records the target DBMS for a Table?
+
+**Observation**: `Element.GenType` — not the `DBVersion` tagged value (which
+is the DB *version string*, e.g. "Postgres 17"; both empty in our model).
+Default for a Class is `'Java'`; must be set to `'PostgreSQL'` for the DDL
+wizard to emit Postgres DDL. Mirrored to the polymorphic `t_object.PDATA2`
+column.
+
+**Evidence**: `Table1` had `GenType='PostgreSQL'` from the sandbox author.
+Three newly-COM-created tables defaulted to `'Java'`; regenerating DDL
+picked up an empty schema until `GenType='PostgreSQL'` was set explicitly.
+
+**Implication**: no adoption blocker. COM automation must set `GenType` on
+each table. Also worth remembering more generally that `t_object.PDATA1..5`
+are polymorphic — meaning depends on element type/stereotype (see
+`_opencode_memory` note on PDATA columns).
 
 ## 8. Success criteria
 
