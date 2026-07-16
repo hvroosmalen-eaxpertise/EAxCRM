@@ -1,3 +1,65 @@
+## 2026-07-16 13:37:45 — Audit
+
+### Checkpoints
+- Sync from EA
+
+### Created
+| eid | Name | Type | GUID |
+|-----|------|------|------|
+| article | Article | Class |  |
+| attachment | Attachment | Class |  |
+| communication | Communication | Class |  |
+| contact | Contact | Class |  |
+| contactrole | ContactRole | Enumeration |  |
+| customer | Customer | Class |  |
+| delivery | Delivery | Class |  |
+| imapaccount | ImapAccount | Class |  |
+| license | License | Class |  |
+| licenselineitem | LicenseLineItem | Class |  |
+| newsletter | Newsletter | Class |  |
+| newslettercontact | NewsletterContact | Class |  |
+| newssource | NewsSource | Class |  |
+| offer | Offer | Class |  |
+| procurementinvoice | ProcurementInvoice | Class |  |
+| purchase | Purchase | Class |  |
+| quote | Quote | Class |  |
+| r-article-newsletter | included_in | Association |  |
+| r-article-newssource | sourced_from | Association |  |
+| r-attachment-communication | attached_to | Association |  |
+| r-attachment-delivery | included_in | Association |  |
+| r-communication-contact | linked_to_contact | Association |  |
+| r-communication-customer | linked_to_customer | Association |  |
+| r-communication-imapaccount | retrieved_from | Association |  |
+| r-contact-customer | belongs_to | Association |  |
+| r-customer-customer | merged_into | Association |  |
+| r-delivery-customer | delivered_to | Association |  |
+| r-delivery-salesinvoice | fulfills | Association |  |
+| r-license-attachment | extracted_from | Association |  |
+| r-license-customer | held_by | Association |  |
+| r-license-license | renews | Association |  |
+| r-license-procurementinvoice | invoiced_in | Association |  |
+| r-license-purchase | procured_via | Association |  |
+| r-license-salesinvoice | billed_on | Association |  |
+| r-licenselineitem-license | line_item_of | Association |  |
+| r-newslettercontact-contact | sent_to | Association |  |
+| r-newslettercontact-newsletter | for | Association |  |
+| r-offer-customer | receives | Association |  |
+| r-purchase-customer | made_by | Association |  |
+| r-purchase-procurementinvoice | fulfilled_by | Association |  |
+| r-purchase-quote | originates_from | Association |  |
+| r-salesinvoice-customer | receives | Association |  |
+| r-salesinvoice-offer | references | Association |  |
+| r-service-offer | offered_in | Association |  |
+| r-service-purchase | procured_via | Association |  |
+| r-service-salesinvoice | billed_in | Association |  |
+| r-service-vendor | sourced_from | Association |  |
+| r-vendor-license | issues | Association |  |
+| r-vendor-procurementinvoice | sends | Association |  |
+| r-vendor-quote | provides | Association |  |
+| salesinvoice | SalesInvoice | Class |  |
+| service | Service | Class |  |
+| vendor | Vendor | Class |  |
+
 ## 2026-07-09 14:36:01 — Audit
 
 ### Checkpoints

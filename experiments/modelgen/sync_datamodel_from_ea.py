@@ -4,10 +4,16 @@ Reverse of generate_uml_datamodel.py:
   generate:  MD → EA (creates/updates elements, attributes, relationships)
   sync:      EA → MD (reads current EA state, writes MD file)
 
+COM-only via ``ea_session.sql_rows`` (Repository.SQLQuery). Never uses
+sqlite3 directly -- see ``ea-model-common`` HARD RULE, and the sibling
+sync_archimate_from_ea.py for the pattern this retrofit follows
+(step 3/3 of the #17 #7 push).
+
 Usage:
     python sync_datamodel_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
 """
-import sys, os, argparse, sqlite3, re
+import sys, os, argparse, re
+import ea_session
 from changelog import ChangeLog, compute_md_diff
 
 
@@ -44,60 +50,93 @@ def main():
     parser.add_argument("--md", default=DEFAULT_MD)
     args = parser.parse_args()
 
-    conn = sqlite3.connect(args.qea)
-    c = conn.cursor()
+    with ea_session.ea_repository(args.qea) as repo:
+        # Find the EAxCRM Data Model package. Silent-failure trap: bad SQL
+        # returns [] just like a legitimate not-found; assert non-empty and
+        # fail loud since a missing package is a hard error, not "0 elements".
+        rows = ea_session.sql_rows(repo, """
+            SELECT Package_ID FROM t_package WHERE Name = 'EAxCRM Data Model'
+        """)
+        if not rows:
+            print("FAIL: 'EAxCRM Data Model' package not found in EA repository")
+            sys.exit(1)
+        pkg_id = int(rows[0]["Package_ID"])
 
-    # Find the EAxCRM Data Model package
-    c.execute("SELECT Package_ID FROM t_package WHERE Name='EAxCRM Data Model'")
-    row = c.fetchone()
-    if not row:
-        print("FAIL: 'EAxCRM Data Model' package not found in QEA file")
-        sys.exit(1)
-    pkg_id = row[0]
+        # Read all Class + Enumeration elements in the package. Values from
+        # sql_rows are always strings; cast Object_ID for int-key lookups.
+        elem_rows = ea_session.sql_rows(repo, f"""
+            SELECT Object_ID, Name, Object_Type,
+                   IFNULL(Note, '') AS Note, ea_guid
+            FROM t_object
+            WHERE Package_ID = {pkg_id} AND Object_Type IN ('Class', 'Enumeration')
+            ORDER BY Name
+        """)
+        all_elements = [
+            (int(r["Object_ID"]), r["Name"], r["Object_Type"], r["Note"], r["ea_guid"])
+            for r in elem_rows
+        ]
+        elements = [e for e in all_elements if e[2] == "Class"]
+        enum_elements = [e for e in all_elements if e[2] == "Enumeration"]
+        print(f"Found {len(elements)} elements, {len(enum_elements)} enumerations")
 
-    # Read all Class + Enumeration elements in the package
-    c.execute(
-        "SELECT Object_ID, Name, Object_Type, IFNULL(Note, ''), ea_guid FROM t_object "
-        "WHERE Package_ID=? AND Object_Type IN ('Class', 'Enumeration') ORDER BY Name",
-        (pkg_id,)
-    )
-    all_elements = c.fetchall()
-    elements = [e for e in all_elements if e[2] == "Class"]
-    enum_elements = [e for e in all_elements if e[2] == "Enumeration"]
-    print(f"Found {len(elements)} elements, {len(enum_elements)} enumerations")
+        # Build lookup: Object_ID -> {name, type, guid}
+        obj_info = {e[0]: {"name": e[1], "type": e[2], "guid": e[4]} for e in all_elements}
+        # Attribute.Type is stored/read case-sensitively as authored (e.g. "ContactRole"),
+        # but isn't linked back to the Enumeration element via Classifier (see
+        # generate_uml_datamodel.py's sync_attribute docstring) -- match by name instead.
+        enum_name_by_lower = {e[1].lower(): e[1] for e in enum_elements}
 
-    # Build lookup: Object_ID -> {name, type, guid}
-    obj_info = {e[0]: {"name": e[1], "type": e[2], "guid": e[4]} for e in all_elements}
-    # Attribute.Type is stored/read case-sensitively as authored (e.g. "ContactRole"),
-    # but isn't linked back to the Enumeration element via Classifier (see
-    # generate_uml_datamodel.py's sync_attribute docstring) -- match by name instead.
-    enum_name_by_lower = {e[1].lower(): e[1] for e in enum_elements}
+        # Read attributes/literals in a single wide query, then bucket by
+        # Object_ID in Python -- avoids an N+1 query loop AND avoids the
+        # silent-failure trap where a typo in a per-element query would
+        # return "0 attributes for every element" with no exception.
+        if all_elements:
+            oid_all_list = ",".join(str(e[0]) for e in all_elements)
+            attr_rows = ea_session.sql_rows(repo, f"""
+                SELECT Object_ID, Name, Type, Length,
+                       IFNULL(Stereotype, '') AS Stereotype,
+                       IFNULL(Notes, '') AS Notes, ID
+                FROM t_attribute
+                WHERE Object_ID IN ({oid_all_list})
+                ORDER BY Object_ID, ID
+            """)
+            attrs_by_obj = {}
+            for r in attr_rows:
+                oid = int(r["Object_ID"])
+                # Length may arrive as empty string when null; coerce to
+                # int/0 to match sqlite3 behavior the downstream md_type()
+                # expects.
+                length_str = r["Length"]
+                length = int(length_str) if length_str.strip() else 0
+                attrs_by_obj.setdefault(oid, []).append(
+                    (r["Name"], r["Type"], length, r["Stereotype"], r["Notes"])
+                )
+        else:
+            attrs_by_obj = {}
 
-    # Read attributes/literals per element
-    attrs_by_obj = {}
-    for el in all_elements:
-        oid = el[0]
-        c.execute(
-            "SELECT Name, Type, Length, IFNULL(Stereotype, ''), IFNULL(Notes, '') "
-            "FROM t_attribute WHERE Object_ID=? ORDER BY ID",
-            (oid,)
-        )
-        attrs_by_obj[oid] = c.fetchall()
-
-    # Read connectors between elements in this package
-    oid_list = [str(e[0]) for e in elements]
-    c.execute(f"""
-        SELECT Start_Object_ID, End_Object_ID,
-               IFNULL(SourceCard, '*'), IFNULL(DestCard, '1'),
-               IFNULL(Notes, ''), IFNULL(ea_guid, ''),
-               IFNULL(Name, '')
-        FROM t_connector
-        WHERE Start_Object_ID IN ({','.join(oid_list)})
-          AND End_Object_ID IN ({','.join(oid_list)})
-        ORDER BY Connector_ID
-    """)
-    connectors = c.fetchall()
-    conn.close()
+        # Read connectors between elements in this package. Empty element
+        # list would produce a syntactically-invalid "IN ()" clause; guard.
+        if elements:
+            oid_list = ",".join(str(e[0]) for e in elements)
+            conn_rows = ea_session.sql_rows(repo, f"""
+                SELECT Start_Object_ID, End_Object_ID,
+                       IFNULL(SourceCard, '*') AS SourceCard,
+                       IFNULL(DestCard, '1') AS DestCard,
+                       IFNULL(Notes, '') AS Notes,
+                       IFNULL(ea_guid, '') AS ea_guid,
+                       IFNULL(Name, '') AS Name
+                FROM t_connector
+                WHERE Start_Object_ID IN ({oid_list})
+                  AND End_Object_ID IN ({oid_list})
+                ORDER BY Connector_ID
+            """)
+            connectors = [
+                (int(r["Start_Object_ID"]), int(r["End_Object_ID"]),
+                 r["SourceCard"], r["DestCard"], r["Notes"], r["ea_guid"], r["Name"])
+                for r in conn_rows
+            ]
+        else:
+            connectors = []
 
     # Build markdown
     lines = []

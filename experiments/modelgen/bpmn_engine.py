@@ -15,7 +15,6 @@ import os
 import re
 import sys
 import json
-import sqlite3
 
 from changelog import ChangeLog
 
@@ -1451,57 +1450,82 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
 # sync_to_md(): EA -> MD
 # ---------------------------------------------------------------------------
 
-def _find_package_and_elements(c, config):
-    c.execute("SELECT Package_ID FROM t_package WHERE Name=? AND Parent_ID=1", (config.parent_package_name,))
-    parent_row = c.fetchone()
-    if not parent_row:
+def _elem_tuple(r):
+    """Row-dict -> 7-tuple matching the caller's cols=[oid,name,type,stereo,parent,notes,guid]
+    (unchanged from the pre-retrofit sqlite3 shape so downstream code doesn't need to move)."""
+    return (int(r["Object_ID"]), r["Name"], r["Object_Type"],
+            r["Stereotype"], int(r["ParentID"] or 0), r["Note"], r["ea_guid"])
+
+
+def _find_package_and_elements(repo, config):
+    parent_rows = ea_session.sql_rows(repo, f"""
+        SELECT Package_ID FROM t_package
+        WHERE Name = '{config.parent_package_name}' AND Parent_ID = 1
+    """)
+    if not parent_rows:
         raise RuntimeError(f"'{config.parent_package_name}' package not found under Model")
-    parent_pkg_id = parent_row[0]
+    parent_pkg_id = int(parent_rows[0]["Package_ID"])
 
-    c.execute("SELECT Package_ID FROM t_package WHERE Name=? AND Parent_ID=?",
-              (config.package_name, parent_pkg_id))
-    row = c.fetchone()
-    if row:
-        pkg_id = row[0]
+    sub_rows = ea_session.sql_rows(repo, f"""
+        SELECT Package_ID FROM t_package
+        WHERE Name = '{config.package_name}' AND Parent_ID = {parent_pkg_id}
+    """)
+    if sub_rows:
+        pkg_id = int(sub_rows[0]["Package_ID"])
         print(f"Found sub-package '{config.package_name}' (ID {pkg_id})")
-        c.execute(
-            "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
-            "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
-            "FROM t_object WHERE Package_ID=? ORDER BY Name", (pkg_id,)
-        )
-        elements = c.fetchall()
-        return pkg_id, elements
+        elem_rows = ea_session.sql_rows(repo, f"""
+            SELECT Object_ID, Name, Object_Type,
+                   IFNULL(Stereotype, '') AS Stereotype,
+                   IFNULL(ParentID, 0) AS ParentID,
+                   IFNULL(Note, '') AS Note,
+                   IFNULL(ea_guid, '') AS ea_guid
+            FROM t_object WHERE Package_ID = {pkg_id} ORDER BY Name
+        """)
+        return pkg_id, [_elem_tuple(r) for r in elem_rows]
 
-    c.execute(
-        "SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
-        "IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
-        "FROM t_object WHERE Package_ID=? AND Stereotype='CollaborationModel' AND Name LIKE ?",
-        (parent_pkg_id, config.collab_name_like)
-    )
-    cm_row = c.fetchone()
-    if not cm_row:
+    # Fallback: locate the CollaborationModel directly under the parent package
+    # by stereotype + name pattern, and gather its full descendant tree.
+    cm_rows = ea_session.sql_rows(repo, f"""
+        SELECT Object_ID, Name, Object_Type,
+               IFNULL(Stereotype, '') AS Stereotype,
+               IFNULL(ParentID, 0) AS ParentID,
+               IFNULL(Note, '') AS Note,
+               IFNULL(ea_guid, '') AS ea_guid
+        FROM t_object
+        WHERE Package_ID = {parent_pkg_id}
+          AND Stereotype = 'CollaborationModel'
+          AND Name LIKE '{config.collab_name_like}'
+    """)
+    if not cm_rows:
         raise RuntimeError(f"No '{config.name}' CollaborationModel found in {config.parent_package_name} package")
-    cm_oid = cm_row[0]
+    cm_row = cm_rows[0]
+    cm_oid = int(cm_row["Object_ID"])
     pkg_id = parent_pkg_id
-    print(f"Found CollaborationModel '{cm_row[1]}' (OID {cm_oid}) in {config.parent_package_name} package")
+    print(f"Found CollaborationModel '{cm_row['Name']}' (OID {cm_oid}) in {config.parent_package_name} package")
 
+    # BFS: collect the CollaborationModel's whole descendant tree by ParentID.
     all_oids = [cm_oid]
     cursor = 0
     while cursor < len(all_oids):
-        c.execute("SELECT Object_ID FROM t_object WHERE ParentID=?", (all_oids[cursor],))
-        for (oid,) in c.fetchall():
+        child_rows = ea_session.sql_rows(repo, f"""
+            SELECT Object_ID FROM t_object WHERE ParentID = {all_oids[cursor]}
+        """)
+        for r in child_rows:
+            oid = int(r["Object_ID"])
             if oid not in all_oids:
                 all_oids.append(oid)
         cursor += 1
 
     oid_list = ",".join(str(oid) for oid in all_oids)
-    c.execute(
-        f"SELECT Object_ID, Name, Object_Type, IFNULL(Stereotype, ''), "
-        f"IFNULL(ParentID, 0), IFNULL(Note, ''), IFNULL(ea_guid, '') "
-        f"FROM t_object WHERE Object_ID IN ({oid_list})"
-    )
-    elements = c.fetchall()
-    return pkg_id, elements
+    elem_rows = ea_session.sql_rows(repo, f"""
+        SELECT Object_ID, Name, Object_Type,
+               IFNULL(Stereotype, '') AS Stereotype,
+               IFNULL(ParentID, 0) AS ParentID,
+               IFNULL(Note, '') AS Note,
+               IFNULL(ea_guid, '') AS ea_guid
+        FROM t_object WHERE Object_ID IN ({oid_list})
+    """)
+    return pkg_id, [_elem_tuple(r) for r in elem_rows]
 
 
 def _elem_label(info):
@@ -1650,48 +1674,56 @@ def sync_to_md(config, qea_path=None, md_path=None):
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
 
-    conn = sqlite3.connect(qea_path)
-    c = conn.cursor()
+    with ea_session.ea_repository(qea_path) as repo:
+        pkg_id, elements = _find_package_and_elements(repo, config)
+        print(f"Found {len(elements)} elements")
 
-    pkg_id, elements = _find_package_and_elements(c, config)
-    print(f"Found {len(elements)} elements")
+        elem_by_id = {}
+        cols = ["oid", "name", "type", "stereo", "parent", "notes", "guid"]
+        for e in elements:
+            elem_by_id[e[0]] = dict(zip(cols, e))
 
-    elem_by_id = {}
-    cols = ["oid", "name", "type", "stereo", "parent", "notes", "guid"]
-    for e in elements:
-        elem_by_id[e[0]] = dict(zip(cols, e))
+        oid_list = ",".join(str(e[0]) for e in elements) if elements else ""
+        tv_by_elem = {}
+        if oid_list:
+            tv_rows = ea_session.sql_rows(repo, f"""
+                SELECT Object_ID, Property, IFNULL(Value, '') AS Value
+                FROM t_objectproperties
+                WHERE Object_ID IN ({oid_list})
+            """)
+            for r in tv_rows:
+                val = r["Value"]
+                if val and val.strip():
+                    tv_by_elem.setdefault(int(r["Object_ID"]), {})[r["Property"]] = val.strip()
 
-    oid_list = [str(e[0]) for e in elements]
-    tv_by_elem = {}
-    c.execute(f"""
-        SELECT Object_ID, Property, Value
-        FROM t_objectproperties
-        WHERE Object_ID IN ({','.join(oid_list)})
-    """)
-    for tv_oid, prop, val in c.fetchall():
-        if val and val.strip():
-            tv_by_elem.setdefault(tv_oid, {})[prop] = val.strip()
+        diag_rows = ea_session.sql_rows(repo, f"""
+            SELECT Diagram_ID, Name, ParentID, IFNULL(ea_guid, '') AS ea_guid
+            FROM t_diagram WHERE Package_ID = {pkg_id}
+        """)
+        diagram_by_parent = {}
+        for r in diag_rows:
+            diagram_by_parent[int(r["ParentID"] or 0)] = {"name": r["Name"], "guid": r["ea_guid"]}
 
-    c.execute(
-        "SELECT Diagram_ID, Name, ParentID, IFNULL(ea_guid, '') "
-        "FROM t_diagram WHERE Package_ID=?", (pkg_id,)
-    )
-    diagram_by_parent = {}
-    for d_id, d_name, d_parent, d_guid in c.fetchall():
-        diagram_by_parent[d_parent] = {"name": d_name, "guid": d_guid}
-
-    c.execute(f"""
-        SELECT Start_Object_ID, End_Object_ID,
-               IFNULL(Stereotype, ''), IFNULL(Name, ''), IFNULL(Notes, ''),
-               IFNULL(ea_guid, '')
-        FROM t_connector
-        WHERE Start_Object_ID IN ({','.join(oid_list)})
-          AND End_Object_ID IN ({','.join(oid_list)})
-        ORDER BY Connector_ID
-    """)
-    connectors = c.fetchall()
-    print(f"  {len(connectors)} connector(s)")
-    conn.close()
+        if oid_list:
+            conn_rows = ea_session.sql_rows(repo, f"""
+                SELECT Start_Object_ID, End_Object_ID,
+                       IFNULL(Stereotype, '') AS Stereotype,
+                       IFNULL(Name, '') AS Name,
+                       IFNULL(Notes, '') AS Notes,
+                       IFNULL(ea_guid, '') AS ea_guid
+                FROM t_connector
+                WHERE Start_Object_ID IN ({oid_list})
+                  AND End_Object_ID IN ({oid_list})
+                ORDER BY Connector_ID
+            """)
+            connectors = [
+                (int(r["Start_Object_ID"]), int(r["End_Object_ID"]),
+                 r["Stereotype"], r["Name"], r["Notes"], r["ea_guid"])
+                for r in conn_rows
+            ]
+        else:
+            connectors = []
+        print(f"  {len(connectors)} connector(s)")
 
     parent_of = {info["oid"]: info["parent"] for info in elem_by_id.values()}
     children_of = {}

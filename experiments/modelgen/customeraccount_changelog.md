@@ -1,3 +1,42 @@
+## 2026-07-16 13:41:05 — Audit, run cap-eacrm
+
+### Created
+| eid | Name | Type | GUID |
+|-----|------|------|------|
+| AccountReady | Account Ready | EndEvent |  |
+| Contact | Contact | DataObject |  |
+| CreateCustomerAccount | Create Customer Account | Activity |  |
+| CustomerAccount | Customer Account | DataObject |  |
+| Duplicatefound | Duplicate found? | Gateway |  |
+| EAxpertise | EAxpertise | Lane |  |
+| EmailHistory | Email History | DataObject |  |
+| ManageCustomerAccount | Manage Customer Account | BPMN Collaboration |  |
+| MergeCustomerAccounts | Merge Customer Accounts | Activity |  |
+| MergedintoExistingAccount | Merged into Existing Account | EndEvent |  |
+| NewCustomerContact | New Customer Contact | StartEvent |  |
+| PrimaryorLicenseHolderrole | Primary or License Holder role? | Gateway |  |
+| RetrieveCustomerEmailHistory | Retrieve Customer Email History | Activity |  |
+| SuggestNewsletterOptin | Suggest Newsletter Opt-in | Activity |  |
+
+### Connectors
+| Action | Type | Source | Target | Condition |
+|--------|------|--------|--------|-----------|
+| created | connector | CreateCustomerAccount | Contact |  |
+| created | connector | CreateCustomerAccount | CustomerAccount |  |
+| created | connector | CreateCustomerAccount | Duplicatefound |  |
+| created | connector | CustomerAccount | RetrieveCustomerEmailHistory |  |
+| created | connector | Duplicatefound | MergeCustomerAccounts |  |
+| created | connector | Duplicatefound | RetrieveCustomerEmailHistory |  |
+| created | connector | EmailHistory | RetrieveCustomerEmailHistory |  |
+| created | connector | MergeCustomerAccounts | MergedintoExistingAccount |  |
+| created | connector | NewCustomerContact | CreateCustomerAccount |  |
+| created | connector | PrimaryorLicenseHolderrole | AccountReady |  |
+| created | connector | PrimaryorLicenseHolderrole | SuggestNewsletterOptin |  |
+| created | connector | RetrieveCustomerEmailHistory | EmailHistory |  |
+| created | connector | RetrieveCustomerEmailHistory | PrimaryorLicenseHolderrole |  |
+| created | connector | SuggestNewsletterOptin | AccountReady |  |
+| created | connector | SuggestNewsletterOptin | Contact |  |
+
 ## 2026-07-09 15:32:26 — Audit, run cap-eacrm
 
 ### Checkpoints
