@@ -602,47 +602,47 @@
 - Target: e-svc-newsletter
 - GUID: {FCD1FDCE-41E9-5201-AF57-0623EEEE6568}
 
-### Flow — r-flow-cust-data
+### Access — r-access-cust-data
 - Source: e-svc-customer
 - Target: e-data-customer
 - GUID: {A1C10AAC-7A5E-5885-8E23-6B1402ADDDFC}
 
-### Flow — r-flow-cont-data
+### Access — r-access-cont-data
 - Source: e-svc-customer
 - Target: e-data-contact
 - GUID: {22B2E0F2-7B26-517F-9EA0-5F5C145D41F2}
 
-### Flow — r-flow-imap-data
+### Access — r-access-imap-data
 - Source: e-svc-imap
 - Target: e-data-email
 - GUID: {74F07D95-03A3-54A9-911E-F7C470C43CF9}
 
-### Flow — r-flow-parse-data
+### Access — r-access-parse-data
 - Source: e-svc-parse
 - Target: e-data-attachment
 - GUID: {2CA2AB5D-09B0-563D-B0B8-032D545F8C77}
 
-### Flow — r-flow-scrape-data
+### Access — r-access-scrape-data
 - Source: e-svc-scrape
 - Target: e-data-article
 - GUID: {174A0F19-AC49-56E7-B3A8-854E1569CAD2}
 
-### Flow — r-flow-newsletter-data
+### Access — r-access-newsletter-data
 - Source: e-svc-newsletter
 - Target: e-data-newsletter
 - GUID: {BF308ED3-974C-57FC-93EA-DC6D0DDAB607}
 
-### Flow — r-flow-parse-lic
+### Access — r-access-parse-lic-data
 - Source: e-svc-parse
 - Target: e-data-license
 - GUID: {4D57F7F0-60AB-54B8-BF3C-A66C75B33237}
 
-### Flow — r-flow-parse-lli
+### Access — r-access-parse-lli-data
 - Source: e-svc-parse
 - Target: e-data-lineitem
 - GUID: {5CDCE6CB-59FB-53B6-9554-4982706CC7A2}
 
-### Flow — r-flow-cust-purch
+### Access — r-access-cust-purch
 - Source: e-svc-customer
 - Target: e-data-purchase
 - GUID: {F13031A2-FAA8-55B7-B089-9C37E824CA9A}
@@ -980,37 +980,37 @@
 - Target: e-svc-sales
 - GUID: {3F885F37-B8E9-4935-8329-CB4B3D11885A}
 
-### Flow — r-flow-sales-offer
+### Access — r-access-sales-offer
 - Source: e-svc-sales
 - Target: e-data-offer
 - GUID: {F0494600-CC7D-499E-A082-8F9C4A40D533}
 
-### Flow — r-flow-sales-quote
+### Access — r-access-sales-quote
 - Source: e-svc-sales
 - Target: e-data-quote
 - GUID: {7ADC52DF-D3A7-480B-A26C-7755B5EE833D}
 
-### Flow — r-flow-sales-delivery
+### Access — r-access-sales-delivery
 - Source: e-svc-sales
 - Target: e-data-delivery
 - GUID: {0EB9C3C2-A695-40E9-B753-F1E1AC0ED08A}
 
-### Flow — r-flow-sales-salesinv
+### Access — r-access-sales-salesinv
 - Source: e-svc-sales
 - Target: e-data-salesinvoice
 - GUID: {9CDA7399-C7E2-47B2-95E2-FDCA0212AF18}
 
-### Flow — r-flow-sales-procinv
+### Access — r-access-sales-procinv
 - Source: e-svc-sales
 - Target: e-data-procurementinvoice
 - GUID: {EAA0BBA3-6B31-43F5-9A6F-F67F8080B238}
 
-### Flow — r-flow-sales-service
+### Access — r-access-sales-service
 - Source: e-svc-sales
 - Target: e-data-service
 - GUID: {AEAFF6AB-C21B-4A20-9BE9-7CE42760AAA3}
 
-### Flow — r-flow-sales-vendor
+### Access — r-access-sales-vendor
 - Source: e-svc-sales
 - Target: e-data-vendor
 - GUID: {CD05EBCE-A3AD-4435-92F5-FCDF4271B566}

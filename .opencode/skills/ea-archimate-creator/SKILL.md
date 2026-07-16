@@ -67,6 +67,56 @@ new_positions = diagram_utils.compute_grid_positions(
 
 Existing elements' positions are preserved on re-run (add-only), unlike BPMN's reflow-on-rerun default.
 
+## Connector `Type` + `StereotypeEx` per ArchiMate 3 (2026-07-14, user-confirmed)
+
+The ArchiMate 3 spec's Relationship Summary Table groups relations into **categories**, and Sparx's ArchiMate3 MDG maps each category to a specific base UML `Connector_Type` (`t_connector.Connector_Type`). **The diamond/arrowhead glyph is rendered by the MDG stereotype, NOT by the base UML type** — this is why Composition and Aggregation both back onto `Association`, not UML `Aggregation`.
+
+The authoritative map — set in `generate_archimate.py:CONNECTOR_BASE_TYPE`:
+
+| ArchiMate | Category | base_type | StereotypeEx |
+|---|---|---|---|
+| Composition | Structural | `Association` | `ArchiMate3::ArchiMate_Composition` |
+| Aggregation | Structural | `Association` | `ArchiMate3::ArchiMate_Aggregation` |
+| Assignment | Structural | `Association` | `ArchiMate3::ArchiMate_Assignment` |
+| Realization | Structural | `Realisation` | `ArchiMate3::ArchiMate_Realization` |
+| Serving | Dependency | `Dependency` | `ArchiMate3::ArchiMate_Serving` |
+| Access | Dependency | `Dependency` | `ArchiMate3::ArchiMate_Access` |
+| Influence | Dependency | `Dependency` | `ArchiMate3::ArchiMate_Influence` |
+| Association | Dependency | `Association` | `ArchiMate3::ArchiMate_Association` |
+| Triggering | Dynamic | `ControlFlow` | `ArchiMate3::ArchiMate_Triggering` |
+| Flow | Dynamic | `ControlFlow` | `ArchiMate3::ArchiMate_Flow` |
+
+Getting the base type wrong isn't visually obvious in EA at first glance (arrow direction still renders), but the MDG stereotype glyph (filled diamond, dotted line, arrowhead shape) misrenders — e.g. an Access relation on base `Association` shows as a plain solid line instead of the dotted "observe/act-upon" style. Verified 2026-07-14 by retyping all 118 connectors in the EAxCRM model.
+
+**Also from that pass — connector identity is a 4-tuple, not a pair.** ArchiMate allows multiple connectors between the same two elements as long as they differ in type and/or stereotype. So the natural key is `(ClientID, SupplierID, Connector_Type, normalized_stereotype)`, not `(ClientID, SupplierID)`. The generator's `sync_relations` resolves connectors GUID-first via `guid_map` and falls back to a 4-tuple structural scan (see [issue #17](https://github.com/hvroosmalen-eaxpertise/EAxCRM/issues/17)).
+
+**Element-pair validity is part of ArchiMate 3.** Not every relation is legal between every element-type pair. Example: between an `ApplicationService` and a `DataObject` only `Access` is allowed — a `Flow` between behavior and passive-structure elements is a spec violation. When the MD has one anyway, it needs to be edited to the correct relation type, and existing connectors migrated in place (below).
+
+## Repairing Existing Connectors: `dedup_archimate_connectors.py`
+
+`experiments/modelgen/dedup_archimate_connectors.py` handles all model-repair scenarios — deduplication, adopting legacy blank stereotypes, retyping, and repairing a rel whose MD classification has changed. Two modes: default is dry-run (prints the plan), `--apply` executes.
+
+Three-tier match logic:
+
+1. **Tier 1 — GUID-first repair.** For each MD rel, if `archimate_guid_map.json` has the rel_key and the stored `ConnectorGUID` resolves to a connector on the expected `(client, supplier)`, that IS the survivor — **even if its stereotype/type disagree with the MD**. This is the "MD changed its mind" case (e.g. reclassifying a Flow as Access): the existing connector is retyped and re-stereotyped in place, preserving diagram placements.
+2. **Tier 2 — structural scan.** For rels without a stored GUID (legacy connectors from before GUID tracking landed), scan by 4-tuple `(client, supplier, base_type, normalized_stereotype)`. Blank stereotypes get adopted (set to the MD-expected `StereotypeEx`).
+3. Duplicates: lowest `ConnectorID` wins as survivor (most likely already referenced by diagram placements); rest deleted via `Connectors.DeleteAt(idx, False)` iterating from the top so indexes stay valid.
+
+**Sparx quirk: setting `Type` and `StereotypeEx` in the same `Update()` silently drops the stereotype.** Do two Updates with a `GetConnectorByGuid` re-fetch between them — otherwise the connector reads back as `StereotypeEx = ''`. See `ea-model-common`'s "Sparx COM Update() Quirks" for the general form.
+
+Typical workflow when the MD's relation types change:
+
+```
+# 1. Edit the MD (rename type + id).
+# 2. Dry-run to see the plan.
+python dedup_archimate_connectors.py
+# 3. Apply.
+python dedup_archimate_connectors.py --apply
+# 4. Verify idempotency.
+python generate_archimate.py   # expect 0 Created, all Exists
+python dedup_archimate_connectors.py   # expect 0 retypes / adoptions / dups
+```
+
 ## Connector LineStyle
 
 Not yet set for ArchiMate (ask before assuming a value) — see the Quick Reference below for how this compares to the other diagram types.
@@ -85,4 +135,5 @@ For ArchiMate specifically: Business layer at top, Application layer middle, Tec
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator — `parse_md`, `sync_elements`, `sync_relations`, `set_diagram_stereotype` |
+| `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator — `parse_md`, `sync_elements`, `sync_relations` (GUID-first + 4-tuple identity), `CONNECTOR_BASE_TYPE` |
+| `experiments/modelgen/dedup_archimate_connectors.py` | One-off repair tool — dedup, adopt legacy blank stereotypes, retype, and repair after MD reclassification. `--apply` to execute, dry-run by default |

@@ -126,6 +126,32 @@ for parent_elem in top_level_parents:
 
 This exact bug was found twice independently — once for BPMN Lane children, once for wireframe Screen/Control children — because the sync-direction code only scanned the flat package list. Confirmed it silently drops content rather than erroring, so a sync bug like this can go unnoticed until someone counts elements.
 
+## Sparx COM `Update()` Quirks
+
+### Setting `Connector.Type` and `StereotypeEx` in the same `Update()` drops the stereotype (2026-07-14)
+
+Verified while retyping ArchiMate connectors from `Association` to `Dependency`/`ControlFlow`. Setting both properties on the same COM proxy before a single `Update()` persists the Type change but silently clears `StereotypeEx` (reads back as `''`). Retype-only calls (no stereotype touched) preserve the existing stereotype; adopt-only calls (no type change) work fine. It's the combination that breaks.
+
+Fix — two `Update()` calls with a fresh proxy in between:
+
+```python
+conn.Type = new_type
+conn.Update()
+conn = repo.GetConnectorByGuid(conn.ConnectorGUID)  # fresh proxy
+conn.StereotypeEx = new_stereo
+conn.Update()
+```
+
+See `dedup_archimate_connectors.py:apply_plan` for the working pattern.
+
+### Setting `Connector.Type` normalizes the stereotype to short form on read
+
+Independent of the above — after a successful Type change, the same connector's `StereotypeEx` reads back as e.g. `"ArchiMate_Serving"` (short form) even if it was written as `"ArchiMate3::ArchiMate_Serving"`. Any code comparing stereotype strings must normalize to short form on both sides. See `generate_archimate._normalize_stereotype()`.
+
+### `AddNew(_, "Composition")` silently normalizes to `Aggregation`
+
+Reported downstream (issue #17 follow-up comment). When creating a Composition, `t_connector.Connector_Type` will be `"Aggregation"` regardless of what you passed. In EAxCRM we sidestep this by using `Association` as the base type for both Composition and Aggregation and letting the MDG stereotype (`ArchiMate3::ArchiMate_Composition`) drive the filled-diamond glyph — see `ea-archimate-creator`'s connector table.
+
 ## Diagram Object Management
 
 ### Deleting Existing Objects Before Re-Place

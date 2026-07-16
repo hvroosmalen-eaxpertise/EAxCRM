@@ -159,19 +159,49 @@ def ensure_diagram_toolbox(diag, is_new, label=""):
               f"fix manually in EA's GUI, or ask to have this diagram recreated.")
 
 
-# Base Connector_Type for each ArchiMate relationship type
+# Base Connector_Type (t_connector.Connector_Type) for each ArchiMate
+# relationship type. Aligned to ArchiMate 3 categories per the spec's
+# Relationship Summary Table and the Sparx ArchiMate3 MDG:
+#   Structural  -> Association (Composition/Aggregation/Assignment; the
+#                  filled/open diamond is rendered by the MDG stereotype,
+#                  NOT the UML base type) / Realisation
+#   Dependency  -> Dependency (Serving/Access/Influence) / Association (the
+#                  "unspecified" Association relation stays Association)
+#   Dynamic     -> ControlFlow (both Triggering and Flow -- distinguished by
+#                  stereotype, not by base type)
 CONNECTOR_BASE_TYPE = {
-    "Composition": "Aggregation",
-    "Aggregation": "Aggregation",
+    "Composition": "Association",
+    "Aggregation": "Association",
     "Assignment": "Association",
     "Realization": "Realisation",
     "Association": "Association",
-    "Triggering": "Association",
-    "Flow": "Association",
-    "Serving": "Association",
-    "Access": "Association",
-    "Influence": "Association",
+    "Triggering": "ControlFlow",
+    "Flow": "ControlFlow",
+    "Serving": "Dependency",
+    "Access": "Dependency",
+    "Influence": "Dependency",
 }
+
+
+def _rel_key(rel):
+    """Key into guid_map for a relation. Prefer the MD GUID when populated;
+    fall back to a prefixed rel-id so freshly-authored MDs (with placeholder
+    ``GUID: {}``) still get idempotent tracking after their first successful
+    run."""
+    g = (rel.get("guid") or "").strip()
+    if g and g != "{}":
+        return g
+    return "rel:" + rel["id"]
+
+
+def _normalize_stereotype(s):
+    """Normalize an EA StereotypeEx/Stereotype value to the short form. EA
+    persists stereotypes as either ``Profile::Name`` or ``Name`` depending on
+    how the connector was created; comparing without normalization silently
+    duplicates connectors on re-run."""
+    if not s:
+        return ""
+    return s.split("::")[-1]
 
 
 def load_guid_map():
@@ -374,32 +404,57 @@ def sync_relations(repo, relations, elements, guid_map, clog):
             print(f"  SKIP rel '{rel['id']}': source/target element not found in repo")
             continue
 
-        # Check if connector already exists between these two elements.
-        # Match purely on (ClientID, SupplierID), ignoring stereotype --
-        # verified no (source, target) pair in EAxCRM-Archimate.md has more
-        # than one relationship type between the same two elements, so this
-        # is safe and far more robust than comparing stereotype text.
-        # Two stereotype-comparison attempts both failed in practice
-        # (2026-07-06): comparing the raw StereotypeEx string missed
-        # connectors stored in the live model with the short form
-        # ("ArchiMate_Composition" vs. this script's "ArchiMate3::
-        # ArchiMate_Composition"); comparing the normalized/suffix-only form
-        # still missed connectors whose StereotypeEx/Stereotype were BOTH
-        # blank in the live model (e.g. Flow relations) -- both silently
-        # duplicated relationships on every re-run. Also require ClientID to
-        # match src_elem (not just SupplierID): src_elem.Connectors includes
-        # connectors where src_elem is the *target* too, which would
-        # otherwise misfire on any future self-referential relationship.
-        exists = False
-        for i in range(src_elem.Connectors.Count):
-            conn = src_elem.Connectors.GetAt(i)
-            if conn.ClientID == src_elem.ElementID and conn.SupplierID == tgt_elem.ElementID:
-                exists = True
+        # Identity of an ArchiMate connector is
+        # (ClientID, SupplierID, base_type, normalized_stereotype) -- multiple
+        # connectors between the same pair are legal as long as they differ
+        # in type/stereotype (e.g. a Serving alongside a Triggering). Github
+        # issue #17.
+        #
+        # Tier 1: GUID-based lookup via archimate_guid_map.json. Authoritative
+        # once we've created (or previously adopted) this rel -- doesn't
+        # depend on ``src_elem.Connectors`` being fresh. Verify the resolved
+        # connector still points at the expected pair, in case the underlying
+        # connector was manually retargeted in EA.
+        #
+        # Tier 2: structural scan by the full 4-tuple, used only when Tier 1
+        # misses (legacy connectors created before we stored GUIDs).
+        # ``Connectors.Refresh()`` first so connectors added earlier in this
+        # same run are visible; without it Sparx returns a stale snapshot and
+        # silently duplicates on re-run.
+        norm_stereo = _normalize_stereotype(full_stereo)
+        rel_key = _rel_key(rel)
+
+        conn = None
+        stored_ea_guid = guid_map.get(rel_key)
+        if stored_ea_guid:
+            try:
+                candidate = repo.GetConnectorByGuid(stored_ea_guid)
+            except:
+                candidate = None
+            if (candidate
+                    and candidate.ClientID == src_elem.ElementID
+                    and candidate.SupplierID == tgt_elem.ElementID):
+                conn = candidate
+
+        if conn is None:
+            src_elem.Connectors.Refresh()
+            for i in range(src_elem.Connectors.Count):
+                c = src_elem.Connectors.GetAt(i)
+                if c.ClientID != src_elem.ElementID:
+                    continue
+                if c.SupplierID != tgt_elem.ElementID:
+                    continue
+                if c.Type != base_type:
+                    continue
+                c_stereo = _normalize_stereotype(c.StereotypeEx or c.Stereotype or "")
+                if c_stereo != norm_stereo:
+                    continue
+                conn = c
                 break
 
-        if exists:
-            existing_guid = conn.ConnectorGUID
-            clog.log("updated", rel["id"], rel["type"], rel["type"], existing_guid)
+        if conn is not None:
+            guid_map[rel_key] = conn.ConnectorGUID
+            clog.log("updated", rel["id"], rel["type"], rel["type"], conn.ConnectorGUID)
             log(f"  [{idx + 1}/{len(relations)}] Exists rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_conn = src_elem.Connectors.AddNew("", base_type)
@@ -407,6 +462,7 @@ def sync_relations(repo, relations, elements, guid_map, clog):
             new_conn.StereotypeEx = full_stereo
             new_conn.Direction = "Source -> Destination"
             new_conn.Update()
+            guid_map[rel_key] = new_conn.ConnectorGUID
             clog.log("created", rel["id"], rel["type"], rel["type"], new_conn.ConnectorGUID,
                      changes={"source": rel["source"], "target": rel["target"]})
             log(f"  [{idx + 1}/{len(relations)}] Created rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
@@ -466,6 +522,7 @@ def main():
         # Phase 2: Relationships
         log(f"--- Relationships ({len(relations)}) ---")
         sync_relations(repo, relations, elements, guid_map, clog)
+        save_guid_map(guid_map)
         log("--- Relationships done ---")
 
         # Build object_ids: el["id"] -> numeric EA ElementID
