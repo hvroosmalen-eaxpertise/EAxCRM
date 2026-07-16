@@ -49,3 +49,30 @@ def test_ea001_negative_silent(path):
         f"expected EA001 to be silent on {path.name}, got: "
         + ", ".join(f.format() for f in findings)
     )
+
+
+# ---------------------------------------------------------------------------
+# EA002 (repo-level: give it the whole fixture directory as a file list)
+
+
+def _run_repo_rule(rule_id: str, files: list[pathlib.Path]) -> list[engine.Finding]:
+    engine.load_rules()
+    rule = next(r for r in engine.registered_rules() if r.id == rule_id)
+    return list(rule.check(files))
+
+
+def test_ea002_positive_dir_fires():
+    files = sorted((FIXTURES / "ea002_positive").glob("*.py"))
+    findings = _run_repo_rule("EA002", files)
+    assert findings, "expected EA002 to fire on ea002_positive/"
+    assert all(f.rule_id == "EA002" for f in findings)
+    assert any("orphan" in f.message for f in findings)
+
+
+def test_ea002_negative_dir_silent():
+    files = sorted((FIXTURES / "ea002_negative").glob("*.py"))
+    findings = _run_repo_rule("EA002", files)
+    assert findings == [], (
+        "expected EA002 to be silent on ea002_negative/, got: "
+        + ", ".join(f.format() for f in findings)
+    )
