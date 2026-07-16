@@ -1,0 +1,51 @@
+"""Rule-level tests: walk fixtures/<id>_{positive,negative}/ and assert.
+
+Each rule's fixture directory pair drives its own parametrized tests.
+"""
+from __future__ import annotations
+
+import ast
+import pathlib
+
+import pytest
+
+import engine
+
+
+FIXTURES = pathlib.Path(__file__).parent / "fixtures"
+
+
+def _run_rule(rule_id: str, path: pathlib.Path) -> list[engine.Finding]:
+    engine.load_rules()
+    rule = next(r for r in engine.registered_rules() if r.id == rule_id)
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    return list(rule.check(path, source, tree))
+
+
+def _positives(rule_id: str) -> list[pathlib.Path]:
+    return sorted((FIXTURES / f"{rule_id.lower()}_positive").glob("*.py"))
+
+
+def _negatives(rule_id: str) -> list[pathlib.Path]:
+    return sorted((FIXTURES / f"{rule_id.lower()}_negative").glob("*.py"))
+
+
+# ---------------------------------------------------------------------------
+# EA001
+
+
+@pytest.mark.parametrize("path", _positives("EA001"), ids=lambda p: p.name)
+def test_ea001_positive_fires(path):
+    findings = _run_rule("EA001", path)
+    assert findings, f"expected EA001 to fire on {path.name}"
+    assert all(f.rule_id == "EA001" for f in findings)
+
+
+@pytest.mark.parametrize("path", _negatives("EA001"), ids=lambda p: p.name)
+def test_ea001_negative_silent(path):
+    findings = _run_rule("EA001", path)
+    assert findings == [], (
+        f"expected EA001 to be silent on {path.name}, got: "
+        + ", ".join(f.format() for f in findings)
+    )
