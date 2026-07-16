@@ -6,8 +6,8 @@ Usage:
 Thin wrapper over the shared bpmn_engine/bpmn_config (see issue #3 refactor,
 docs/superpowers/specs/2026-07-03-bpmn-config-driven-engine-design.md).
 Exercises bpmn_config.NEWSLETTER's hierarchical_format (#### + Parent-fallback
-parsing), reflow_on_rerun, and single-category (SequenceFlow only) connector
-handling -- the most complex of the 3 BPMN configs.
+parsing) and single-category (SequenceFlow only) connector handling -- the
+most complex of the 3 BPMN configs.
 """
 import argparse
 import bpmn_engine

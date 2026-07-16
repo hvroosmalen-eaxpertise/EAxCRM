@@ -30,7 +30,6 @@ class ProcessConfig:
                                              "DataInputAssociation", "DataOutputAssociation")
     sync_connector_categories: tuple = ("SequenceFlow", "MessageFlow",
                                          "DataInputAssociation", "DataOutputAssociation")
-    reflow_on_rerun: bool = False  # HARD RULE (Han, 2026-07-09): on rerun, never reposition existing diagram objects or re-route existing connectors. Only place NEW elements; only compute layout when the diagram is created from scratch. Manual layout is sacred. Setting this True is opt-in, never a default — e.g. a one-off script for a from-scratch reflow when the user explicitly asks for one.
     model_id: str = ""
     purpose: str = ""
     header_name: str = ""

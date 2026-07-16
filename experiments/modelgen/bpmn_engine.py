@@ -1309,44 +1309,10 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
 
             diag.DiagramObjects.Refresh()
             existing_count = diag.DiagramObjects.Count
-            if existing_count > 0 and config.reflow_on_rerun:
-                print(f"  Repositioning {existing_count} diagram objects using flow layout")
-                placed_ids = get_placed_ids(diag)
-                eid_by_oid = {oid: eid for eid, oid in object_ids.items()}
-                lane_bounds, pool_bounds = compute_bpmn_lane_positions(lanes_config, pools=pool_groups)
-                elem_pos, updated_bounds = compute_bpmn_flow_layout(
-                    all_by_lane, lane_bounds, sequence_flows, elem_types,
-                    message_flows=message_flows, data_associations=data_associations)
-                all_bounds = dict(updated_bounds)
-                all_bounds.update(pool_bounds)
-                moved = 0
-                for i in range(existing_count):
-                    dobj = diag.DiagramObjects.GetAt(i)
-                    oid = dobj.ElementID
-                    eid = eid_by_oid.get(oid)
-                    pos = elem_pos.get(eid) if eid else None
-                    if pos is None and eid:
-                        pos = all_bounds.get(eid)
-                    if pos:
-                        l, t, r, b = pos
-                        if dobj.left != int(l) or dobj.top != int(-t) or dobj.right != int(r) or dobj.bottom != int(-b):
-                            dobj.left = int(l)
-                            dobj.top = int(-t)
-                            dobj.right = int(r)
-                            dobj.bottom = int(-b)
-                            dobj.Update()
-                            moved += 1
-                if moved:
-                    print(f"  Updated positions of {moved} object(s)")
-                new_ids = [eid for eid, oid in object_ids.items()
-                           if eid not in lane_ids and eid not in pool_ids and oid not in placed_ids]
-                if new_ids:
-                    new_positions = {eid: elem_pos[eid] for eid in new_ids if eid in elem_pos}
-                    added = add_missing_elements(diag, new_ids, object_ids, new_positions)
-                    if added:
-                        print(f"  Added {added} new element(s) to existing diagram")
-            elif existing_count > 0:
-                # reflow_on_rerun disabled: preserve manual layout, only add new elements
+            if existing_count > 0:
+                # Existing diagram: preserve manual layout, only add new
+                # elements.  Existing element geometry is sacred (HARD RULE
+                # per Han's memory + issue #23).
                 placed_ids = get_placed_ids(diag)
                 new_ids = [eid for eid, oid in object_ids.items()
                            if eid not in lane_ids and eid not in pool_ids and oid not in placed_ids]
@@ -1386,12 +1352,11 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
         # Line style + border-centered connector routing.
         #
         # HARD RULE (Han, 2026-07-09): on an existing diagram, DO NOT touch
-        # existing connector routing/linestyle. The routing block below only
-        # runs when the diagram was just created this run OR the caller has
-        # explicitly opted into reflow_on_rerun. Otherwise EA's own defaults
-        # apply to any new connectors added this run, and the user's manual
-        # routing on existing connectors is preserved.
-        if diag and (is_new_diag or config.reflow_on_rerun):
+        # existing connector routing/linestyle.  The routing block below
+        # only runs when the diagram was just created this run.  Otherwise
+        # EA's own defaults apply to any new connectors added this run, and
+        # the user's manual routing on existing connectors is preserved.
+        if diag and is_new_diag:
             try:
                 diag.DiagramLinks.Refresh()
                 diag.DiagramObjects.Refresh()
