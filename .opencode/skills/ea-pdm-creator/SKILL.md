@@ -1,5 +1,5 @@
 ---
-name: ea-physical-datamodel-creator
+name: ea-pdm-creator
 description: Reference for building physical (DDL-generation-oriented) data models in Sparx EA — tables, columns, PK/FK/index/CHECK as stereotyped Operations, the FKIDX/FKINFO StyleEx encodings that make DDL emit FOREIGN KEY REFERENCES correctly, and the Data Modeling diagram type. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns. Distinct from ea-ldm-creator, which covers the logical UML Class model.
 ---
 

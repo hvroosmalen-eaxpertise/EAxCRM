@@ -1,13 +1,13 @@
 ---
 name: ea-model-common
-description: Shared EA COM API infrastructure for all EAxCRM diagram-generator skills — coordinate system, GUID map idempotency, COM session lifecycle, Sandbox isolation protocol, and diagram-type/toolbox fundamentals. Referenced by ea-bpmn-creator, ea-archimate-creator, ea-ldm-creator, ea-physical-datamodel-creator, ea-requirements-creator, and ea-wireframe-creator; read this first regardless of which modeling language you're working in.
+description: Shared EA COM API infrastructure for all EAxCRM diagram-generator skills — coordinate system, GUID map idempotency, COM session lifecycle, Sandbox isolation protocol, and diagram-type/toolbox fundamentals. Referenced by ea-bpmn-creator, ea-archimate-creator, ea-ldm-creator, ea-pdm-creator, ea-requirements-creator, and ea-wireframe-creator; read this first regardless of which modeling language you're working in.
 ---
 
 # EA Model Common (EAxCRM Project Skill)
 
 ## Overview
 
-This skill holds the infrastructure shared by every EAxCRM diagram generator, split out of the single `ea-diagram-creator` skill (github issue #4) once a genuinely different modeling language (Wireframe) needed its own patterns without dragging BPMN/ArchiMate specifics along. Language-specific skills (`ea-bpmn-creator`, `ea-archimate-creator`, `ea-ldm-creator`, `ea-physical-datamodel-creator`, `ea-requirements-creator`, `ea-wireframe-creator`) reference this one for the parts below rather than repeating them.
+This skill holds the infrastructure shared by every EAxCRM diagram generator, split out of the single `ea-diagram-creator` skill (github issue #4) once a genuinely different modeling language (Wireframe) needed its own patterns without dragging BPMN/ArchiMate specifics along. Language-specific skills (`ea-bpmn-creator`, `ea-archimate-creator`, `ea-ldm-creator`, `ea-pdm-creator`, `ea-requirements-creator`, `ea-wireframe-creator`) reference this one for the parts below rather than repeating them.
 
 All generator scripts are under **`experiments/modelgen/`**, and the shared layout utilities are in **`experiments/modelgen/diagram_utils.py`**. See each language skill for its own generator script and `docs/superpowers/specs/` for design history.
 
