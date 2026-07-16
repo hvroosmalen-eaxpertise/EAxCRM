@@ -23,9 +23,5 @@ jobs:
       - name: Run validator tests
         run: pytest .opencode/skills/ea-code-validator/tests -v
 
-      - name: Validator on repo — blocking rules (EA001, EA002)
-        run: python .opencode/skills/ea-code-validator/cli.py --only EA001,EA002
-
-      - name: Validator on repo — advisory (EA003; see #23 and #24)
-        continue-on-error: true
-        run: python .opencode/skills/ea-code-validator/cli.py --only EA003
+      - name: Validator on repo (all rules blocking)
+        run: python .opencode/skills/ea-code-validator/cli.py
