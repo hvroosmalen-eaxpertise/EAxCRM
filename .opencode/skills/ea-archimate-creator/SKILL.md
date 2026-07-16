@@ -39,8 +39,6 @@ What must NOT happen is forcing one flat, identical box onto every element regar
 
 **Diagram Type/Stereotype/Technology do not affect sizing.** Confirmed by inspecting a diagram the user built by hand in EA's GUI: its `Type` was actually `'Logical'`, `Stereotype`/`StereotypeEx` were both empty, yet a manually drag-and-dropped `ApplicationComponent` still got a real size (`90x70`). Auto-sizing is triggered by EA's interactive drag-and-drop UI action — a different internal code path that `DiagramObjects.AddNew()` + `Update()` (the only path available via COM automation) never runs, regardless of how the diagram itself is typed/tagged. Do not spend time trying `diag.MDGTechnology` (read-only via COM — `AttributeError: can not be set`) or passing a combined `"Technology::Type"` string to `Diagrams.AddNew()` (silently produces an invalid generic `'Logical'` diagram) — neither affects element sizing.
 
-If an existing diagram ever ends up with 0×0 objects, use `diagram_utils.repair_zero_size_objects(diag, repo, type_sizes=...)` to fix sizes in place without disturbing existing left/top positions.
-
 ## Layout: Non-BPMN Grid
 
 Uses `diagram_utils.compute_grid_positions()`, **not** `compute_diagonal_positions()` (kept only as a legacy fallback — its old row-jump formula compounded, sprawling new elements thousands of pixels from the rest of the diagram after only a handful of rows).

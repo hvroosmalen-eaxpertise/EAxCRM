@@ -708,15 +708,6 @@ def main():
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
 
-            ent_by_elem_id = {object_ids[eid]: size for eid, size in entity_sizes.items() if eid in object_ids}
-
-            def get_elem_size(elem):
-                return ent_by_elem_id.get(elem.ElementID)
-
-            fixed = diagram_utils.repair_zero_size_objects(diag, repo, get_elem_size=get_elem_size)
-            if fixed:
-                print(f"  Repaired {fixed} zero-size diagram object(s)")
-
             placed = diagram_utils.get_placed_ids(diag)
             new_ents = [ent for ent in entities if object_ids.get(ent["id"]) not in placed]
             if new_ents:

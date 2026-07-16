@@ -212,43 +212,6 @@ def compute_grid_positions(element_ids, elem_types=None, type_sizes=None,
     return positions
 
 
-def repair_zero_size_objects(diag, repo, type_sizes=None, default_size=DEFAULT_ELEMENT_SIZE,
-                              get_elem_type=None, get_elem_size=None):
-    """Fix any already-placed diagram objects that ended up 0x0 (e.g. from a
-    prior position-only placement bug). Keeps each object's existing left/top
-    (its position is fine) and only sets a proper right/bottom.
-
-    get_elem_type: callable(element) -> Object_Type string. Defaults to
-    element.Type via the COM API.
-    get_elem_size: optional callable(element) -> (w, h), takes precedence
-    over type_sizes/default_size when it returns a value (e.g. for UML
-    Classes whose height depends on their own attribute count).
-    """
-    type_sizes = type_sizes or {}
-    get_elem_type = get_elem_type or (lambda e: e.Type)
-    diag.DiagramObjects.Refresh()
-    fixed = 0
-    for i in range(diag.DiagramObjects.Count):
-        dobj = diag.DiagramObjects.GetAt(i)
-        if dobj.right != 0 or dobj.bottom != 0:
-            continue
-        elem = repo.GetElementByID(dobj.ElementID)
-        if not elem:
-            continue
-        size = get_elem_size(elem) if get_elem_size else None
-        if size is None:
-            t = get_elem_type(elem)
-            size = type_sizes.get(t, default_size)
-        ew, eh = size
-        dobj.right = int(dobj.left) + ew
-        dobj.bottom = int(dobj.top) - eh
-        dobj.Update()
-        fixed += 1
-    if fixed:
-        diag.Update()
-    return fixed
-
-
 def get_placed_ids(diag):
     diag.DiagramObjects.Refresh()
     placed = set()
@@ -275,22 +238,17 @@ def set_diagram_link_style(diag, line_style):
 
 
 def _place_diagram_object(diag, oid, pos):
-    """pos is either (left, top) -- position only, EA auto-sizes the box --
-    or (left, top, right, bottom) -- explicit size, only for BPMN diagrams
-    where EA needs an exact type-appropriate box (see BPMN_ELEMENT_SIZES).
+    """pos MUST be (left, top, right, bottom).  EA does not auto-size a
+    DiagramObject when only left/top are given -- it silently produces a
+    0x0 box -- so every caller has to supply an explicit size.
     """
+    l, vt, r, vb = pos
     dobj = diag.DiagramObjects.AddNew("", "")
     dobj.ElementID = oid
-    if len(pos) == 4:
-        l, vt, r, vb = pos
-        dobj.left = int(l)
-        dobj.top = int(-vt)
-        dobj.right = int(r)
-        dobj.bottom = int(-vb)
-    else:
-        l, vt = pos
-        dobj.left = int(l)
-        dobj.top = int(-vt)
+    dobj.left = int(l)
+    dobj.top = int(-vt)
+    dobj.right = int(r)
+    dobj.bottom = int(-vb)
     dobj.Update()
     return dobj
 

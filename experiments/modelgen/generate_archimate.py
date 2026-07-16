@@ -640,11 +640,6 @@ def main():
             guid_map[diag_guid_key] = diag.DiagramGUID
             save_guid_map(guid_map)
 
-            fixed = diagram_utils.repair_zero_size_objects(diag, repo,
-                type_sizes=diagram_utils.DEFAULT_ELEMENT_SIZES)
-            if fixed:
-                print(f"  Repaired {fixed} zero-size diagram object(s)")
-
             placed = diagram_utils.get_placed_ids(diag)
             new_els = [el for el in elements if object_ids.get(el["id"]) not in placed]
             if new_els:

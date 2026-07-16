@@ -78,6 +78,18 @@ def test_ea002_negative_dir_silent():
     )
 
 
+def test_ea002_finds_sync_sibling_on_disk_when_not_in_input():
+    """--changed passes only staged files.  If the sync sibling is on
+    disk but not in the input list, EA002 must still recognise it."""
+    generate_only = [FIXTURES / "ea002_negative" / "generate_paired_from_md.py"]
+    findings = _run_repo_rule("EA002", generate_only)
+    assert findings == [], (
+        "EA002 must scan the enclosing directory for sync siblings, "
+        "not just the input file list; got: "
+        + ", ".join(f.format() for f in findings)
+    )
+
+
 # ---------------------------------------------------------------------------
 # EA003
 
