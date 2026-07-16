@@ -841,6 +841,72 @@ def compute_bpmn_flow_layout(elements_by_lane, lane_bounds, sequence_flows,
     return pos, updated_bounds
 
 
+def _bottom_right_positions_for_new(
+    diag, new_ids_by_lane, lane_dobjs, all_by_lane, object_ids, elem_types,
+    h_gap=20, v_gap=20, lane_pad=20, lane_header=40,
+):
+    """Compute positions for new BPMN elements so they land at the bottom of
+    the currently-occupied area within their target lane, packed
+    left-to-right, wrapping when the lane's right edge is reached.
+
+    - diag: the EA Diagram COM object.
+    - new_ids_by_lane: {lane_id: [eid, ...]} of new elements per target lane.
+    - lane_dobjs: {lane_id: DiagramObject} for lanes already on the diagram.
+    - all_by_lane: {lane_id: [eid, ...]} per the MD model (canonical membership).
+    - object_ids: {eid: Object_ID} mapping.
+    - elem_types: {eid: type_string} used for BPMN_ELEMENT_SIZES lookup.
+
+    Returns {eid: (left, top, right, bottom)} in canonical (y-down positive)
+    coords, suitable for add_missing_elements / _place_diagram_object.
+
+    Rationale (#23): existing element geometry is sacred, so we cannot use
+    the flow-layout algorithm on rerun (it computes positions as if from
+    scratch and would collide with manual layout).  Instead, read each
+    lane's actual on-diagram bounds and pack new elements below whatever
+    is already there.
+    """
+    positions = {}
+    eid_by_oid = {oid: eid for eid, oid in object_ids.items()}
+
+    # existing_bottom_by_lane[lane_id] = max y (canonical) of elements
+    # currently placed on the diagram AND belonging to that lane per the MD.
+    existing_bottom_by_lane = {}
+    dobj_count = diag.DiagramObjects.Count
+    for lane_id, lane_dobj in lane_dobjs.items():
+        eids_in_lane = set(all_by_lane.get(lane_id, ()))
+        # Canonical y grows downward; EA stores top/bottom as -y.
+        # Start just below the lane's header band.
+        max_b = -int(lane_dobj.top) + lane_header
+        for i in range(dobj_count):
+            other = diag.DiagramObjects.GetAt(i)
+            eid = eid_by_oid.get(other.ElementID)
+            if eid in eids_in_lane:
+                max_b = max(max_b, -int(other.bottom))
+        existing_bottom_by_lane[lane_id] = max_b
+
+    for lane_id, eids in new_ids_by_lane.items():
+        lane_dobj = lane_dobjs.get(lane_id)
+        if lane_dobj is None:
+            continue
+        lane_left = int(lane_dobj.left)
+        lane_right = int(lane_dobj.right)
+        x = lane_left + lane_pad
+        y = existing_bottom_by_lane[lane_id] + v_gap
+        row_h = 0
+        for eid in eids:
+            t = elem_types.get(eid, "Activity")
+            ew, eh = BPMN_ELEMENT_SIZES.get(t, (110, 60))
+            if x + ew > lane_right - lane_pad and x > lane_left + lane_pad:
+                x = lane_left + lane_pad
+                y += row_h + v_gap
+                row_h = 0
+            positions[eid] = (x, y, x + ew, y + eh)
+            x += ew + h_gap
+            row_h = max(row_h, eh)
+
+    return positions
+
+
 def _connector_path(src, tgt):
     """src/tgt: (left, top, right, bottom) in EA's raw DiagramObject convention
     (top/bottom negative, more-negative = lower on the page). Returns a
@@ -1312,25 +1378,34 @@ def generate(config, qea_path=None, md_path=None, state_dir=None):
             if existing_count > 0:
                 # Existing diagram: preserve manual layout, only add new
                 # elements.  Existing element geometry is sacred (HARD RULE
-                # per Han's memory + issue #23).
+                # per Han's memory + issue #23).  New elements are packed
+                # left-to-right below the currently-occupied region of
+                # their target lane (see _bottom_right_positions_for_new).
                 placed_ids = get_placed_ids(diag)
                 new_ids = [eid for eid, oid in object_ids.items()
                            if eid not in lane_ids and eid not in pool_ids and oid not in placed_ids]
                 if new_ids:
-                    lane_bounds, pool_bounds = compute_bpmn_lane_positions(lanes_config, pools=pool_groups)
                     new_by_lane = {}
                     for eid in new_ids:
                         lane = get_lane_from_fields(elements[eid].get("fields", {}))
                         if lane and lane in lane_ids:
                             new_by_lane.setdefault(lane, []).append(eid)
                     if new_by_lane:
-                        elem_pos, _ = compute_bpmn_flow_layout(all_by_lane, lane_bounds, sequence_flows, elem_types,
-                                                                message_flows=message_flows,
-                                                                data_associations=data_associations)
-                        new_positions = {eid: elem_pos[eid] for eid in new_ids if eid in elem_pos}
+                        lane_dobjs = {}
+                        for i in range(diag.DiagramObjects.Count):
+                            other = diag.DiagramObjects.GetAt(i)
+                            oid_to_eid = {oid: eid for eid, oid in object_ids.items()}
+                            eid = oid_to_eid.get(other.ElementID)
+                            if eid in lane_ids:
+                                lane_dobjs[eid] = other
+                        new_positions = _bottom_right_positions_for_new(
+                            diag, new_by_lane, lane_dobjs, all_by_lane,
+                            object_ids, elem_types,
+                        )
                         added = add_missing_elements(diag, list(new_positions.keys()), object_ids, new_positions)
                         if added:
-                            print(f"  Added {added} new element(s) to existing diagram")
+                            print(f"  Added {added} new element(s) to existing diagram "
+                                  f"(bottom-right of target lane)")
             else:
                 print("  Placing elements on diagram (first time)")
                 lane_bounds, pool_bounds = compute_bpmn_lane_positions(lanes_config, pools=pool_groups)

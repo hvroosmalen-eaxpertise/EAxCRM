@@ -11,6 +11,7 @@ import pytest
 
 from bpmn_engine import safe_id, get_lane_from_fields, _parse_md_flat, _parse_md_hierarchical
 from bpmn_engine import _connector_path, _message_flow_path
+from bpmn_engine import _bottom_right_positions_for_new
 from bpmn_config import LABEL_TO_STEREO, OBJECT_TYPE_MAP, BPMN_TAGGED_VALUES
 from bpmn_config import CONNECTOR_TYPES, CONNECTOR_STEREOTYPE_EX
 from diagram_utils import (
@@ -726,3 +727,93 @@ class TestComputeBpmnFlowLayout:
         # Both should be right of A
         assert pos["b"][0] > pos["a"][0]
         assert pos["c"][0] >= pos["a"][0]
+
+
+# ===========================================================================
+# _bottom_right_positions_for_new
+# ===========================================================================
+
+
+class _FakeDobj:
+    def __init__(self, element_id, left, top, right, bottom):
+        self.ElementID = element_id
+        self.left = left
+        self.top = top
+        self.right = right
+        self.bottom = bottom
+
+
+class _FakeDiagramObjects:
+    def __init__(self, dobjs):
+        self._dobjs = dobjs
+        self.Count = len(dobjs)
+
+    def GetAt(self, i):
+        return self._dobjs[i]
+
+
+class _FakeDiag:
+    def __init__(self, dobjs):
+        self.DiagramObjects = _FakeDiagramObjects(dobjs)
+
+
+class TestBottomRightPositionsForNew:
+    def test_first_new_goes_below_existing_content_in_lane(self):
+        # Lane occupies canonical (0,0)-(1000,500).  EA stores top/bottom negated.
+        lane_dobj = _FakeDobj(element_id=101, left=0, top=0, right=1000, bottom=-500)
+        # One existing Activity in the lane, bottom at canonical y=200.
+        existing = _FakeDobj(element_id=201, left=100, top=-100, right=210, bottom=-200)
+        diag = _FakeDiag([lane_dobj, existing])
+
+        # lane_id "L1" -> ea_object_id 101; new element "N1" -> ea_object_id 301.
+        object_ids = {"L1": 101, "existing": 201, "N1": 301}
+        all_by_lane = {"L1": ["existing", "N1"]}
+        elem_types = {"existing": "Activity", "N1": "Activity"}
+        lane_dobjs = {"L1": lane_dobj}
+        new_by_lane = {"L1": ["N1"]}
+
+        pos = _bottom_right_positions_for_new(
+            diag, new_by_lane, lane_dobjs, all_by_lane, object_ids, elem_types,
+        )
+
+        # N1 should be positioned in the lane, below the existing element (y >= 200 + gap).
+        assert "N1" in pos
+        l, t, r, b = pos["N1"]
+        assert t >= 220, f"N1 top {t} should be below existing bottom (200) + v_gap"
+        assert 0 <= l < 1000, f"N1 left {l} should be inside lane"
+        assert r <= 1000, f"N1 right {r} should not exceed lane_right"
+
+    def test_starts_below_lane_header_when_lane_empty(self):
+        lane_dobj = _FakeDobj(element_id=101, left=0, top=0, right=1000, bottom=-500)
+        diag = _FakeDiag([lane_dobj])  # only the lane, no elements
+
+        object_ids = {"L1": 101, "N1": 301}
+        all_by_lane = {"L1": ["N1"]}
+        elem_types = {"N1": "Activity"}
+        lane_dobjs = {"L1": lane_dobj}
+
+        pos = _bottom_right_positions_for_new(
+            diag, {"L1": ["N1"]}, lane_dobjs, all_by_lane, object_ids, elem_types,
+        )
+        _, t, _, _ = pos["N1"]
+        # header band = 40, v_gap = 20 -> new element top around 60
+        assert 40 < t < 100, f"N1 top {t} should be just below lane header + gap"
+
+    def test_multiple_new_wrap_to_next_row(self):
+        # Narrow lane forces wrapping
+        lane_dobj = _FakeDobj(element_id=101, left=0, top=0, right=300, bottom=-800)
+        diag = _FakeDiag([lane_dobj])
+        object_ids = {"L1": 101, "N1": 301, "N2": 302, "N3": 303}
+        all_by_lane = {"L1": ["N1", "N2", "N3"]}
+        elem_types = {"N1": "Activity", "N2": "Activity", "N3": "Activity"}
+        lane_dobjs = {"L1": lane_dobj}
+
+        pos = _bottom_right_positions_for_new(
+            diag, {"L1": ["N1", "N2", "N3"]}, lane_dobjs, all_by_lane, object_ids, elem_types,
+        )
+        # Activities are 110 wide; two fit within lane_right - lane_pad (300 - 20 = 280) → no
+        # actually 20 + 110 + 20 + 110 = 260 which fits (< 280).  Third would push x + 110 =
+        # 20 + 110 + 20 + 110 + 20 + 110 = 390 > 280 → wraps.
+        n3_top = pos["N3"][1]
+        n1_top = pos["N1"][1]
+        assert n3_top > n1_top, "N3 should wrap to a new row below N1/N2"
