@@ -1,13 +1,13 @@
 ---
 name: ea-datamodel-creator
-description: Reference for generating/syncing the EAxCRM Data Model (UML Class diagram) via generate_uml_datamodel.py — per-entity sizing scaled to attribute count, Orthogonal Square connector routing, and the non-BPMN grid layout. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns.
+description: Reference for generating/syncing the EAxCRM Data Model (UML Class diagram) via generate_ldm_from_md.py — per-entity sizing scaled to attribute count, Orthogonal Square connector routing, and the non-BPMN grid layout. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns.
 ---
 
 # EA Data Model Creator (EAxCRM Project Skill)
 
 ## Overview
 
-Covers `experiments/modelgen/generate_uml_datamodel.py` and `sync_datamodel_from_ea.py`, generating the "EAxCRM Data Model" UML Class diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill only covers what's specific to UML Class entities with real attributes.
+Covers `experiments/modelgen/generate_ldm_from_md.py` and `sync_ldm_from_ea.py`, generating the "EAxCRM Data Model" UML Class diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill only covers what's specific to UML Class entities with real attributes.
 
 ## Diagram Placement and Type
 
@@ -44,5 +44,5 @@ Set to `8` (Orthogonal Square) — a 2026-07-02 user preference, different from 
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/generate_uml_datamodel.py` | UML Data Model diagram generator |
-| `experiments/modelgen/sync_datamodel_from_ea.py` | Reads EA data model back to MD |
+| `experiments/modelgen/generate_ldm_from_md.py` | UML Data Model diagram generator |
+| `experiments/modelgen/sync_ldm_from_ea.py` | Reads EA data model back to MD |

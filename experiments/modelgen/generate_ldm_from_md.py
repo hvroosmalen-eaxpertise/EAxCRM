@@ -1,10 +1,14 @@
-"""Generate UML data model in EAxCRM.qea from Markdown model file.
+"""Generate the logical data model (LDM) in EAxCRM.qea from Markdown.
 
 Usage:
-    python generate_uml_datamodel.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
+    python generate_ldm_from_md.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
 
 Idempotent: stores a GUID mapping after first run.
 Re-run to update names, descriptions, attribute types, or add new entities/relations.
+
+'LDM' distinguishes this UML-class-based logical model from the physical
+data model (PDM), which uses <<table>>-stereotyped classes and lives
+under experiments/pdm/.
 """
 import sys, os, argparse, json, re
 import diagram_utils
@@ -14,7 +18,7 @@ from changelog import ChangeLog
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_QEA = r"M:\EAxCRM\models\EAxCRM.qea"
 DEFAULT_MD = r"M:\EAxCRM\models\EAxCRM-DataModel.md"
-GUID_MAP_PATH = os.path.join(SCRIPT_DIR, "uml_datamodel_guid_map.json")
+GUID_MAP_PATH = os.path.join(SCRIPT_DIR, "ldm_guid_map.json")
 
 SPARX_TYPE_MAP = {
     "int": "int",
@@ -295,11 +299,11 @@ def main():
     args = parser.parse_args()
 
     global GUID_MAP_PATH
-    GUID_MAP_PATH = os.path.join(args.state_dir, "uml_datamodel_guid_map.json")
+    GUID_MAP_PATH = os.path.join(args.state_dir, "ldm_guid_map.json")
 
     entities, relations, enumerations = parse_md(args.md)
     print(f"Parsed {len(entities)} entities, {len(relations)} relationships, {len(enumerations)} enumerations")
-    clog = ChangeLog(os.path.join(args.state_dir, "uml_datamodel_changelog.md"))
+    clog = ChangeLog(os.path.join(args.state_dir, "ldm_changelog.md"))
     clog.checkpoint("Parsed MD")
 
     guid_map = load_guid_map()

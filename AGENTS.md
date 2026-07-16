@@ -6,7 +6,7 @@ A CRM system for managing Sparx EA customers, their communications, and newslett
 ## MANDATORY: Model Sync Before Discussion
 **Before ANY discussion or work involving the data model (entities, attributes, relationships), you MUST first run:**
 ```
-python experiments\modelgen\sync_datamodel_from_ea.py
+python experiments\modelgen\sync_ldm_from_ea.py
 ```
 This reads the current state from `EAxCRM.qea` and updates `EAxCRM-DataModel.md`. Only then do you have the current model to discuss.
 
@@ -132,7 +132,7 @@ Attachment → Delivery (included_in)
 
 ## Active Context
 - **Physical Data Model experiment (2026-07-09, issue #16):** brainstormed a scoped experiment to learn EA's Database Builder and DDL generation on the `Customer + Contact + ContactRole` slice against a **PostgreSQL** target. Spec at `docs/superpowers/specs/2026-07-09-physical-data-model-experiment-design.md`, phased plan at `docs/superpowers/plans/2026-07-09-physical-data-model-experiment-plan.md`. Reference shape lives in the **Sandbox → Database Architecture** package (`Table1`/`Table2` + one FK association) — inspected empirically to lock down the EA mapping: `Class` stereotyped `table`, columns as `Attribute` stereotyped `column` with Postgres-native datatypes, PK as an Operation stereotyped `PK`, FK as a *three-artefact* pattern (Operation stereotyped `FK` with `Delete`/`Update` tagged values, sibling Operation stereotyped `index`, plus an `Association` connector stereotyped `FK` with `Client/SupplierEnd.Role` set to the op names). Diagram is a Logical-family diagram with `MetaType='Extended::Data Modeling'` and Information Engineering (crow's-foot) notation. **NotNull encoding** is still to be pinned down in Phase A — likely `AllowDuplicates` inverted, since `t_attribute` / `t_attributetag` carry no dedicated column. Experiment is manual in the GUI — no COM automation until adoption is decided. Sandbox contents committed as reference (`77240bb`), a departure from the usual "sandbox stays scratch" rule justified by the documented role.
-- **Issue #7 follow-through (2026-07-08):** closed the remaining data-model checklist items from issue #7. (1) `Customer.address` decomposed into `address_mode` ("street"/"pobox") plus `street_name`/`house_number`/`postal_code`/`city`/`country` (street mode) or `po_box` (PO Box mode), matching CRM-7 and the already-built CreateAccountScreen wireframe. (2) `Contact.role` is now typed against a new **ContactRole Enumeration** (Primary, Purchase, Sales, License Holder, Secondary) instead of a plain `string(20)`. **Enumeration support is new** in `generate_uml_datamodel.py`/`sync_datamodel_from_ea.py` — a `### Enumeration—<id>` MD block with a `- Literals:` list round-trips as an EA `Object_Type='Enumeration'` element; literals are Attributes with `Type="int"`/`Stereotype="enum"` (matching EA's own built-in "Enumeration Name" template — confirmed by inspecting one live in the model). Note: EA's `Attribute.Classifier` COM property isn't accessible via dynamic dispatch in this setup (raises `AttributeError`) — enum-typed attributes are linked by matching `Attribute.Type` against the Enumeration's name (case-insensitively) on the EA→MD sync side, not via a real classifier reference. Reusable for other string fields with fixed value sets later (`Offer.status`, `Service.status`, etc.) if wanted. Issue #7's "Update CustomerAccountUI wireframe" and "new requirements" checklist items were already done in prior sessions; only "Implement Django form/view" remains, gated behind explicit Django-implementation instruction per the rule below.
+- **Issue #7 follow-through (2026-07-08):** closed the remaining data-model checklist items from issue #7. (1) `Customer.address` decomposed into `address_mode` ("street"/"pobox") plus `street_name`/`house_number`/`postal_code`/`city`/`country` (street mode) or `po_box` (PO Box mode), matching CRM-7 and the already-built CreateAccountScreen wireframe. (2) `Contact.role` is now typed against a new **ContactRole Enumeration** (Primary, Purchase, Sales, License Holder, Secondary) instead of a plain `string(20)`. **Enumeration support is new** in `generate_ldm_from_md.py`/`sync_ldm_from_ea.py` — a `### Enumeration—<id>` MD block with a `- Literals:` list round-trips as an EA `Object_Type='Enumeration'` element; literals are Attributes with `Type="int"`/`Stereotype="enum"` (matching EA's own built-in "Enumeration Name" template — confirmed by inspecting one live in the model). Note: EA's `Attribute.Classifier` COM property isn't accessible via dynamic dispatch in this setup (raises `AttributeError`) — enum-typed attributes are linked by matching `Attribute.Type` against the Enumeration's name (case-insensitively) on the EA→MD sync side, not via a real classifier reference. Reusable for other string fields with fixed value sets later (`Offer.status`, `Service.status`, etc.) if wanted. Issue #7's "Update CustomerAccountUI wireframe" and "new requirements" checklist items were already done in prior sessions; only "Implement Django form/view" remains, gated behind explicit Django-implementation instruction per the rule below.
 - **Cross-check pass (2026-07-08):** audited DataModel/CustomerAccountProcess/Requirements/CustomerAccountUI + ArchiMate for missing relationships and descriptions. Fixed: (1) a real bug in `bpmn_engine.py` — the EA→MD sync truncated all element/collaboration Notes at 500 chars (`notes[:500]`, 3 spots), silently clipping several rich Why/What/How/Context descriptions mid-word; removed the slice and restored the 3 affected descriptions (ManageCustomerAccount collaboration, Contact DataObject, Retrieve Customer Email History activity) in `EAxCRM-CustomerAccountProcess.md`. (2) Added missing `Description` fields to 14 data-model relationships that had none (contact-customer, communication-imapaccount, attachment-communication, article-newssource, article-newsletter, newslettercontact-newsletter/contact, purchase-customer, license-customer, licenselineitem-license, attachment-delivery, delivery-customer, delivery-salesinvoice, license-salesinvoice). (3) Enriched Contact/Customer/Communication entity descriptions to document known-but-unimplemented gaps: Contact.role has no enforced enum (Primary/Purchase/Sales/License Holder/Secondary per CRM-1/CRM-10, plain string(20) today); Customer.address is still a single unstructured string despite CRM-7 requiring structured street/PO-Box fields; Communication.linked_to_contact is a boolean flag only — CRM-2 needs a real FK to Contact/Customer, which doesn't exist yet. **Not yet fixed (flagged for a decision):** the ArchiMate Technology layer (`e-sw-sqlite`, `e-art-db`) still names/describes SQLite as the production DB, contradicting the TEC-1 decision above; `e-process-optinsuggest` (Suggest Newsletter Opt-in) has no ApplicationService Realization unlike its 4 sibling Manage-Customer-Account business processes; no formal CRM-13+ requirements exist yet for the process-level behaviors (dedupe/merge/email-history/opt-in-suggest) or for the new "Find by Domain" UI feature — only the screen-level field rules (CRM-6..12) are captured.
 - **Architecture decision (2026-07-08):** production database moves off SQLite to a production-grade, multi-user-capable RDBMS — SQLite's single-writer model doesn't fit reliable concurrent multi-user access. Engine intentionally not yet chosen (kept technology-abstract). Django stays as the framework (this was specifically about the DB, not the framework — a C# desktop client + remote DB + services alternative was discussed and set aside once the actual friction, SQLite, was identified). SQLite may still be fine for local dev. TEC-1 requirement revised accordingly (GUID unchanged, eid renamed `eaxcrmmustuseaproductiongrademultiusercapablerelationaldatabase`); README.md/AGENTS.md Tech Stack tables updated to match. **Sequencing:** continue modelling first; implementation (Django app, incremental, one BPMN process at a time) comes later once the model is mature enough.
 - CreateAccountScreen wireframe redesigned (2026-07-08) to catch up with CRM-6..12 (issue #7) plus a user-requested "Find by Domain" email-lookup block — see `docs/superpowers/specs/2026-07-07-createaccountscreen-redesign-design.md` for the full design and its data-model cross-check (flags `Customer.address` needing decomposition into structured fields, and `Contact.role` needing a documented enum). Generated into scratch files (`models/EAxCRM-scratch-createaccountscreen*.qea`, not the real `EAxCRM.qea`) for review — not yet committed or applied to the real model.
@@ -147,7 +147,7 @@ Attachment → Delivery (included_in)
 - **Note:** this reuses the CRM-6..CRM-9 ID range that a 2026-07-02 planning note (see "Requirements Model" below) had reserved for the Manage Customer Account *BPMN process*-level requirements (dedupe/merge/email-history/opt-in-suggestion). Those were never actually generated into EA, so no real collision occurred, but that reservation is now stale — when those process-level requirements are eventually written, use CRM-13 onward (and a fresh SAL-5, since SAL namespace is untouched).
 - New entities: Vendor, Delivery; expanded: Service (+5 attributes then -2), Attachment (+delivery_id)
 - New relationships: License→SalesInvoice (billed_on), Delivery→Customer (delivered_to), Delivery→SalesInvoice (fulfills), Attachment→Delivery (included_in)
-- `generate_uml_datamodel.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
+- `generate_ldm_from_md.py` diagram phase now adds missing entities to existing diagram instead of skipping entirely
 - Newsletter process parser fixed: `### ` handler now captures elements (was resetting `current=None`, losing all `### ` items)
 - Sync script deduplicates SequenceFlows by (src_id, tgt_id, name) — removed 16 duplicate flow lines from MD
 - Newsletter model complete: 26 elements, 2 Lanes, 16 SequenceFlows, 39 total connectors, 7 scraping pipeline elements added
@@ -268,7 +268,7 @@ for i in range(ea_elem.Attributes.Count - 1, -1, -1):
 ```
 
 ## Bugfix: COM API Only — No SQLite Dependency (2026-06-25)
-Three fixes in `generate_uml_datamodel.py`:
+Three fixes in `generate_ldm_from_md.py`:
 
 ### Bug 1: Wrong connector direction in orphan detection
 The orphan detection loop iterated `ea_elem.Connectors` and assumed `ea_elem` was the **source** element. But EA's COM API returns connectors where the element participates as **either** source or target. When iterating a target element's connectors, `conn.SupplierID` returned the target's own ID, making every connector appear self-referencing `(ElementGUID, ElementGUID)` — which never matched any MD pair, so all connectors were falsely identified as orphans.
@@ -286,7 +286,7 @@ Originally used `sqlite3.connect()` to write `SourceCard`/`DestCard` directly. E
 **Fix**: Removed `sqlite3` dependency entirely. Set cardinality via COM API using `conn.ClientEnd.Cardinality` and `conn.SupplierEnd.Cardinality`.
 
 ### Result
-`generate_uml_datamodel.py` is now **pure COM API** — zero SQLite calls. Works with any EA repository backend (SQLite, SQL Server, Oracle, etc.).
+`generate_ldm_from_md.py` is now **pure COM API** — zero SQLite calls. Works with any EA repository backend (SQLite, SQL Server, Oracle, etc.).
 
 ### Round-Trip Test Results (2026-06-25)
 Full delete/recreate orphan test passed:
@@ -361,8 +361,8 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Direct SQLite writes to `EAxCRM.qea` are **FORBIDDEN** — EA must always be the access layer
 
 ### Attribute Type Mapping
-- **MD → EA** (`generate_uml_datamodel.py`): `text` → `string`
-- **EA → MD** (`sync_datamodel_from_ea.py`): `memo` → `string`
+- **MD → EA** (`generate_ldm_from_md.py`): `text` → `string`
+- **EA → MD** (`sync_ldm_from_ea.py`): `memo` → `string`
 - EA's `memo` type is a structured tag artifact, not used — all text attributes use `string` in both EA and MD
 
 ## Newsletter Process Model
@@ -421,7 +421,7 @@ Every agent picking up work on this repo should read the relevant note below bef
 | `_opencode_memory/repos/archimate-sync-blocker.md` | EA internal error 61704 | Resolved. Root cause was `Dispatch("EA.Repository")` attaching to a Running-Object-Table instance; fix was `DispatchEx("EA.App")` in a shared `ea_session.py`. Read before touching any generator's COM connection. |
 | `_opencode_memory/repos/archimate-v2.md` | ArchiMate v2.0 → v2.1 → v2.2 → v2.3 lineage | Backstory for the Sales/Customer-Account/Secondary-role additions. Read before proposing a new ArchiMate revision. |
 | `_opencode_memory/technical/ea-journal-files.md` | `.qea-journal`/`.qea-wal`/`.qea-shm` transient files | Already gitignored. Don't try to check them in or delete them — EA creates them on open. |
-| `_opencode_memory/technical/ea-sync-scripts.md` | `ea_session.ea_repository()` vs raw `DispatchEx` + GUID-map staleness | Older `sync_requirements_from_ea.py` / `sync_datamodel_from_ea.py` predate `ea_session`; they can hang on `OpenFile` if zombie EAs exist. Generators handle stale GUID maps via name-based fallback. Read before debugging a hang or a "created" log where "updated" was expected. |
+| `_opencode_memory/technical/ea-sync-scripts.md` | `ea_session.ea_repository()` vs raw `DispatchEx` + GUID-map staleness | Older `sync_requirements_from_ea.py` / `sync_ldm_from_ea.py` predate `ea_session`; they can hang on `OpenFile` if zombie EAs exist. Generators handle stale GUID maps via name-based fallback. Read before debugging a hang or a "created" log where "updated" was expected. |
 
 ## CRUD File Update Rule
 `models/EAxCRM-SalesProcess-CRUD.md` must be updated whenever:
@@ -470,7 +470,7 @@ entities are different — they show a real attribute compartment, so
 each entity's own attribute count/name length instead of a fixed size
 (tuned interactively against a `Sandbox` test diagram).
 
-**Connector LineStyle**: `generate_uml_datamodel.py` now sets `LineStyle = 8`
+**Connector LineStyle**: `generate_ldm_from_md.py` now sets `LineStyle = 8`
 (Orthogonal Square) on every connector via the new
 `diagram_utils.set_diagram_link_style()` — a UML Data Model-specific
 preference, distinct from BPMN's `LineStyle = 9` (Orthogonal Rounded).
@@ -530,7 +530,7 @@ tagged-value options in EA.
 |--------|---------------|
 | BPMN engine (all 3 processes) | `sales_changelog.md`, `newsletter_changelog.md`, `customeraccount_changelog.md` |
 | `generate_archimate.py` | `archimate_changelog.md` |
-| `generate_uml_datamodel.py` / `sync_datamodel_from_ea.py` | `uml_datamodel_changelog.md` |
+| `generate_ldm_from_md.py` / `sync_ldm_from_ea.py` | `ldm_changelog.md` |
 | `generate_requirements_from_md.py` / `sync_requirements_from_ea.py` / `seed_requirements_properties.py` | `requirements_changelog.md` |
 
 ### Integration Point

@@ -1,6 +1,6 @@
-"""Read UML data model from EAxCRM.qea and write it as Markdown.
+"""Read the logical data model (LDM) from EAxCRM.qea and write it as Markdown.
 
-Reverse of generate_uml_datamodel.py:
+Reverse of generate_ldm_from_md.py:
   generate:  MD → EA (creates/updates elements, attributes, relationships)
   sync:      EA → MD (reads current EA state, writes MD file)
 
@@ -10,7 +10,7 @@ sync_archimate_from_ea.py for the pattern this retrofit follows
 (step 3/3 of the #17 #7 push).
 
 Usage:
-    python sync_datamodel_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
+    python sync_ldm_from_ea.py [--qea M:\\path\\EAxCRM.qea] [--md M:\\path\\EAxCRM-DataModel.md]
 """
 import sys, os, argparse, re
 import ea_session
@@ -83,7 +83,7 @@ def main():
         obj_info = {e[0]: {"name": e[1], "type": e[2], "guid": e[4]} for e in all_elements}
         # Attribute.Type is stored/read case-sensitively as authored (e.g. "ContactRole"),
         # but isn't linked back to the Enumeration element via Classifier (see
-        # generate_uml_datamodel.py's sync_attribute docstring) -- match by name instead.
+        # generate_ldm_from_md.py's sync_attribute docstring) -- match by name instead.
         enum_name_by_lower = {e[1].lower(): e[1] for e in enum_elements}
 
         # Read attributes/literals in a single wide query, then bucket by
@@ -236,7 +236,7 @@ def main():
 
     diff = compute_md_diff(old_content, new_content)
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    clog = ChangeLog(os.path.join(SCRIPT_DIR, "uml_datamodel_changelog.md"))
+    clog = ChangeLog(os.path.join(SCRIPT_DIR, "ldm_changelog.md"))
     clog.checkpoint("Sync from EA")
     try:
         clog.log_diff(diff)

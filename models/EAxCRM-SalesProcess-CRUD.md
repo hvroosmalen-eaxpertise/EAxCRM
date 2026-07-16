@@ -127,5 +127,5 @@ This file must be updated when any of the following change:
    python experiments/modelgen/sync_sales_process_from_ea.py
 
    # Regenerate data model from EA (if changed in EA)
-   python experiments/modelgen/sync_datamodel_from_ea.py
+   python experiments/modelgen/sync_ldm_from_ea.py
    ```

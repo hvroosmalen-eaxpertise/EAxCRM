@@ -27,8 +27,8 @@ python experiments/modelgen/generate_archimate.py
 Reads `EAxCRM-Archimate.md`, generates the elements and relationships in the single "EAxCRM ArchiMate" diagram.
 
 ### Data Model (UML Class Diagram)
-- **Generate** (MD → EA): `python experiments/modelgen/generate_uml_datamodel.py`
-- **Sync** (EA → MD): `python experiments/modelgen/sync_datamodel_from_ea.py`
+- **Generate** (MD → EA): `python experiments/modelgen/generate_ldm_from_md.py`
+- **Sync** (EA → MD): `python experiments/modelgen/sync_ldm_from_ea.py`
 - 19 class entities with attributes, 30 associations with cardinality, named directionally
 
 ### Physical Data Model (experimental, issue #16)

@@ -66,7 +66,7 @@ EAxCRM/
 │   │   ├── test_pure_functions.py       # Layout math, MD parsing, graph algorithms — no EA needed
 │   │   ├── test_generators_regression.py # Runs each generator against a sandboxed EAxCRM.qea copy
 │   │   ├── archimate_changelog.md
-│   │   ├── uml_datamodel_changelog.md
+│   │   ├── ldm_changelog.md
 │   │   ├── requirements_changelog.md
 │   │   ├── sales_changelog.md
 │   │   ├── newsletter_changelog.md

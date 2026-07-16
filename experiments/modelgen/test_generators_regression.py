@@ -90,31 +90,31 @@ class TestArchimateGenerator:
 
 
 # -------------------------------------------------------------------------
-# UML Data Model generator regression
+# Logical Data Model (LDM) generator regression
 # -------------------------------------------------------------------------
 
 
 @pytest.mark.ea
-class TestUmlDataModelGenerator:
-    def test_generate_uml_datamodel(self, sandbox_qea):
+class TestLdmGenerator:
+    def test_generate_ldm(self, sandbox_qea):
         qea_path, md_dir = sandbox_qea
 
         proc = subprocess.run(
-            [sys.executable, os.path.join(SCRIPT_DIR, "generate_uml_datamodel.py"),
+            [sys.executable, os.path.join(SCRIPT_DIR, "generate_ldm_from_md.py"),
              "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )
         print(proc.stdout)
         if proc.stderr:
             print(proc.stderr)
-        assert proc.returncode == 0, f"generate_uml_datamodel failed: {proc.stderr}"
+        assert proc.returncode == 0, f"generate_ldm failed: {proc.stderr}"
         assert "updated" in proc.stdout or "Done" in proc.stdout
 
-    def test_generate_uml_datamodel_idempotent(self, sandbox_qea):
+    def test_generate_ldm_idempotent(self, sandbox_qea):
         qea_path, md_dir = sandbox_qea
 
         proc = subprocess.run(
-            [sys.executable, os.path.join(SCRIPT_DIR, "generate_uml_datamodel.py"),
+            [sys.executable, os.path.join(SCRIPT_DIR, "generate_ldm_from_md.py"),
              "--qea", qea_path, "--state-dir", md_dir],
             capture_output=True, text=True, timeout=300,
         )

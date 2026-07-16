@@ -14,9 +14,9 @@ Two approaches exist in `experiments/modelgen/`:
 | Approach | Used by | Notes |
 |----------|---------|-------|
 | `ea_session.ea_repository()` | BPMN generators/syncs, wireframe engine | Has `DispatchEx` retry + `Models.GetAt(0)` retry + zombie cleanup |
-| Raw `win32com.client.DispatchEx("EA.App")` | `sync_requirements_from_ea.py`, `sync_datamodel_from_ea.py` | Can hang on `OpenFile` if zombie EA processes exist; no retry logic |
+| Raw `win32com.client.DispatchEx("EA.App")` | `sync_requirements_from_ea.py`, `sync_ldm_from_ea.py` | Can hang on `OpenFile` if zombie EA processes exist; no retry logic |
 
-The older scripts (`sync_requirements_from_ea.py` and `sync_datamodel_from_ea.py`) predate `ea_session.py` and lack its robustness. If they hang, kill zombie EA processes manually or wait for the next `ea_session`-based script's cleanup.
+The older scripts (`sync_requirements_from_ea.py` and `sync_ldm_from_ea.py`) predate `ea_session.py` and lack its robustness. If they hang, kill zombie EA processes manually or wait for the next `ea_session`-based script's cleanup.
 
 ## GUID map staleness
 
@@ -30,6 +30,6 @@ Key GUID map files and their purpose:
 | `sales_guid_map.json` | Sales BPMN elements | 3 (same pattern) |
 | `customeraccount_guid_map.json` | Customer Account elements | 3 (same pattern) |
 | `requirements_guid_map.json` | Requirement elements | 75 (one per requirement) |
-| `uml_datamodel_guid_map.json` | Data Model entities | 24 (one per entity) |
+| `ldm_guid_map.json` | LDM (UML Class) entities | 24 (one per entity) |
 | `archimate_guid_map.json` | ArchiMate elements | 73 (one per element) |
 | `customeraccount_ui_guid_map.json` | Wireframe screens | 2 (one per screen + navigation) |

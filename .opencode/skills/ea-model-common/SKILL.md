@@ -61,7 +61,7 @@ Each generator has its own GUID map file:
 | Generator | GUID Map File |
 |-----------|---------------|
 | `generate_archimate.py` | `experiments/modelgen/archimate_guid_map.json` |
-| `generate_uml_datamodel.py` | `experiments/modelgen/datamodel_guid_map.json` |
+| `generate_ldm_from_md.py` | `experiments/modelgen/ldm_guid_map.json` |
 | Customer Account (`bpmn_config.CUSTOMER_ACCOUNT`) | `experiments/modelgen/customeraccount_guid_map.json` |
 | Sales (`bpmn_config.SALES`) | `experiments/modelgen/sales_guid_map.json` |
 | Newsletter (`bpmn_config.NEWSLETTER`) | `experiments/modelgen/newsletter_guid_map.json` |
@@ -265,11 +265,11 @@ with ea_session.ea_repository(QEA, technology="ArchiMate3") as repo:
 
 **Portable-SQL discipline:** `LIMIT N` works today because the backend is SQLite, but is not portable to SQL Server (`TOP N`) or Oracle (`FETCH FIRST N`). Avoid backend-specific syntax in shipped queries. When you need "top N" for exploration, do it in Python after fetching, or accept the query is scratchpad-only. Standard SQL that works across all supported EA backends (`SELECT`, `WHERE`, `JOIN`, `ORDER BY`, `IFNULL`/`COALESCE`, `IN`) is the safe subset.
 
-**Clarified distinction: ad-hoc `sqlite3` queries for investigation/diagnosis are fine.** Exploring `t_diagram`, `t_xref`, element nesting, etc. via a one-off scratch script — exactly how the `MDGDgm` mechanism was discovered — is a legitimate and encouraged empirical-verification technique (see "Use a Sandbox Package"). The rule is specifically about what ships in `wireframe_engine.py`/`bpmn_engine.py`/`generate_archimate.py`/`sync_datamodel_from_ea.py`/`sync_archimate_from_ea.py` etc. Investigate with `sqlite3` all you want in a scratchpad script; never commit that query into the generator/sync code itself.
+**Clarified distinction: ad-hoc `sqlite3` queries for investigation/diagnosis are fine.** Exploring `t_diagram`, `t_xref`, element nesting, etc. via a one-off scratch script — exactly how the `MDGDgm` mechanism was discovered — is a legitimate and encouraged empirical-verification technique (see "Use a Sandbox Package"). The rule is specifically about what ships in `wireframe_engine.py`/`bpmn_engine.py`/`generate_archimate.py`/`sync_ldm_from_ea.py`/`sync_archimate_from_ea.py` etc. Investigate with `sqlite3` all you want in a scratchpad script; never commit that query into the generator/sync code itself.
 
 **Known offenders as of 2026-07-16** (follow-up debt, not patterns to copy):
-- `bpmn_engine.sync_to_md()` at `bpmn_engine.py:1653` — copied the sqlite3 shape from sync_datamodel_from_ea.py during the BPMN engine refactor (2026-07-05, commit 0f16da4).
-- `sync_datamodel_from_ea.py:47` — the very first sync script in the repo (2026-06-24, commit 045ed3a), written before this rule was formalized. Retrofit to `ea_session.sql_rows` planned as part of the #17 #7 push.
+- `bpmn_engine.sync_to_md()` at `bpmn_engine.py:1653` — copied the sqlite3 shape from sync_ldm_from_ea.py during the BPMN engine refactor (2026-07-05, commit 0f16da4).
+- `sync_ldm_from_ea.py:47` — the very first sync script in the repo (2026-06-24, commit 045ed3a), written before this rule was formalized. Retrofit to `ea_session.sql_rows` planned as part of the #17 #7 push.
 
 See "Living With COM-Only Constraints" below for what this means in practice for the Diagram_Type/StyleEx case specifically.
 
