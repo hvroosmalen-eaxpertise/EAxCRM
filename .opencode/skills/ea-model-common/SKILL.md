@@ -201,13 +201,58 @@ Use `diagram_utils.set_diagram_link_style(diag, line_style)` — idempotent, saf
 
 ## Diagram Type and Toolbox (github issue #5 — CRITICAL, read before creating any new diagram type)
 
-### HARD RULE: no SQLite in generate()/sync_to_md() -- investigation-only elsewhere (2026-07-06)
+### HARD RULE: no `sqlite3` in generate/sync code -- reads or writes, use `Repository.SQLQuery` for SQL-shaped reads (2026-07-06, strengthened 2026-07-16)
 
-**The shipped `generate()`/`sync_to_md()` code path (and any other production generator/sync logic) must never contain SQLite access to the `.qea` file — reads or writes, no exceptions, however tempting the shortcut looks.** This was previously treated as an "accepted exception" for the `Diagram_Type`/`StyleEx` fix below (and for the sync-direction structure reads in `bpmn_engine.sync_to_md`/`sync_datamodel_from_ea.py`, which existed to work around a COM staleness issue). The user has explicitly overridden that: **the final generate/sync code must be COM only.** If a COM-only path can't achieve something, that's a real, named limitation to document and hand back to the user (e.g. "fix this diagram's type manually in EA's GUI") — not a reason to fall back to SQL in the shipped code.
+**The shipped `generate()`/`sync_to_md()` code path (and any other production generator/sync logic) must never contain direct `sqlite3.connect(qea_path)` access to the `.qea` file — reads or writes, no exceptions, however tempting the shortcut looks.** The `.qea` SQLite file is only one supported EA repository backend; EA also runs on SQL Server, MySQL, Oracle, and Postgres, and this project is expected to move off SQLite as its EA backend at some point. Any code that directly opens the file with `sqlite3.connect()` breaks silently on that migration. The rule was previously framed as "bypasses EA's constraints" (write-side rationale); it now also covers reads for backend portability.
 
-**Clarified distinction: ad-hoc SQLite queries for investigation/diagnosis are fine.** Exploring `t_diagram`, `t_xref`, element nesting, etc. via a one-off scratch script to understand EA's actual behavior before writing the real fix — exactly how the `MDGDgm` mechanism itself was discovered — is a legitimate and encouraged empirical-verification technique (see "Use a Sandbox Package" and the project's general preference for verifying EA behavior empirically over guessing). The rule is specifically about what ships in `wireframe_engine.py`/`bpmn_engine.py`/`generate_archimate.py`/`sync_datamodel_from_ea.py` etc. — those must be COM-only. Investigate with SQLite all you want in a scratchpad script; never commit that query into the generator/sync code itself.
+**Two correct primitives, pick the right shape for the task:**
 
-See "Living With COM-Only Constraints" below for what this means in practice for the Diagram_Type/StyleEx case specifically, and flag any other production SQL-usage site you find in older code (`bpmn_engine.py`, `sync_datamodel_from_ea.py` as of this writing) as follow-up debt rather than a pattern to copy.
+1. **COM iteration** — `pkg.Elements.GetAt(i)`, `elem.Connectors.GetAt(i)`, `parent.Packages.GetAt(i)`, etc. Best for walking a small tree of related objects when you'll use most of each object's properties. Used by `sync_requirements_from_ea.py` and `wireframe_engine.sync_to_md()`.
+
+2. **`Repository.SQLQuery(sql)` via the `ea_session.sql_rows(repo, sql)` helper** — best for bulk reads where SQL's WHERE/JOIN/ORDER is a natural fit and you'd otherwise iterate every element in a package just to filter it. Routes through EA's own DB abstraction, so the same call works whether the backend is SQLite, SQL Server, Postgres, etc. — backend-agnostic by construction. The helper parses EA's XML result into a list of `{column_name: text}` dicts.
+
+**Working pattern (empirically verified 2026-07-16):**
+
+```python
+import ea_session
+
+with ea_session.ea_repository(QEA, technology="ArchiMate3") as repo:
+    rows = ea_session.sql_rows(repo, """
+        SELECT Object_ID, Name, Object_Type, Stereotype, IFNULL(Note,'') AS Note, ea_guid
+        FROM t_object
+        WHERE Package_ID = 42 AND Object_Type = 'Class'
+        ORDER BY Name
+    """)
+    for r in rows:
+        print(r["Name"], r["ea_guid"])   # values are always strings
+```
+
+**Return shape** (from `repo.SQLQuery` before helper parses it):
+
+```xml
+<?xml version="1.0" encoding="UTF-16" standalone="no" ?>
+<EADATA version="1.0" exporter="Enterprise Architect">
+  <Dataset_0><Data>
+    <Row><Package_ID>2</Package_ID><Name>Application Architecture</Name></Row>
+    <Row><Package_ID>3</Package_ID><Name>Data Architecture</Name></Row>
+  </Data></Dataset_0>
+</EADATA>
+```
+
+**Silent-failure trap — verified: bad SQL does NOT raise.** A query against a non-existent table, a syntax error, or a mistyped column returns *the same empty `<EADATA>`* as a legitimate zero-row result. The `sql_rows()` helper returns `[]` in both cases with no way for the caller to distinguish. Consequence:
+
+- Never trust an unexpectedly-empty result set. If a query MUST return rows (e.g. "find the ArchiMate package"), validate the SQL against a known-good schema first, or assert `len(rows) > 0` and fail loud.
+- Prefer wide-scope queries (`SELECT ... FROM t_object WHERE Package_ID IN (...)`) over per-element queries in a loop — a typo in a per-element query silently produces "no attributes for any element" instead of failing fast.
+
+**Portable-SQL discipline:** `LIMIT N` works today because the backend is SQLite, but is not portable to SQL Server (`TOP N`) or Oracle (`FETCH FIRST N`). Avoid backend-specific syntax in shipped queries. When you need "top N" for exploration, do it in Python after fetching, or accept the query is scratchpad-only. Standard SQL that works across all supported EA backends (`SELECT`, `WHERE`, `JOIN`, `ORDER BY`, `IFNULL`/`COALESCE`, `IN`) is the safe subset.
+
+**Clarified distinction: ad-hoc `sqlite3` queries for investigation/diagnosis are fine.** Exploring `t_diagram`, `t_xref`, element nesting, etc. via a one-off scratch script — exactly how the `MDGDgm` mechanism was discovered — is a legitimate and encouraged empirical-verification technique (see "Use a Sandbox Package"). The rule is specifically about what ships in `wireframe_engine.py`/`bpmn_engine.py`/`generate_archimate.py`/`sync_datamodel_from_ea.py`/`sync_archimate_from_ea.py` etc. Investigate with `sqlite3` all you want in a scratchpad script; never commit that query into the generator/sync code itself.
+
+**Known offenders as of 2026-07-16** (follow-up debt, not patterns to copy):
+- `bpmn_engine.sync_to_md()` at `bpmn_engine.py:1653` — copied the sqlite3 shape from sync_datamodel_from_ea.py during the BPMN engine refactor (2026-07-05, commit 0f16da4).
+- `sync_datamodel_from_ea.py:47` — the very first sync script in the repo (2026-06-24, commit 045ed3a), written before this rule was formalized. Retrofit to `ea_session.sql_rows` planned as part of the #17 #7 push.
+
+See "Living With COM-Only Constraints" below for what this means in practice for the Diagram_Type/StyleEx case specifically.
 
 ### Background: what the toolbox mechanism actually is
 
@@ -341,6 +386,6 @@ After placing diagram objects, verify coordinate correctness:
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup. Used by every generator/sync script |
+| `experiments/modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup, and `sql_rows(repo, sql)` — the ONLY correct way to run SQL-shaped reads (routes through `Repository.SQLQuery`, backend-agnostic; see "HARD RULE"). Used by every generator/sync script |
 | `experiments/modelgen/diagram_utils.py` | Shared **non-BPMN** layout functions — grid layout (`compute_grid_positions`), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`), `create_diagram_objects`/`add_missing_elements`/`get_placed_ids` (reused by the wireframe engine too) |
 | `experiments/modelgen/changelog.py` | Shared audit-logging (`ChangeLog` class + `compute_md_diff()`) used by every generator/sync script — see the per-language skill for what it logs |

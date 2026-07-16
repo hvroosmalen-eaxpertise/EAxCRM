@@ -14,6 +14,7 @@ EA's "Internal application error 61704" on repo.Models.GetAt(0).
 import subprocess
 import threading
 import time
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 
 import win32com.client
@@ -120,6 +121,49 @@ def ea_repository(qea_path, technology=None):
         killed = kill_new_ea_processes(before_pids)
         if killed:
             print(f"  Cleaned up {len(killed)} zombie EA process(es)", flush=True)
+
+
+def sql_rows(repo, sql):
+    """Run a SQL query via Repository.SQLQuery and yield each row as a dict.
+
+    Backend-agnostic: routes through EA's own DB abstraction, so the same
+    call works whether the .qea is backed by SQLite, SQL Server, Postgres,
+    etc. THIS IS THE ONLY CORRECT WAY to run SQL-shaped reads against the
+    EA repository from generator/sync scripts -- never `sqlite3.connect(qea)`.
+
+    Returns a list of {column_name: text} dicts. NULL columns come back as
+    the empty string (EA's XML uses <ColName/> self-closing tags for NULLs;
+    they map to child.text == None, which we normalize to "").
+
+    IMPORTANT silent-failure trap (verified empirically 2026-07-16):
+      - Bad SQL (nonexistent table, syntax error) does NOT raise; it returns
+        the same empty <EADATA> as a legitimate zero-row result.
+      - Callers that need to distinguish "no rows" from "query broken" MUST
+        validate the SQL by other means (schema probe, small sanity SELECT
+        first) rather than trusting the empty-result path.
+
+    Empirically-verified return shape:
+      <?xml version="1.0" encoding="UTF-16" ...?>
+      <EADATA version="1.0" exporter="Enterprise Architect">
+        <Dataset_0>
+          <Data>
+            <Row><ColA>val</ColA><ColB>val</ColB></Row>
+            ...
+          </Data>
+        </Dataset_0>
+      </EADATA>
+    """
+    xml = repo.SQLQuery(sql)
+    if not xml:
+        return []
+    # EA declares UTF-16 but hands the string over already decoded, so parse
+    # as str; ElementTree accepts str input and ignores the declared encoding
+    # when there's no BOM.
+    root = ET.fromstring(xml)
+    return [
+        {child.tag: (child.text or "") for child in row}
+        for row in root.findall("./Dataset_0/Data/Row")
+    ]
 
 
 def get_model_root(repo, retries=5, delay=2):
