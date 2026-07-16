@@ -157,6 +157,21 @@ Attachment → Delivery (included_in)
 - `EAxCRM-SalesProcess.md` created: flat `### ` structure with `- Lane:` fields on all 41 non-lane elements
 - Connector duplicate detection fixed: checks both short-form (SequenceFlow) and long-form (BPMN2.0::SequenceFlow) stereotypes
 
+## Skills (.opencode/skills/)
+
+Domain skills that opencode auto-loads via each folder's `SKILL.md`.  Read `ea-model-common` first before working with any diagram generator.
+
+| Skill | Purpose |
+| --- | --- |
+| `ea-model-common` | Shared EA COM patterns: coordinate system, GUID-map idempotency, session lifecycle, Sandbox isolation.  **Read first.** |
+| `ea-bpmn-creator` | BPMN 2.0 process diagrams (sales, newsletter, customer account) via `bpmn_engine.py` — collaboration/lane/pool structure, flow-aware layout. |
+| `ea-archimate-creator` | ArchiMate diagram via `generate_archimate.py` — element sizing, diagram-type/toolbox fix, non-BPMN grid layout. |
+| `ea-ldm-creator` | Logical (UML Class) data model via `generate_ldm_from_md.py` — attribute-scaled entity sizing, orthogonal connector routing. |
+| `ea-pdm-creator` | Physical data model (`<<table>>` stereotype) — DDL-oriented tables, PK/FK/index/CHECK, FKIDX/FKINFO StyleEx encodings. |
+| `ea-requirements-creator` | Requirements diagram via `generate_requirements_from_md.py` — fixed element sizing, non-BPMN grid layout. |
+| `ea-wireframe-creator` | UI mockup (Wireframing) diagrams via `wireframe_engine.py` — explicit per-control bounds, one diagram per screen + sitemap. |
+| `ea-code-validator` | Enforces project rules on EA-touching Python (no direct EA-repo queries, generate/sync pairing, no writes to existing-diagram geometry).  Runs from the pre-commit hook and CI. |
+
 ## Generator Scripts (experiments/modelgen/)
 - `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
 - Idempotent: saves GUID map to `archimate_guid_map.json`, re-runs update existing without duplicates
