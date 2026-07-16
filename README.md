@@ -52,6 +52,20 @@ pytest test_pure_functions.py          # pure logic, any platform, no EA needed
 pytest -m ea test_generators_regression.py   # Windows + EA required; runs generators against a sandboxed EAxCRM.qea copy
 ```
 
+## Code validator (pre-commit hook)
+
+`.opencode/skills/ea-code-validator/` enforces project rules on EA-touching Python (no direct EA-repo queries, generate/sync pairing, no writes to existing-diagram geometry). Install the pre-commit hook once per clone:
+
+```bash
+# PowerShell
+powershell -NoProfile -File scripts/install-hooks.ps1
+
+# or POSIX sh (Git Bash / WSL / macOS / Linux)
+sh scripts/install-hooks.sh
+```
+
+Ad-hoc runs: `python .opencode/skills/ea-code-validator/cli.py --list` to see rules, `... --changed` for staged files only, `... path/...` for a subtree. See the skill's `SKILL.md` for full flag reference and the design doc under `docs/superpowers/specs/`.
+
 ## Project Structure
 
 ```
