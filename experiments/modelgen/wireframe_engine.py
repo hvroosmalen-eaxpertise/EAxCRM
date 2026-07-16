@@ -8,6 +8,7 @@ able like BPMN's CollaborationModel) plus one shared sitemap overview.
 import json
 import os
 import re
+import sys
 
 import diagram_utils
 import ea_session
@@ -191,6 +192,7 @@ def _get_or_create_package(parent, name):
 # ---------------------------------------------------------------------------
 
 def generate(config, qea_path=None, md_path=None):
+    sys.stdout.reconfigure(line_buffering=True)
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
     guid_map_file = os.path.join(SCRIPT_DIR, config.guid_map_file)
@@ -592,6 +594,7 @@ def _render_md(config, screens, controls, navigation):
 
 
 def sync_to_md(config, qea_path=None, md_path=None):
+    sys.stdout.reconfigure(line_buffering=True)
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
     guid_map_file = os.path.join(SCRIPT_DIR, config.guid_map_file)

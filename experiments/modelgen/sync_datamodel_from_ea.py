@@ -38,6 +38,7 @@ def safe_id(name):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser(description="Sync data model from EA to Markdown")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)

@@ -306,6 +306,7 @@ def print_plan(plan, stats):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser(
         description="Dedup duplicate ArchiMate connectors in EAxCRM.qea (COM-only).")
     parser.add_argument("--qea", default=ga.DEFAULT_QEA)

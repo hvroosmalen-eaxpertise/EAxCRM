@@ -199,6 +199,7 @@ def find_package(parent, name):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser(description="Generate requirements in EAxCRM.qea from Markdown")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)

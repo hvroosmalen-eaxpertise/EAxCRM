@@ -285,6 +285,7 @@ def save_guid_map(mapping):
 
 
 def main():
+    sys.stdout.reconfigure(line_buffering=True)
     parser = argparse.ArgumentParser(description="Generate UML data model in EAxCRM.qea")
     parser.add_argument("--qea", default=DEFAULT_QEA)
     parser.add_argument("--md", default=DEFAULT_MD)

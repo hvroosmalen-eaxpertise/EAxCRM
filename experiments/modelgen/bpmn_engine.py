@@ -13,6 +13,7 @@ sync_*_process_from_ea.py. Two format families exist, both preserved exactly:
 """
 import os
 import re
+import sys
 import json
 import sqlite3
 
@@ -929,6 +930,7 @@ def set_tagged_values(elem, stereo, fields):
 # ---------------------------------------------------------------------------
 
 def generate(config, qea_path=None, md_path=None, state_dir=None):
+    sys.stdout.reconfigure(line_buffering=True)
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
     guid_map_file = os.path.join(state_dir or SCRIPT_DIR, config.guid_map_file)
@@ -1644,6 +1646,7 @@ def _write_hierarchical(lines, elem_by_id, children_of, tv_by_elem, cid):
 
 
 def sync_to_md(config, qea_path=None, md_path=None):
+    sys.stdout.reconfigure(line_buffering=True)
     qea_path = qea_path or config.default_qea
     md_path = md_path or config.default_md
 
