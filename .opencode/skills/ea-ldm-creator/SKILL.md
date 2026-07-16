@@ -1,5 +1,5 @@
 ---
-name: ea-datamodel-creator
+name: ea-ldm-creator
 description: Reference for generating/syncing the EAxCRM Data Model (UML Class diagram) via generate_ldm_from_md.py — per-entity sizing scaled to attribute count, Orthogonal Square connector routing, and the non-BPMN grid layout. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns.
 ---
 

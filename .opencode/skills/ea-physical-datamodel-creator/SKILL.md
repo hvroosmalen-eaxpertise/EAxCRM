@@ -1,6 +1,6 @@
 ---
 name: ea-physical-datamodel-creator
-description: Reference for building physical (DDL-generation-oriented) data models in Sparx EA — tables, columns, PK/FK/index/CHECK as stereotyped Operations, the FKIDX/FKINFO StyleEx encodings that make DDL emit FOREIGN KEY REFERENCES correctly, and the Data Modeling diagram type. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns. Distinct from ea-datamodel-creator, which covers the logical UML Class model.
+description: Reference for building physical (DDL-generation-oriented) data models in Sparx EA — tables, columns, PK/FK/index/CHECK as stereotyped Operations, the FKIDX/FKINFO StyleEx encodings that make DDL emit FOREIGN KEY REFERENCES correctly, and the Data Modeling diagram type. Read ea-model-common first for shared COM/session/GUID-map/Sandbox patterns. Distinct from ea-ldm-creator, which covers the logical UML Class model.
 ---
 
 # EA Physical Data Model Creator (EAxCRM Project Skill)
@@ -26,7 +26,7 @@ answer took a specific probe to pin down.
 pattern, COM session lifecycle, and Sandbox isolation protocol — this skill
 covers only what's specific to physical data models.
 
-**Distinct from `ea-datamodel-creator`.** That skill is the logical UML
+**Distinct from `ea-ldm-creator`.** That skill is the logical UML
 Class model (per-entity sizing scaled to attribute count, Orthogonal Square
 routing). Physical models have their own diagram type, their own entity
 shape (Table stereotype with tabular column compartment, no attribute-count
