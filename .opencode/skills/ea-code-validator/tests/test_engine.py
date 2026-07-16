@@ -51,6 +51,19 @@ def test_scope_excludes_ignored_dirs(tmp_path, monkeypatch):
     assert scope == []
 
 
+def test_scope_excludes_own_fixtures(tmp_path, monkeypatch):
+    """Fixtures under ea-code-validator/tests/fixtures/ must not be scanned."""
+    monkeypatch.chdir(tmp_path)
+    # A path shaped like our own fixture tree — should be skipped.
+    _write(
+        tmp_path,
+        ".opencode/skills/ea-code-validator/tests/fixtures/ea001_positive/x.py",
+        "from ea_session import ea_repository  # noqa\nimport sqlite3\n",
+    )
+    scope = engine.discover_scope([tmp_path], respect_gitignore=False)
+    assert scope == []
+
+
 def test_scope_win32com_ea_dispatch(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     a = _write(tmp_path, "elsewhere/direct_ea.py",

@@ -24,6 +24,11 @@ EA_COM_MARKERS = ("EA.App", "EA.Repository")
 MODELGEN_DIR_PART = ("experiments", "modelgen")
 IGNORED_DIRS = {"__pycache__", ".venv", "venv", ".git", "node_modules"}
 
+# Path segments that mark the validator's own fixture directories.  Fixtures
+# are deliberately rule-violating snippets — they should fire in unit tests
+# (which pass them directly to a rule) but not in a whole-repo run.
+_FIXTURE_PATH_MARKER = ("ea-code-validator", "tests", "fixtures")
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -120,17 +125,28 @@ def _git_tracked(root: pathlib.Path) -> set[pathlib.Path] | None:
     }
 
 
+def _is_own_fixture(path: pathlib.Path) -> bool:
+    parts = path.parts
+    n = len(_FIXTURE_PATH_MARKER)
+    return any(
+        parts[i : i + n] == _FIXTURE_PATH_MARKER
+        for i in range(len(parts) - n + 1)
+    )
+
+
 def _iter_py_files(paths: Iterable[pathlib.Path]) -> Iterable[pathlib.Path]:
     for path in paths:
         path = path.resolve()
         if path.is_file():
-            if path.suffix == ".py":
+            if path.suffix == ".py" and not _is_own_fixture(path):
                 yield path
             continue
         if not path.is_dir():
             continue
         for child in path.rglob("*.py"):
             if any(part in IGNORED_DIRS for part in child.parts):
+                continue
+            if _is_own_fixture(child):
                 continue
             yield child.resolve()
 

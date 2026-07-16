@@ -1,0 +1,31 @@
+name: ea-code-validator
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run validator tests
+        run: pytest .opencode/skills/ea-code-validator/tests -v
+
+      - name: Validator on repo — blocking rules (EA001, EA002)
+        run: python .opencode/skills/ea-code-validator/cli.py --only EA001,EA002
+
+      - name: Validator on repo — advisory (EA003; see #23 and #24)
+        continue-on-error: true
+        run: python .opencode/skills/ea-code-validator/cli.py --only EA003
