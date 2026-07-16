@@ -49,12 +49,6 @@
 - GUID: {5E37383A-2C3A-53A9-9B2C-CFAD9B873207}
 - Layer: Business
 
-### BusinessRole — e-role-secondary
-- Name: Secondary Contact
-- Description: Colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties; the expected successor role when the Primary contact leaves the organization (CRM-10).
-- GUID: {}
-- Layer: Business
-
 ### BusinessFunction — e-func-insight
 - Name: Customer Insight
 - Description: Manage contact information, retrieve communications, and store customer documents.
@@ -421,18 +415,6 @@
 - GUID: {B1D03642-187F-57D8-AACF-7CA7D6C2AAFB}
 - Layer: Technology
 
-### Node — e-node-devws
-- Name: Windows Dev Workstation
-- Description: Local development and test environment (Han's daily machine) running Django natively against a SQLite file — used for authoring and pre-production verification before promotion to the QNAP NAS. See TEC-5.
-- GUID: {}
-- Layer: Technology
-
-### Device — e-device-devws
-- Name: Windows Dev Hardware
-- Description: The developer's Windows 11 workstation hosting the dev/test environment.
-- GUID: {}
-- Layer: Technology
-
 ### SystemSoftware — e-sw-django
 - Name: Django 6.x + Python 3.13
 - Description: The web framework and runtime powering the CRM application.
@@ -443,12 +425,6 @@
 - Name: SQLite (local dev/test)
 - Description: Embedded database engine used for local development and test only (TEC-1). Not the production target — SQLite's single-writer model is unsuitable for concurrent multi-user access.
 - GUID: {33F1813D-51B7-52DB-B6F0-6981E7A0CE90}
-- Layer: Technology
-
-### SystemSoftware — e-sw-rdbms
-- Name: PostgreSQL 16
-- Description: Production RDBMS chosen for TEC-1 — server-based, transactional (MVCC), supports concurrent multi-user writes. Django's reference backend (via psycopg); no licensing cost. Runs as a Docker container on QNAP Container Station alongside the Django application container.
-- GUID: {}
 - Layer: Technology
 
 ### SystemSoftware — e-sw-container
@@ -472,8 +448,13 @@
 ### Artifact — e-art-db-prod
 - Name: PostgreSQL Database Instance
 - Description: The production PostgreSQL 16 database instance holding all CRM data in production — realising e-sw-rdbms.
-- GUID: {}
+- GUID: {A7029E0C-4ECB-4a50-8AC2-6D48C30649AE}
 - Layer: Technology
+
+### BusinessActor — e-businessactor1
+- Name: BusinessActor1
+- GUID: {20D3C65B-06A7-446c-A564-6A4D7F84D618}
+- Layer: Business
 
 ## Relationships
 
@@ -496,11 +477,6 @@
 - Source: e-customer
 - Target: e-role-license
 - GUID: {E658DE11-7324-56B5-9B8C-5DAA90B648CD}
-
-### Association — r-cust-sec
-- Source: e-customer
-- Target: e-role-secondary
-- GUID: {}
 
 ### Composition — r-comp-insight-imap
 - Source: e-func-insight
@@ -768,7 +744,7 @@
 - GUID: {C295BFE6-243B-5A46-9B9A-AF2AA1D8B6CD}
 
 ### Assignment — r-assign-sw-sqlite
-- Source: e-node-devws
+- Source: e-art-db-prod
 - Target: e-sw-sqlite
 - GUID: {C07C8120-B807-5B5C-A4F0-A5A12317E849}
 
@@ -792,40 +768,10 @@
 - Target: e-sw-container
 - GUID: {D8033287-7DC1-5A3C-823C-86825A100A73}
 
-### Composition — r-comp-devws-device
-- Source: e-node-devws
-- Target: e-device-devws
-- GUID: {}
-
-### Assignment — r-assign-sw-rdbms
-- Source: e-node-nas
-- Target: e-sw-rdbms
-- Description: PostgreSQL runs as a Docker container on the QNAP Container Station node.
-- GUID: {}
-
-### Assignment — r-assign-sw-django-dev
-- Source: e-node-devws
-- Target: e-sw-django
-- Description: The same Django codebase runs natively on the Windows dev workstation, per TEC-5. Django (SystemSoftware) is now assigned to both nodes.
-- GUID: {}
-
-### Realization — r-realize-art-db-prod-sw
-- Source: e-art-db-prod
-- Target: e-sw-rdbms
-- Description: The production database instance realises the PostgreSQL SystemSoftware, mirroring the pattern used by e-art-db → e-sw-sqlite.
-- GUID: {}
-
-### Serving — r-serve-rdbms-app
-- Source: e-sw-rdbms
-- Target: e-app-django
-- Description: PostgreSQL serves the EAxCRM Django ApplicationComponent as its production data store. Fills the today-orphan gap where no relationship connected the app to any database.
-- GUID: {}
-
 ### Serving — r-serve-sqlite-app-dev
 - Source: e-sw-sqlite
 - Target: e-app-django
-- Description: SQLite serves the EAxCRM Django ApplicationComponent as its dev/test data store — symmetric with the production RDBMS serving relationship, so both environments are explicit in the model.
-- GUID: {}
+- GUID: {080CE31C-0ED1-4843-B908-AB7D495E6955}
 
 ### Composition — r-comp-sales-rfq
 - Source: e-func-sales
@@ -915,19 +861,16 @@
 ### Access — r-access-dedupe-contact
 - Source: e-process-dedupe
 - Target: e-bo-contact
-- Description: Duplicate detection fuzzy-matches both organisation name (Customer) and Contact email; the process was missing this Access relationship despite touching Contact data.
 - GUID: {F4052B6E-82A0-468F-9F05-0B1A26711B3D}
 
 ### Access — r-access-emailhistory-contact
 - Source: e-process-emailhistory
 - Target: e-bo-contact
-- Description: Retrieval searches IMAP mailboxes using the Contact's email address as the match key.
 - GUID: {9E4EAF3F-2975-46CA-8381-0BB101B87B75}
 
 ### Access — r-access-optinsuggest-contact
 - Source: e-process-optinsuggest
 - Target: e-bo-contact
-- Description: Reads Contact.role to evaluate eligibility and writes Contact.opt_in/opt_in_date on explicit user confirmation.
 - GUID: {2FFC83DD-38BE-43D9-833F-2360C181C714}
 
 ### Triggering — r-trigger-rfq-createaccount
@@ -1074,3 +1017,39 @@
 - Source: e-data-vendor
 - Target: e-bo-vendor
 - GUID: {7D19D94F-D32D-4B36-B582-7F0B7164A279}
+
+### Assignment — r-assignment-node-nas-sw-sqlite
+- Source: e-node-nas
+- Target: e-sw-sqlite
+- GUID: {2D02D6F8-4131-4775-B741-D33C7DE8C99F}
+
+### Association — r-association-customer-art-db-prod
+- Source: e-customer
+- Target: e-art-db-prod
+- GUID: {BA2C8566-7285-4626-90A0-E1FCFBAED95B}
+
+### Composition — r-composition-art-db-prod-art-db-prod
+- Source: e-art-db-prod
+- Target: e-art-db-prod
+- GUID: {09F4F40A-A0A4-4f25-90F8-E63E18E2CA1B}
+
+### Assignment — r-assignment-node-nas-art-db-prod
+- Source: e-node-nas
+- Target: e-art-db-prod
+- GUID: {10B1A3BC-F580-4155-9AC2-C8CB997E585D}
+
+### Assignment — r-assignment-art-db-prod-sw-django
+- Source: e-art-db-prod
+- Target: e-sw-django
+- GUID: {9FC456FE-49E5-4226-8682-2BD774DBA360}
+
+### Serving — r-serving-art-db-prod-app-django
+- Source: e-art-db-prod
+- Target: e-app-django
+- GUID: {430561CE-EA27-4cbc-ACB3-9FF0FF06A85D}
+
+### Realization — r-realization-art-db-prod-art-db-prod
+- Source: e-art-db-prod
+- Target: e-art-db-prod
+- GUID: {D92206DB-324C-43d1-8579-C9214F009D0A}
+
