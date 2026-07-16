@@ -152,6 +152,25 @@ Independent of the above — after a successful Type change, the same connector'
 
 Reported downstream (issue #17 follow-up comment). When creating a Composition, `t_connector.Connector_Type` will be `"Aggregation"` regardless of what you passed. In EAxCRM we sidestep this by using `Association` as the base type for both Composition and Aggregation and letting the MDG stereotype (`ArchiMate3::ArchiMate_Composition`) drive the filled-diamond glyph — see `ea-archimate-creator`'s connector table.
 
+### `Connector.TaggedValues.AddNew()` before `Update()` lands the tag orphaned with `ElementID = 0` (issue #17 #6, 2026-07-16)
+
+`Connectors.AddNew(...).TaggedValues.AddNew("SomeProp", "value")` called BEFORE the connector's first `Update()` writes the tag row into `t_connectortag` with `ElementID = 0` -- orphaned, invisible to `Connector.TaggedValues` on subsequent reads, and impossible to look up by connector id later. Silent failure: no exception, tag exists in the table, but no connector owns it.
+
+Fix -- always `Update()` the connector first (so it has a real `ConnectorID`), then set the tag:
+
+```python
+new_conn = src_elem.Connectors.AddNew("", "Dependency")
+new_conn.SupplierID = tgt_elem.ElementID
+new_conn.StereotypeEx = "ArchiMate3::ArchiMate_Access"
+new_conn.Direction = "Bi-Directional"
+new_conn.Update()          # commits the connector; ConnectorID is now real
+set_connector_tag(new_conn, "AccessMode", "Read/Write")   # safe: post-Update
+```
+
+`generate_archimate.set_connector_tag(conn, prop, value)` enforces the order and raises `RuntimeError` if called on a connector with `ConnectorID == 0`. Use it -- don't roll your own `TaggedValues.AddNew()`. The same helper is idempotent (updates in place if the property already has a tag).
+
+Same trap applies conceptually to `Element.TaggedValues` if you ever `AddNew` an element and try to tag it before its own `Update()`, but that's less commonly needed since element creation is usually followed by immediate `Update()` for other reasons.
+
 ## Diagram Object Management
 
 ### Deleting Existing Objects Before Re-Place

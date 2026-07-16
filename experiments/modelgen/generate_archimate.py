@@ -204,6 +204,38 @@ def _normalize_stereotype(s):
     return s.split("::")[-1]
 
 
+def set_connector_tag(conn, prop, value):
+    """Set a Tagged Value on ``conn`` (which MUST already have been
+    ``Update()``d at least once so it has a real ``ConnectorID``).
+
+    ``Connector.TaggedValues.AddNew(prop, value)`` called BEFORE the
+    connector's first ``Update()`` lands the tag row in ``t_connectortag``
+    with ``ElementID = 0`` -- orphaned, invisible to
+    ``Connector.TaggedValues`` on subsequent reads, and impossible to look
+    up by connector id later. Silent failure per issue #17 #6. This helper
+    exists to keep call sites from doing that by accident.
+
+    Idempotent: updates in place if a tag with ``prop`` already exists.
+    """
+    if not conn.ConnectorID:
+        raise RuntimeError(
+            "set_connector_tag called on a connector without a ConnectorID "
+            "-- did you forget to call conn.Update() first? Tag would be "
+            "orphaned with ElementID=0. (issue #17 #6)"
+        )
+    conn.TaggedValues.Refresh()
+    for i in range(conn.TaggedValues.Count):
+        tv = conn.TaggedValues.GetAt(i)
+        if tv.Name == prop:
+            if tv.Value != value:
+                tv.Value = value
+                tv.Update()
+            return
+    new_tv = conn.TaggedValues.AddNew(prop, value)
+    new_tv.Update()
+    conn.TaggedValues.Refresh()
+
+
 def load_guid_map():
     if os.path.exists(GUID_MAP_PATH):
         with open(GUID_MAP_PATH) as f:
@@ -260,6 +292,8 @@ def parse_md(path):
                 "layer": "",
                 "source": "",
                 "target": "",
+                "direction": "",
+                "access_mode": "",
             }
             continue
 
@@ -283,6 +317,10 @@ def parse_md(path):
                     current["source"] = value
                 elif key == "Target":
                     current["target"] = value
+                elif key == "Direction":
+                    current["direction"] = value
+                elif key == "AccessMode":
+                    current["access_mode"] = value
 
     if current is not None:
         if current["kind"] == "element":
@@ -452,16 +490,35 @@ def sync_relations(repo, relations, elements, guid_map, clog):
                 conn = c
                 break
 
+        # Direction: MD may override the default for Access/Flow/Triggering
+        # per issue #17 #6. Fall back to "Source -> Destination" so behavior
+        # for pre-#6 MD entries (no Direction field) is unchanged.
+        md_direction = rel.get("direction") or "Source -> Destination"
+        md_access_mode = rel.get("access_mode") or ""
+
         if conn is not None:
             guid_map[rel_key] = conn.ConnectorGUID
+            # Update-path: apply MD Direction if it differs. TaggedValue
+            # updates go through set_connector_tag (safe: connector already
+            # has a ConnectorID here).
+            if conn.Direction != md_direction:
+                conn.Direction = md_direction
+                conn.Update()
+            if md_access_mode:
+                set_connector_tag(conn, "AccessMode", md_access_mode)
             clog.log("updated", rel["id"], rel["type"], rel["type"], conn.ConnectorGUID)
             log(f"  [{idx + 1}/{len(relations)}] Exists rel: '{rel['id']}' ({rel['type']}) [{time.time() - t0:.2f}s]")
         else:
             new_conn = src_elem.Connectors.AddNew("", base_type)
             new_conn.SupplierID = tgt_elem.ElementID
             new_conn.StereotypeEx = full_stereo
-            new_conn.Direction = "Source -> Destination"
+            new_conn.Direction = md_direction
             new_conn.Update()
+            # CRITICAL: AccessMode tag MUST be set AFTER Update() so the tag
+            # binds to a real ConnectorID -- see set_connector_tag docstring
+            # and issue #17 #6.
+            if md_access_mode:
+                set_connector_tag(new_conn, "AccessMode", md_access_mode)
             guid_map[rel_key] = new_conn.ConnectorGUID
             clog.log("created", rel["id"], rel["type"], rel["type"], new_conn.ConnectorGUID,
                      changes={"source": rel["source"], "target": rel["target"]})

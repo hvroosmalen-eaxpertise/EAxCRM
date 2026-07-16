@@ -92,6 +92,34 @@ Getting the base type wrong isn't visually obvious in EA at first glance (arrow 
 
 **Element-pair validity is part of ArchiMate 3.** Not every relation is legal between every element-type pair. Example: between an `ApplicationService` and a `DataObject` only `Access` is allowed — a `Flow` between behavior and passive-structure elements is a spec violation. When the MD has one anyway, it needs to be edited to the correct relation type, and existing connectors migrated in place (below).
 
+## Access relation Direction + AccessMode (issue #17 #6, 2026-07-16)
+
+Access relations carry a Read/Write/Read-Write semantic that structural relations don't. Two optional MD fields on any Access rel let the author specify it:
+
+```
+### Access — r-access-example
+- Source: e-func-hist
+- Target: e-data-contact
+- GUID: {...}
+- Direction: Bi-Directional      # optional; default "Source -> Destination"
+- AccessMode: Read/Write         # optional; also written as an EA TaggedValue
+```
+
+**Default (both fields omitted)**: `Direction = "Source -> Destination"`, no AccessMode tag. Reads as "Write" per ArchiMate 3 semantics (source writes to target).
+
+**Direction values**:
+- `Source -> Destination` — default, single direction from source to target
+- `Destination -> Source` — reversed single direction (e.g. Read: target reads from source)
+- `Bi-Directional` — both directions (Read/Write)
+
+**AccessMode values** are free-form; the ArchiMate 3 conventional set is `Read`, `Write`, `Read/Write`, `None`. The value is stored as a TaggedValue named `AccessMode` on the connector; MDG-rendered diagrams display it.
+
+**Round-trip**: `generate_archimate.py` applies both fields when creating/updating a connector. `sync_archimate_from_ea.py` emits both when non-default. So a manual EA edit (setting AccessMode via GUI, or reversing Direction) is captured on next sync and preserved on next generate re-run.
+
+**Critical Sparx quirk — TaggedValue binding order**: `Connectors.AddNew(...).TaggedValues.AddNew("AccessMode", "Read")` called **before** the connector's first `Update()` lands the tag row in `t_connectortag` with `ElementID = 0` — orphaned, invisible to `Connector.TaggedValues` on subsequent reads, and impossible to look up by connector id. Silent failure. Always `Update()` the connector first so it has a real `ConnectorID`, THEN set the tag. `generate_archimate.set_connector_tag(conn, prop, value)` enforces this and raises loudly if called too early — use it, don't roll your own.
+
+Note: the current EAxCRM ArchiMate model has 42 Access relations, all default (no Direction or AccessMode fields in MD). #6's implementation gives you the machinery; whether to annotate any specific Access rel with Read/Write semantics is a separate modeling decision.
+
 ## Repairing Existing Connectors: `dedup_archimate_connectors.py`
 
 `experiments/modelgen/dedup_archimate_connectors.py` handles all model-repair scenarios — deduplication, adopting legacy blank stereotypes, retyping, and repairing a rel whose MD classification has changed. Two modes: default is dry-run (prints the plan), `--apply` executes.
