@@ -194,6 +194,20 @@ def _rel_key(rel):
     return "rel:" + rel["id"]
 
 
+def _el_key(el):
+    """Key into guid_map for an element. Same contract as _rel_key: prefer
+    the MD GUID when populated, else fall back to a prefixed element-id.
+
+    Fixes issue #19 -- previously ``sync_elements`` keyed guid_map on
+    ``el["guid"]`` directly, so every element with placeholder ``GUID: {}``
+    collided on the same map slot, silently renaming or duplicating each
+    other on rerun."""
+    g = (el.get("guid") or "").strip()
+    if g and g != "{}":
+        return g
+    return "el:" + el["id"]
+
+
 def _normalize_stereotype(s):
     """Normalize an EA StereotypeEx/Stereotype value to the short form. EA
     persists stereotypes as either ``Profile::Name`` or ``Name`` depending on
@@ -358,13 +372,13 @@ def sync_elements(repo, pkg, elements, guid_map, clog):
 
     for idx, el in enumerate(elements):
         t0 = time.time()
-        md_guid = el["guid"]
-        if not md_guid:
-            print(f"  SKIP '{el['id']}': no GUID in MD")
-            continue
+        # Key into guid_map. _el_key handles both real GUIDs and freshly-
+        # authored MD entries with placeholder ``GUID: {}`` -- previously the
+        # latter all collided on guid_map["{}"] (issue #19).
+        map_key = _el_key(el)
 
         # 1) Lookup EA GUID from map
-        ea_guid = guid_map.get(md_guid)
+        ea_guid = guid_map.get(map_key)
         existing = None
         if ea_guid:
             try:
@@ -385,7 +399,7 @@ def sync_elements(repo, pkg, elements, guid_map, clog):
             existing.Notes = el["description"]
             existing.StereotypeEx = el["sparx_stereotype"]
             existing.Update()
-            guid_map[md_guid] = existing.ElementGUID
+            guid_map[map_key] = existing.ElementGUID
             changes = {}
             if old_name != el["name"]:
                 changes["Name"] = (old_name, el["name"])
@@ -405,7 +419,7 @@ def sync_elements(repo, pkg, elements, guid_map, clog):
             for j in range(pkg.Elements.Count):
                 e = pkg.Elements.GetAt(j)
                 if e.ElementID == new_elem.ElementID:
-                    guid_map[md_guid] = e.ElementGUID
+                    guid_map[map_key] = e.ElementGUID
                     pkg_elems_by_name[e.Name] = e
                     break
 
@@ -427,8 +441,10 @@ def sync_relations(repo, relations, elements, guid_map, clog):
             print(f"  SKIP rel '{rel['id']}': unknown type '{rel['type']}'")
             continue
 
-        src_ea_guid = guid_map.get(src["guid"])
-        tgt_ea_guid = guid_map.get(tgt["guid"])
+        # Use _el_key so placeholder-GUID sources/targets round-trip through
+        # the same synthetic key that sync_elements just wrote (issue #19).
+        src_ea_guid = guid_map.get(_el_key(src))
+        tgt_ea_guid = guid_map.get(_el_key(tgt))
         if not src_ea_guid or not tgt_ea_guid:
             print(f"  SKIP rel '{rel['id']}': source/target not yet in EA")
             continue
@@ -587,7 +603,7 @@ def main():
         log("Resolving diagram object IDs...")
         object_ids = {}
         for el in elements:
-            ea_guid = guid_map.get(el["guid"])
+            ea_guid = guid_map.get(_el_key(el))
             if not ea_guid:
                 continue
             try:

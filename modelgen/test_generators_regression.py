@@ -13,12 +13,15 @@ idempotency path (no crashes, valid output on a real-ish EA project).
 
 Re-running within the same test module uses the same sandbox QEA copy.
 """
+import json
 import os
 import subprocess
 import sys
+import textwrap
 
 import pytest
 
+import ea_session
 from conftest import SCRIPT_DIR, DEFAULT_QEA
 
 DEFAULT_MD_DIR = r"M:\EAxCRM\models"
@@ -209,3 +212,129 @@ class TestCustomerAccountProcessGenerator:
             print(proc.stderr)
         assert proc.returncode == 0, f"generate_customeraccount_process failed: {proc.stderr}"
         assert "updated" in proc.stdout or "Created" in proc.stdout
+
+
+# -------------------------------------------------------------------------
+# Issue #19 regression: placeholder-GUID handling
+# -------------------------------------------------------------------------
+
+
+@pytest.mark.ea
+class TestArchimatePlaceholderGuidRegression:
+    """Issue #19 -- multiple MD elements with ``GUID: {}`` used to collide
+    on ``guid_map["{}"]``. Every placeholder-GUID entry wrote to the same
+    map slot, so on rerun the generator would silently rename existing EA
+    elements to whatever placeholder entry came last, or create duplicates.
+
+    The fix (``_el_key``) mirrors ``_rel_key`` -- placeholders fall back to
+    a synthetic ``el:<id>`` key so each element gets its own slot.
+    """
+
+    # Names must not clash with any existing EA element in EAxCRM.qea's
+    # ArchiMate package; using ``Issue19_*`` prefix to keep the pkg-name
+    # fallback in sync_elements from adopting an unrelated existing element.
+    _MD = textwrap.dedent("""\
+        # Issue #19 regression fixture
+
+        ## Elements
+
+        ### BusinessActor — e-i19-alpha
+        - Name: Issue19_Alpha
+        - Description: Placeholder-GUID test element A
+        - GUID: {}
+
+        ### BusinessActor — e-i19-beta
+        - Name: Issue19_Beta
+        - Description: Placeholder-GUID test element B
+        - GUID: {}
+
+        ### BusinessActor — e-i19-gamma
+        - Name: Issue19_Gamma
+        - Description: Placeholder-GUID test element C
+        - GUID: {}
+
+        ## Relationships
+        """)
+
+    _EXPECTED_KEYS = ("el:e-i19-alpha", "el:e-i19-beta", "el:e-i19-gamma")
+    _EXPECTED_NAMES = ("Issue19_Alpha", "Issue19_Beta", "Issue19_Gamma")
+
+    def _run_generator(self, qea_path, md_path, md_dir):
+        proc = subprocess.run(
+            [sys.executable, os.path.join(SCRIPT_DIR, "generate_archimate.py"),
+             "--qea", qea_path, "--md", md_path, "--state-dir", md_dir],
+            capture_output=True, text=True, timeout=300,
+        )
+        print(proc.stdout)
+        if proc.stderr:
+            print(proc.stderr)
+        assert proc.returncode == 0, (
+            f"generate_archimate failed (exit {proc.returncode}): {proc.stderr}"
+        )
+        return proc
+
+    def test_placeholder_guids_do_not_collide_and_survive_rerun(self, sandbox_qea):
+        qea_path, md_dir = sandbox_qea
+
+        md_path = os.path.join(md_dir, "issue19.md")
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(self._MD)
+
+        # Fresh (empty) guid_map so the placeholder-GUID path exercises
+        # element creation, not the map's cached lookup.
+        guid_map_path = os.path.join(md_dir, "archimate_guid_map.json")
+        with open(guid_map_path, "w", encoding="utf-8") as f:
+            json.dump({}, f)
+
+        # --- First run: three elements created, three distinct map keys ---
+        first = self._run_generator(qea_path, md_path, md_dir)
+        assert first.stdout.count("Created:") >= 3, (
+            "expected 3 Created lines on first run; got:\n" + first.stdout
+        )
+
+        with open(guid_map_path, encoding="utf-8") as f:
+            map1 = json.load(f)
+
+        for k in self._EXPECTED_KEYS:
+            assert k in map1, (
+                f"guid_map missing {k!r} -- placeholders collided into "
+                f"guid_map['{{}}']? keys={sorted(map1)}"
+            )
+        # And no stray "{}" key from the old collision path
+        assert "{}" not in map1, (
+            f"guid_map still has '{{}}' collision key: {map1['{}']!r}"
+        )
+        ea_guids = {map1[k] for k in self._EXPECTED_KEYS}
+        assert len(ea_guids) == 3, (
+            f"three placeholder-GUID elements collapsed to fewer EA GUIDs: "
+            f"{ {k: map1[k] for k in self._EXPECTED_KEYS} }"
+        )
+
+        # --- Verify in EA: three distinct elements with expected names ---
+        with ea_session.ea_repository(qea_path) as repo:
+            resolved = {}
+            for k, name in zip(self._EXPECTED_KEYS, self._EXPECTED_NAMES):
+                elem = repo.GetElementByGuid(map1[k])
+                assert elem is not None, f"{k} EA GUID does not resolve"
+                resolved[k] = elem.Name
+                assert elem.Name == name, (
+                    f"{k} resolved to element named {elem.Name!r}, "
+                    f"expected {name!r} -- silent rename bug still present"
+                )
+            assert len(set(resolved.values())) == 3, (
+                f"three placeholder entries all resolve to same element name: {resolved}"
+            )
+
+        # --- Second run: idempotent, no rename thrash, same EA GUIDs ---
+        second = self._run_generator(qea_path, md_path, md_dir)
+        assert "Created:" not in second.stdout, (
+            "second run created elements (should be pure updates):\n" + second.stdout
+        )
+
+        with open(guid_map_path, encoding="utf-8") as f:
+            map2 = json.load(f)
+        for k in self._EXPECTED_KEYS:
+            assert map2[k] == map1[k], (
+                f"{k} EA GUID changed between runs "
+                f"({map1[k]} -> {map2[k]}) -- rename/duplicate thrash"
+            )

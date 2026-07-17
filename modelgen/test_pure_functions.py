@@ -14,6 +14,7 @@ from bpmn_engine import _connector_path, _message_flow_path
 from bpmn_engine import _bottom_right_positions_for_new
 from bpmn_config import LABEL_TO_STEREO, OBJECT_TYPE_MAP, BPMN_TAGGED_VALUES
 from bpmn_config import CONNECTOR_TYPES, CONNECTOR_STEREOTYPE_EX
+from generate_archimate import _el_key, _rel_key
 from diagram_utils import (
     compute_bpmn_lane_positions,
     compute_bpmn_element_positions,
@@ -817,3 +818,66 @@ class TestBottomRightPositionsForNew:
         n3_top = pos["N3"][1]
         n1_top = pos["N1"][1]
         assert n3_top > n1_top, "N3 should wrap to a new row below N1/N2"
+
+
+# ===========================================================================
+# generate_archimate._el_key / _rel_key (placeholder-GUID handling)
+# ===========================================================================
+
+
+class TestElKey:
+    def test_real_guid_used_verbatim(self):
+        el = {"id": "e-cust", "guid": "{A7029E0C-4ECB-4a50-8AC2-6D48C30649AE}"}
+        assert _el_key(el) == "{A7029E0C-4ECB-4a50-8AC2-6D48C30649AE}"
+
+    def test_placeholder_guid_falls_back_to_prefixed_id(self):
+        el = {"id": "e-cust", "guid": "{}"}
+        assert _el_key(el) == "el:e-cust"
+
+    def test_empty_guid_falls_back_to_prefixed_id(self):
+        el = {"id": "e-cust", "guid": ""}
+        assert _el_key(el) == "el:e-cust"
+
+    def test_missing_guid_falls_back_to_prefixed_id(self):
+        el = {"id": "e-cust"}
+        assert _el_key(el) == "el:e-cust"
+
+    def test_whitespace_only_guid_falls_back(self):
+        el = {"id": "e-cust", "guid": "   "}
+        assert _el_key(el) == "el:e-cust"
+
+    def test_placeholder_ids_do_not_collide(self):
+        # This is the root of issue #19: placeholder GUIDs must produce
+        # distinct keys per element id.
+        a = {"id": "e-cust", "guid": "{}"}
+        b = {"id": "e-contact", "guid": "{}"}
+        c = {"id": "e-role", "guid": "{}"}
+        keys = {_el_key(a), _el_key(b), _el_key(c)}
+        assert len(keys) == 3
+
+
+class TestRelKey:
+    """Regression cover for the existing rel-side helper — same contract
+    as _el_key, so if one drifts we catch it here."""
+
+    def test_real_guid_used_verbatim(self):
+        rel = {"id": "r-cust-contact", "guid": "{BA2C8566-7285-4626-90A0-E1FCFBAED95B}"}
+        assert _rel_key(rel) == "{BA2C8566-7285-4626-90A0-E1FCFBAED95B}"
+
+    def test_placeholder_and_empty_fall_back_to_prefixed_id(self):
+        assert _rel_key({"id": "r-x", "guid": "{}"}) == "rel:r-x"
+        assert _rel_key({"id": "r-x", "guid": ""}) == "rel:r-x"
+        assert _rel_key({"id": "r-x"}) == "rel:r-x"
+
+    def test_placeholder_rels_do_not_collide(self):
+        keys = {
+            _rel_key({"id": "r-a", "guid": "{}"}),
+            _rel_key({"id": "r-b", "guid": "{}"}),
+            _rel_key({"id": "r-c", "guid": "{}"}),
+        }
+        assert len(keys) == 3
+
+    def test_el_and_rel_keys_do_not_collide(self):
+        # If an element and a relation happen to share an id, their
+        # placeholder-fallback keys must still be distinct.
+        assert _el_key({"id": "x", "guid": "{}"}) != _rel_key({"id": "x", "guid": "{}"})
