@@ -14,7 +14,9 @@ from bpmn_engine import _connector_path, _message_flow_path
 from bpmn_engine import _bottom_right_positions_for_new
 from bpmn_config import LABEL_TO_STEREO, OBJECT_TYPE_MAP, BPMN_TAGGED_VALUES
 from bpmn_config import CONNECTOR_TYPES, CONNECTOR_STEREOTYPE_EX
-from generate_archimate import _el_key, _rel_key
+from generate_archimate import (
+    _el_key, _rel_key, _expected_map_keys, _prune_orphaned_map_entries,
+)
 from diagram_utils import (
     compute_bpmn_lane_positions,
     compute_bpmn_element_positions,
@@ -881,3 +883,84 @@ class TestRelKey:
         # If an element and a relation happen to share an id, their
         # placeholder-fallback keys must still be distinct.
         assert _el_key({"id": "x", "guid": "{}"}) != _rel_key({"id": "x", "guid": "{}"})
+
+
+# ===========================================================================
+# generate_archimate._expected_map_keys / _prune_orphaned_map_entries
+# (issue #28 -- orphaned map entries left behind after MD content is removed
+#  or re-GUIDed)
+# ===========================================================================
+
+
+class TestExpectedMapKeys:
+    def test_empty(self):
+        assert _expected_map_keys([], []) == set()
+
+    def test_mixed_real_and_placeholder(self):
+        elements = [
+            {"id": "e-a", "guid": "{AAA}"},
+            {"id": "e-b", "guid": "{}"},
+        ]
+        relations = [
+            {"id": "r-x", "guid": "{RRR}"},
+            {"id": "r-y", "guid": ""},
+        ]
+        assert _expected_map_keys(elements, relations) == {
+            "{AAA}", "el:e-b", "{RRR}", "rel:r-y",
+        }
+
+
+class TestPruneOrphanedMapEntries:
+    def test_drops_keys_not_in_expected(self):
+        guid_map = {
+            "{AAA}": "ea-guid-a",
+            "rel:r-stale": "ea-guid-stale",
+            "el:e-stale": "ea-guid-stale-2",
+        }
+        expected = {"{AAA}"}
+        removed = _prune_orphaned_map_entries(guid_map, expected)
+        assert set(removed) == {"rel:r-stale", "el:e-stale"}
+        assert guid_map == {"{AAA}": "ea-guid-a"}
+
+    def test_preserves_diagram_keys(self):
+        # Diagram keys are not derived from MD entries -- they must never be
+        # pruned regardless of expected_keys.
+        guid_map = {
+            "_diagram_eax_archimate": "diag-guid",
+            "rel:r-stale": "ea-guid-stale",
+        }
+        removed = _prune_orphaned_map_entries(guid_map, set())
+        assert removed == ["rel:r-stale"]
+        assert "_diagram_eax_archimate" in guid_map
+
+    def test_noop_when_nothing_stale(self):
+        guid_map = {"{AAA}": "ea-guid-a", "_diagram_x": "d"}
+        removed = _prune_orphaned_map_entries(guid_map, {"{AAA}"})
+        assert removed == []
+        assert guid_map == {"{AAA}": "ea-guid-a", "_diagram_x": "d"}
+
+    def test_recovers_issue_28_scenario(self):
+        # The exact shape of the 7 stale entries: rel:<id> keys whose ids no
+        # longer appear anywhere in the current MD.
+        guid_map = {
+            "{REAL-EL}": "ea-el",
+            "{REAL-REL}": "ea-rel",
+            "_diagram_eax_archimate": "diag",
+            "rel:r-cust-sec": "stale-1",
+            "rel:r-assign-sw-rdbms": "stale-2",
+            "rel:r-comp-devws-device": "stale-3",
+        }
+        elements = [{"id": "e-a", "guid": "{REAL-EL}"}]
+        relations = [{"id": "r-a", "guid": "{REAL-REL}"}]
+        expected = _expected_map_keys(elements, relations)
+        removed = _prune_orphaned_map_entries(guid_map, expected)
+        assert set(removed) == {
+            "rel:r-cust-sec",
+            "rel:r-assign-sw-rdbms",
+            "rel:r-comp-devws-device",
+        }
+        assert set(guid_map) == {"{REAL-EL}", "{REAL-REL}", "_diagram_eax_archimate"}
+
+    def test_returns_empty_list_not_none_when_empty(self):
+        # Callers use `if pruned:` -- must be a falsy list, not None.
+        assert _prune_orphaned_map_entries({}, set()) == []

@@ -208,6 +208,29 @@ def _el_key(el):
     return "el:" + el["id"]
 
 
+def _expected_map_keys(elements, relations):
+    """The set of ``guid_map`` keys the current MD *should* produce.
+
+    Used to prune orphaned entries left over from earlier runs whose MD
+    counterparts have since been removed or re-GUIDed (issue #28). Diagram
+    keys (``_diagram_*``) are preserved by the caller separately since
+    diagrams are not derived from MD entries."""
+    return {_el_key(el) for el in elements} | {_rel_key(rel) for rel in relations}
+
+
+def _prune_orphaned_map_entries(guid_map, expected_keys):
+    """Drop entries from ``guid_map`` whose key is not in ``expected_keys``
+    and is not a reserved diagram key. Returns the list of removed keys so
+    the caller can log the cleanup."""
+    to_delete = [
+        k for k in list(guid_map)
+        if k not in expected_keys and not k.startswith("_diagram_")
+    ]
+    for k in to_delete:
+        del guid_map[k]
+    return to_delete
+
+
 def _normalize_stereotype(s):
     """Normalize an EA StereotypeEx/Stereotype value to the short form. EA
     persists stereotypes as either ``Profile::Name`` or ``Name`` depending on
@@ -598,6 +621,17 @@ def main():
         sync_relations(repo, relations, elements, guid_map, clog)
         save_guid_map(guid_map)
         log("--- Relationships done ---")
+
+        # Prune orphaned map entries -- keys the current MD no longer
+        # produces (issue #28). Preserves reserved diagram keys.
+        pruned = _prune_orphaned_map_entries(
+            guid_map, _expected_map_keys(elements, relations)
+        )
+        if pruned:
+            log(f"--- Pruned {len(pruned)} orphaned guid_map entries ---")
+            for k in pruned:
+                print(f"  pruned: {k}")
+            save_guid_map(guid_map)
 
         # Build object_ids: el["id"] -> numeric EA ElementID
         log("Resolving diagram object IDs...")

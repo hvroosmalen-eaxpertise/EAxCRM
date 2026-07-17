@@ -146,14 +146,6 @@ def _completeness_check(script: str, guid_map_name: str, sandbox_qea) -> None:
 @pytest.mark.ea
 @pytest.mark.slow
 class TestGeneratorCompleteness:
-    @pytest.mark.xfail(
-        reason=(
-            "archimate_guid_map.json has 7 stale rel:-prefixed entries "
-            "pointing to connector GUIDs that no longer resolve — see issue #28. "
-            "Remove this marker once the underlying map-update bug is fixed."
-        ),
-        strict=False,
-    )
     def test_archimate(self, sandbox_qea):
         _completeness_check(
             "generate_archimate.py", "archimate_guid_map.json", sandbox_qea
