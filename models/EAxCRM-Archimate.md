@@ -812,6 +812,16 @@
 - Target: e-sw-rdbms
 - GUID: {28E68A7E-FFDF-4b52-A5DC-DCEF2B7B9C64}
 
+### Access — r-access-app-sqlite
+- Source: e-app-django
+- Target: e-sw-sqlite
+- GUID: {D6758E9F-37E9-4ac8-AC08-EC52F5A3318C}
+
+### Access — r-access-app-art-db-prod
+- Source: e-app-django
+- Target: e-art-db-prod
+- GUID: {CAEE6488-53E0-4485-9C3C-D421B604C594}
+
 ### Composition — r-comp-sales-rfq
 - Source: e-func-sales
 - Target: e-process-rfq
