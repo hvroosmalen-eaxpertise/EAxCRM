@@ -49,6 +49,12 @@
 - GUID: {5E37383A-2C3A-53A9-9B2C-CFAD9B873207}
 - Layer: Business
 
+### BusinessRole — e-role-secondary
+- Name: Secondary Contact
+- Description: Colleague-level backup to the Primary contact with no Purchase, Sales, or License Holder duties; the expected successor role when the Primary contact leaves the organization (CRM-10).
+- GUID: {10097313-D9DA-4b92-816D-56EEEE2EEDF4}
+- Layer: Business
+
 ### BusinessFunction — e-func-insight
 - Name: Customer Insight
 - Description: Manage contact information, retrieve communications, and store customer documents.
@@ -415,6 +421,18 @@
 - GUID: {B1D03642-187F-57D8-AACF-7CA7D6C2AAFB}
 - Layer: Technology
 
+### Node — e-node-devws
+- Name: Windows Dev Workstation
+- Description: Local development and test environment (Han's daily machine) running Django natively against a SQLite file — used for authoring and pre-production verification before promotion to the QNAP NAS. See TEC-5.
+- GUID: {8895DAC0-F562-42af-B160-3A77343A596E}
+- Layer: Technology
+
+### Device — e-device-devws
+- Name: Windows Dev Hardware
+- Description: The developer's Windows 11 workstation hosting the dev/test environment.
+- GUID: {CCB8BBE0-EE23-4c1c-8128-743827FE29D6}
+- Layer: Technology
+
 ### SystemSoftware — e-sw-django
 - Name: Django 6.x + Python 3.13
 - Description: The web framework and runtime powering the CRM application.
@@ -425,6 +443,12 @@
 - Name: SQLite (local dev/test)
 - Description: Embedded database engine used for local development and test only (TEC-1). Not the production target — SQLite's single-writer model is unsuitable for concurrent multi-user access.
 - GUID: {33F1813D-51B7-52DB-B6F0-6981E7A0CE90}
+- Layer: Technology
+
+### SystemSoftware — e-sw-rdbms
+- Name: PostgreSQL 16
+- Description: Production RDBMS chosen for TEC-1 — server-based, transactional (MVCC), supports concurrent multi-user writes. Django's reference backend (via psycopg); no licensing cost. Runs as a Docker container on QNAP Container Station alongside the Django application container.
+- GUID: {0AB241D9-5A13-459b-814C-EFF99281EE96}
 - Layer: Technology
 
 ### SystemSoftware — e-sw-container
@@ -472,6 +496,11 @@
 - Source: e-customer
 - Target: e-role-license
 - GUID: {E658DE11-7324-56B5-9B8C-5DAA90B648CD}
+
+### Association — r-cust-sec
+- Source: e-customer
+- Target: e-role-secondary
+- GUID: {639B0097-A169-4d06-B5ED-A9F2D1A9A36C}
 
 ### Composition — r-comp-insight-imap
 - Source: e-func-insight
@@ -757,6 +786,31 @@
 - Source: e-art-dockerfile
 - Target: e-sw-container
 - GUID: {D8033287-7DC1-5A3C-823C-86825A100A73}
+
+### Composition — r-comp-devws-device
+- Source: e-node-devws
+- Target: e-device-devws
+- GUID: {DE5CDFBA-8EF9-4b20-A3C1-0FDC12CE3A85}
+
+### Assignment — r-assign-sw-rdbms
+- Source: e-node-nas
+- Target: e-sw-rdbms
+- GUID: {3BC403C1-2223-42bc-A03D-21B907E0155C}
+
+### Assignment — r-assign-sw-django-dev
+- Source: e-node-devws
+- Target: e-sw-django
+- GUID: {ABDCFAA7-522D-45be-B8C5-8B715F4EE152}
+
+### Realization — r-realize-art-db-prod-sw
+- Source: e-art-db-prod
+- Target: e-sw-rdbms
+- GUID: {11F3AE40-28C6-408f-B4D6-43CE3E975397}
+
+### Access — r-access-app-rdbms
+- Source: e-app-django
+- Target: e-sw-rdbms
+- GUID: {28E68A7E-FFDF-4b52-A5DC-DCEF2B7B9C64}
 
 ### Composition — r-comp-sales-rfq
 - Source: e-func-sales
