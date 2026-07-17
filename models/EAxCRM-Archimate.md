@@ -451,11 +451,6 @@
 - GUID: {A7029E0C-4ECB-4a50-8AC2-6D48C30649AE}
 - Layer: Technology
 
-### BusinessActor — e-businessactor1
-- Name: BusinessActor1
-- GUID: {20D3C65B-06A7-446c-A564-6A4D7F84D618}
-- Layer: Business
-
 ## Relationships
 
 ### Association — r-cust-pri
@@ -743,11 +738,6 @@
 - Target: e-sw-django
 - GUID: {C295BFE6-243B-5A46-9B9A-AF2AA1D8B6CD}
 
-### Assignment — r-assign-sw-sqlite
-- Source: e-art-db-prod
-- Target: e-sw-sqlite
-- GUID: {C07C8120-B807-5B5C-A4F0-A5A12317E849}
-
 ### Assignment — r-assign-sw-container
 - Source: e-node-nas
 - Target: e-sw-container
@@ -767,11 +757,6 @@
 - Source: e-art-dockerfile
 - Target: e-sw-container
 - GUID: {D8033287-7DC1-5A3C-823C-86825A100A73}
-
-### Serving — r-serve-sqlite-app-dev
-- Source: e-sw-sqlite
-- Target: e-app-django
-- GUID: {080CE31C-0ED1-4843-B908-AB7D495E6955}
 
 ### Composition — r-comp-sales-rfq
 - Source: e-func-sales
@@ -1023,33 +1008,8 @@
 - Target: e-sw-sqlite
 - GUID: {2D02D6F8-4131-4775-B741-D33C7DE8C99F}
 
-### Association — r-association-customer-art-db-prod
-- Source: e-customer
-- Target: e-art-db-prod
-- GUID: {BA2C8566-7285-4626-90A0-E1FCFBAED95B}
-
-### Composition — r-composition-art-db-prod-art-db-prod
-- Source: e-art-db-prod
-- Target: e-art-db-prod
-- GUID: {09F4F40A-A0A4-4f25-90F8-E63E18E2CA1B}
-
 ### Assignment — r-assignment-node-nas-art-db-prod
 - Source: e-node-nas
 - Target: e-art-db-prod
 - GUID: {10B1A3BC-F580-4155-9AC2-C8CB997E585D}
-
-### Assignment — r-assignment-art-db-prod-sw-django
-- Source: e-art-db-prod
-- Target: e-sw-django
-- GUID: {9FC456FE-49E5-4226-8682-2BD774DBA360}
-
-### Serving — r-serving-art-db-prod-app-django
-- Source: e-art-db-prod
-- Target: e-app-django
-- GUID: {430561CE-EA27-4cbc-ACB3-9FF0FF06A85D}
-
-### Realization — r-realization-art-db-prod-art-db-prod
-- Source: e-art-db-prod
-- Target: e-art-db-prod
-- GUID: {D92206DB-324C-43d1-8579-C9214F009D0A}
 
