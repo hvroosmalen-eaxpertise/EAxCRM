@@ -108,3 +108,23 @@ def test_ea003_negative_silent(path):
         f"expected EA003 to be silent on {path.name}, got: "
         + ", ".join(f.format() for f in findings)
     )
+
+
+# ---------------------------------------------------------------------------
+# EA004
+
+
+@pytest.mark.parametrize("path", _positives("EA004"), ids=lambda p: p.name)
+def test_ea004_positive_fires(path):
+    findings = _run_rule("EA004", path)
+    assert findings, f"expected EA004 to fire on {path.name}"
+    assert all(f.rule_id == "EA004" for f in findings)
+
+
+@pytest.mark.parametrize("path", _negatives("EA004"), ids=lambda p: p.name)
+def test_ea004_negative_silent(path):
+    findings = _run_rule("EA004", path)
+    assert findings == [], (
+        f"expected EA004 to be silent on {path.name}, got: "
+        + ", ".join(f.format() for f in findings)
+    )
