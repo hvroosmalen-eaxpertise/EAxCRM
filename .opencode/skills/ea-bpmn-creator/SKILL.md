@@ -9,7 +9,7 @@ description: Reference for generating/syncing BPMN 2.0 process diagrams (Sales, 
 
 Covers the 3 BPMN 2.0 process diagrams: Sales, Newsletter, and Manage Customer Account. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, Sandbox isolation protocol, and the general diagram-type/toolbox mechanism — this skill only covers what's BPMN-specific.
 
-**BPMN engine (2026-07-05, issue #3):** the 3 BPMN generate scripts and their matching `sync_*_process_from_ea.py` scripts are thin config + CLI wrappers (~15 lines each) around a shared `experiments/modelgen/bpmn_config.py` (per-process `ProcessConfig` dataclass instances + shared BPMN vocabulary constants) and `experiments/modelgen/bpmn_engine.py` (`parse_md`, `generate`, `sync_to_md`, and the BPMN-only layout functions). See `docs/superpowers/specs/2026-07-03-bpmn-config-driven-engine-design.md` for the design.
+**BPMN engine (2026-07-05, issue #3):** the 3 BPMN generate scripts and their matching `sync_*_process_from_ea.py` scripts are thin config + CLI wrappers (~15 lines each) around a shared `modelgen/bpmn_config.py` (per-process `ProcessConfig` dataclass instances + shared BPMN vocabulary constants) and `modelgen/bpmn_engine.py` (`parse_md`, `generate`, `sync_to_md`, and the BPMN-only layout functions). See `docs/superpowers/specs/2026-07-03-bpmn-config-driven-engine-design.md` for the design.
 
 ## Activity Description Convention (Why / What / How / Context)
 
@@ -262,11 +262,11 @@ See memory `feedback_ea_no_reflow_existing_diagrams.md` for the incident that dr
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/bpmn_config.py` | `ProcessConfig` dataclass + `CUSTOMER_ACCOUNT`/`SALES`/`NEWSLETTER` instances + shared BPMN vocabulary (`LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `BPMN_TAGGED_VALUES`, `CONNECTOR_TYPES`, `BPMN_ELEMENT_SIZES`, etc.) |
-| `experiments/modelgen/bpmn_engine.py` | Shared BPMN engine: `parse_md`, `generate`, `sync_to_md`, `_connector_path`, and the BPMN-only layout functions (`compute_bpmn_lane_positions` (pool-aware), `compute_bpmn_flow_layout`, `find_longest_path`, `sort_by_flow_order`, `get_lane_from_fields`, `get_pool_from_lane_fields`) |
-| `experiments/modelgen/generate_customeraccount_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.CUSTOMER_ACCOUNT)` |
-| `experiments/modelgen/generate_sales_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.SALES)` |
-| `experiments/modelgen/generate_newsletter_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.NEWSLETTER)` |
-| `experiments/modelgen/sync_customeraccount_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.CUSTOMER_ACCOUNT)` |
-| `experiments/modelgen/sync_sales_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.SALES)` |
-| `experiments/modelgen/sync_newsletter_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.NEWSLETTER)` (hierarchical MD writer) |
+| `modelgen/bpmn_config.py` | `ProcessConfig` dataclass + `CUSTOMER_ACCOUNT`/`SALES`/`NEWSLETTER` instances + shared BPMN vocabulary (`LABEL_TO_STEREO`, `OBJECT_TYPE_MAP`, `BPMN_TAGGED_VALUES`, `CONNECTOR_TYPES`, `BPMN_ELEMENT_SIZES`, etc.) |
+| `modelgen/bpmn_engine.py` | Shared BPMN engine: `parse_md`, `generate`, `sync_to_md`, `_connector_path`, and the BPMN-only layout functions (`compute_bpmn_lane_positions` (pool-aware), `compute_bpmn_flow_layout`, `find_longest_path`, `sort_by_flow_order`, `get_lane_from_fields`, `get_pool_from_lane_fields`) |
+| `modelgen/generate_customeraccount_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.CUSTOMER_ACCOUNT)` |
+| `modelgen/generate_sales_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.SALES)` |
+| `modelgen/generate_newsletter_process_from_md.py` | Thin wrapper: `bpmn_engine.generate(bpmn_config.NEWSLETTER)` |
+| `modelgen/sync_customeraccount_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.CUSTOMER_ACCOUNT)` |
+| `modelgen/sync_sales_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.SALES)` |
+| `modelgen/sync_newsletter_process_from_ea.py` | Thin wrapper: `bpmn_engine.sync_to_md(bpmn_config.NEWSLETTER)` (hierarchical MD writer) |

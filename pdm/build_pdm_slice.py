@@ -17,15 +17,15 @@ Architecture, following the empirically confirmed EA mapping from spec §4
         naming the FK op and PK op respectively
 
 Usage:
-  python experiments/pdm/build_pdm_slice.py             # idempotent build
-  python experiments/pdm/build_pdm_slice.py --reset     # delete only our 3
-                                                        # tables + rebuild
-  PDM_ONLY=customer python experiments/pdm/build_pdm_slice.py
+  python pdm/build_pdm_slice.py             # idempotent build
+  python pdm/build_pdm_slice.py --reset     # delete only our 3
+                                            # tables + rebuild
+  PDM_ONLY=customer python pdm/build_pdm_slice.py
 """
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("experiments/modelgen"))
+sys.path.insert(0, os.path.abspath("modelgen"))
 from ea_session import ea_repository, get_model_root
 
 QEA = os.path.abspath("models/EAxCRM.qea")

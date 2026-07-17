@@ -32,7 +32,7 @@
     <Compile Include="contacts\migrations\*.py" />
     <Compile Include="newsletter\*.py" />
     <Compile Include="experiments\*" />
-    <Compile Include="experiments\modelgen\*.py" />
+    <Compile Include="modelgen\*.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="Python|{E501CA32-1AC5-402A-A5D5-6757419952B4}">
@@ -53,6 +53,6 @@
     <Folder Include="docs\superpowers\specs\" />
     <Folder Include="models\" />
     <Folder Include="experiments\" />
-    <Folder Include="experiments\modelgen\" />
+    <Folder Include="modelgen\" />
   </ItemGroup>
 </Project>

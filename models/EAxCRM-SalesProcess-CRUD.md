@@ -124,8 +124,8 @@ This file must be updated when any of the following change:
 3. **Commands to sync after changes:**
    ```
    # Regenerate sales process from EA (if changed in EA)
-   python experiments/modelgen/sync_sales_process_from_ea.py
+   python modelgen/sync_sales_process_from_ea.py
 
    # Regenerate data model from EA (if changed in EA)
-   python experiments/modelgen/sync_ldm_from_ea.py
+   python modelgen/sync_ldm_from_ea.py
    ```

@@ -44,10 +44,10 @@ python manage.py runserver
 
 ## Testing
 
-The Django app has no test suite yet. `experiments/modelgen/` has pytest coverage:
+The Django app has no test suite yet. `modelgen/` has pytest coverage:
 
 ```bash
-cd experiments/modelgen
+cd modelgen
 pytest test_pure_functions.py          # pure logic, any platform, no EA needed
 pytest -m ea test_generators_regression.py   # Windows + EA required; runs generators against a sandboxed EAxCRM.qea copy
 ```
@@ -74,17 +74,13 @@ EAxCRM/
 ├── newsletter/         # Newsletter app (Newsletter, NewsSource, Article)
 ├── eacrm/              # Django project settings
 ├── models/             # Sparx EA model files (.qea, .md) — see models/README.md
-├── experiments/        # Isolated POCs (IMAP, PDF parsing, modelgen)
-│   ├── modelgen/       # Model generators (Markdown ↔ Sparx EA: data model, requirements, BPMN process)
-│   │   ├── changelog.py        # Structured audit logging (per-run Markdown, prepend, size cap)
-│   │   ├── test_pure_functions.py       # Layout math, MD parsing, graph algorithms — no EA needed
-│   │   ├── test_generators_regression.py # Runs each generator against a sandboxed EAxCRM.qea copy
-│   │   ├── archimate_changelog.md
-│   │   ├── ldm_changelog.md
-│   │   ├── requirements_changelog.md
-│   │   ├── sales_changelog.md
-│   │   ├── newsletter_changelog.md
-│   │   └── customeraccount_changelog.md
+├── modelgen/           # Production model generators (Markdown ↔ Sparx EA: LDM, requirements, BPMN, ArchiMate, wireframes)
+│   ├── changelog.py                    # Structured audit logging (per-run Markdown, prepend, size cap)
+│   ├── test_pure_functions.py          # Layout math, MD parsing, graph algorithms — no EA needed
+│   ├── test_generators_regression.py   # Runs each generator against a sandboxed EAxCRM.qea copy
+│   └── *_changelog.md                  # Per-domain audit log (archimate, ldm, requirements, sales, newsletter, customeraccount)
+├── pdm/                # Physical data model generator (issue #16 — <<table>> stereotype → Postgres DDL)
+├── experiments/        # Remaining POCs
 │   ├── imap/           # IMAP retrieval experiments
 │   └── parsing/        # PDF parsing experiments
 ├── EAxCRM.sln          # Visual Studio solution file

@@ -7,7 +7,7 @@ description: Reference for generating/syncing the EAxCRM Requirements diagram vi
 
 ## Overview
 
-Covers `experiments/modelgen/generate_requirements_from_md.py` and `sync_requirements_from_ea.py`, generating the "EAxCRM Requirements" diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill covers the little that's Requirements-specific, since it mostly follows the same patterns as ArchiMate/Data Model.
+Covers `modelgen/generate_requirements_from_md.py` and `sync_requirements_from_ea.py`, generating the "EAxCRM Requirements" diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill covers the little that's Requirements-specific, since it mostly follows the same patterns as ArchiMate/Data Model.
 
 ## Diagram Placement and Sizing
 
@@ -53,5 +53,5 @@ Avoid restating the requirement as a full "EAxCRM must ..." sentence in the Name
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/generate_requirements_from_md.py` | Requirements diagram generator |
-| `experiments/modelgen/sync_requirements_from_ea.py` | Reads EA requirements back to MD |
+| `modelgen/generate_requirements_from_md.py` | Requirements diagram generator |
+| `modelgen/sync_requirements_from_ea.py` | Reads EA requirements back to MD |

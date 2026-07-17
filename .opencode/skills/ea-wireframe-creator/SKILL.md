@@ -117,8 +117,8 @@ Example (from CreateAccountScreen's Save button):
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/wireframe_config.py` | `WireframeFlow` dataclass + `CUSTOMER_ACCOUNT_UI` instance + Wireframing MDG vocabulary (`CONTROL_TYPE_TO_STEREO`, `WIREFRAME_TAGGED_VALUES`, `DIAGRAM_NATIVE_TYPE`, `DIAGRAM_STYLEEX_MDGDGM`) |
-| `experiments/modelgen/wireframe_engine.py` | `parse_md`, `generate`, `sync_to_md`, `set_tagged_values`, `reset_diagram_stereotype_com`/`apply_diagram_toolbox_fixes` |
-| `experiments/modelgen/generate_customeraccount_ui_from_md.py` | Thin wrapper: `wireframe_engine.generate(wireframe_config.CUSTOMER_ACCOUNT_UI)` |
-| `experiments/modelgen/sync_customeraccount_ui_from_ea.py` | Thin wrapper: `wireframe_engine.sync_to_md(wireframe_config.CUSTOMER_ACCOUNT_UI)` |
+| `modelgen/wireframe_config.py` | `WireframeFlow` dataclass + `CUSTOMER_ACCOUNT_UI` instance + Wireframing MDG vocabulary (`CONTROL_TYPE_TO_STEREO`, `WIREFRAME_TAGGED_VALUES`, `DIAGRAM_NATIVE_TYPE`, `DIAGRAM_STYLEEX_MDGDGM`) |
+| `modelgen/wireframe_engine.py` | `parse_md`, `generate`, `sync_to_md`, `set_tagged_values`, `reset_diagram_stereotype_com`/`apply_diagram_toolbox_fixes` |
+| `modelgen/generate_customeraccount_ui_from_md.py` | Thin wrapper: `wireframe_engine.generate(wireframe_config.CUSTOMER_ACCOUNT_UI)` |
+| `modelgen/sync_customeraccount_ui_from_ea.py` | Thin wrapper: `wireframe_engine.sync_to_md(wireframe_config.CUSTOMER_ACCOUNT_UI)` |
 | `models/EAxCRM-CustomerAccountUI.md` | First real content: Create Customer Account, Merge Customer Accounts, Retrieve Customer Email History, Suggest Newsletter Opt-in |

@@ -1,7 +1,0 @@
-Parsed 50 elements, 64 connectors (SequenceFlow: 25, MessageFlow: 17, DataOutputAssociation: 11, DataInputAssociation: 11)
-  Lane IDs: {'Customer', 'EAxpertise', 'Vendor'}
-Connected: M:\EAxCRM\models\EAxCRM.qea
-  Activated BPMN2.0 MDG technology
-Created 0 new element(s), updated 50
-  Diagram has 49 objects, preserving positions
-  Set Orthogonal Rounded linestyle on 65 connector(s)

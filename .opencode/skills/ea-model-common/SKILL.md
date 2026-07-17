@@ -9,7 +9,7 @@ description: Shared EA COM API infrastructure for all EAxCRM diagram-generator s
 
 This skill holds the infrastructure shared by every EAxCRM diagram generator, split out of the single `ea-diagram-creator` skill (github issue #4) once a genuinely different modeling language (Wireframe) needed its own patterns without dragging BPMN/ArchiMate specifics along. Language-specific skills (`ea-bpmn-creator`, `ea-archimate-creator`, `ea-ldm-creator`, `ea-pdm-creator`, `ea-requirements-creator`, `ea-wireframe-creator`) reference this one for the parts below rather than repeating them.
 
-All generator scripts are under **`experiments/modelgen/`**, and the shared layout utilities are in **`experiments/modelgen/diagram_utils.py`**. See each language skill for its own generator script and `docs/superpowers/specs/` for design history.
+All generator scripts are under **`modelgen/`**, and the shared layout utilities are in **`modelgen/diagram_utils.py`**. See each language skill for its own generator script and `docs/superpowers/specs/` for design history.
 
 ## Rich-Text Notes: `Element.Notes` Does Not Interpret RTF/HTML Directly
 
@@ -28,8 +28,8 @@ elem.Update()
 ```
 
 Full worked implementations:
-- Requirements: `experiments/modelgen/generate_requirements_from_md.py::build_notes` (Description + bold Rationale/Test Cases headers + hanging-indent numbered list).
-- BPMN elements: `experiments/modelgen/bpmn_engine.py::set_element_notes` + `_md_bold_to_rtf` (converts markdown `**bold**` spans in a description to `\\b...\\b0`; every bold span after the first also gets a preceding `\\par` so successive labeled sections like Why/What/How/Context each start on their own line rather than flowing into one paragraph; falls back to plain assignment when no `**` is present).
+- Requirements: `modelgen/generate_requirements_from_md.py::build_notes` (Description + bold Rationale/Test Cases headers + hanging-indent numbered list).
+- BPMN elements: `modelgen/bpmn_engine.py::set_element_notes` + `_md_bold_to_rtf` (converts markdown `**bold**` spans in a description to `\\b...\\b0`; every bold span after the first also gets a preceding `\\par` so successive labeled sections like Why/What/How/Context each start on their own line rather than flowing into one paragraph; falls back to plain assignment when no `**` is present).
 
 **Convention when writing Notes in a new generator:** if the target field authoring style uses `**...**`, route it through the bpmn_engine helper (or copy the pattern). If it uses markdown headings/lists, extend the helper — do not go back to plain `.Notes = ...`.
 
@@ -60,18 +60,18 @@ Each generator has its own GUID map file:
 
 | Generator | GUID Map File |
 |-----------|---------------|
-| `generate_archimate.py` | `experiments/modelgen/archimate_guid_map.json` |
-| `generate_ldm_from_md.py` | `experiments/modelgen/ldm_guid_map.json` |
-| Customer Account (`bpmn_config.CUSTOMER_ACCOUNT`) | `experiments/modelgen/customeraccount_guid_map.json` |
-| Sales (`bpmn_config.SALES`) | `experiments/modelgen/sales_guid_map.json` |
-| Newsletter (`bpmn_config.NEWSLETTER`) | `experiments/modelgen/newsletter_guid_map.json` |
-| `generate_requirements_from_md.py` | `experiments/modelgen/requirements_guid_map.json` |
-| Manage Customer Account UI (`wireframe_config.CUSTOMER_ACCOUNT_UI`) | `experiments/modelgen/customeraccount_ui_guid_map.json` |
+| `generate_archimate.py` | `modelgen/archimate_guid_map.json` |
+| `generate_ldm_from_md.py` | `modelgen/ldm_guid_map.json` |
+| Customer Account (`bpmn_config.CUSTOMER_ACCOUNT`) | `modelgen/customeraccount_guid_map.json` |
+| Sales (`bpmn_config.SALES`) | `modelgen/sales_guid_map.json` |
+| Newsletter (`bpmn_config.NEWSLETTER`) | `modelgen/newsletter_guid_map.json` |
+| `generate_requirements_from_md.py` | `modelgen/requirements_guid_map.json` |
+| Manage Customer Account UI (`wireframe_config.CUSTOMER_ACCOUNT_UI`) | `modelgen/customeraccount_ui_guid_map.json` |
 
 ### Save/Load Pattern
 
 ```python
-GUID_MAP_PATH = "experiments/modelgen/<name>_guid_map.json"
+GUID_MAP_PATH = "modelgen/<name>_guid_map.json"
 
 guid_map = {}
 if os.path.exists(GUID_MAP_PATH):
@@ -352,7 +352,7 @@ Then `Read` the PNG directly. Reserve asking the user to look for final confirma
 
 ### Python 64-bit + EA 32-bit COM Bridge
 
-Use the shared `experiments/modelgen/ea_session.py` module instead of hand-rolling a COM connection:
+Use the shared `modelgen/ea_session.py` module instead of hand-rolling a COM connection:
 
 ```python
 import ea_session
@@ -405,6 +405,6 @@ After placing diagram objects, verify coordinate correctness:
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup, and `sql_rows(repo, sql)` — the ONLY correct way to run SQL-shaped reads (routes through `Repository.SQLQuery`, backend-agnostic; see "HARD RULE"). Used by every generator/sync script |
-| `experiments/modelgen/diagram_utils.py` | Shared **non-BPMN** layout functions — grid layout (`compute_grid_positions`), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`), `create_diagram_objects`/`add_missing_elements`/`get_placed_ids` (reused by the wireframe engine too) |
-| `experiments/modelgen/changelog.py` | Shared audit-logging (`ChangeLog` class + `compute_md_diff()`) used by every generator/sync script — see the per-language skill for what it logs |
+| `modelgen/ea_session.py` | Shared EA COM session lifecycle — isolated `DispatchEx` instance, `Models.GetAt(0)` retry, automatic zombie cleanup, and `sql_rows(repo, sql)` — the ONLY correct way to run SQL-shaped reads (routes through `Repository.SQLQuery`, backend-agnostic; see "HARD RULE"). Used by every generator/sync script |
+| `modelgen/diagram_utils.py` | Shared **non-BPMN** layout functions — grid layout (`compute_grid_positions`), UML class sizing (`compute_uml_class_width/height`), connector line-style (`set_diagram_link_style`), `create_diagram_objects`/`add_missing_elements`/`get_placed_ids` (reused by the wireframe engine too) |
+| `modelgen/changelog.py` | Shared audit-logging (`ChangeLog` class + `compute_md_diff()`) used by every generator/sync script — see the per-language skill for what it logs |

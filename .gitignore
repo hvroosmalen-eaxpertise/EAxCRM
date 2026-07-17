@@ -13,3 +13,6 @@ _opencode_memory/.git/
 *.qea-journal
 *.qea-wal
 *.qea-shm
+# modelgen scratch outputs
+modelgen/run_log.txt
+modelgen/run_err.txt

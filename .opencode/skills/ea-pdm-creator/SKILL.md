@@ -11,7 +11,7 @@ Covers building tables that EA's Postgres/whatever-else DDL wizard can turn
 into valid `CREATE TABLE` / `ALTER TABLE` scripts, plus the COM automation
 that produces them idempotently.
 
-Reference implementation: **`experiments/pdm/build_pdm_slice.py`** — builds
+Reference implementation: **`pdm/build_pdm_slice.py`** — builds
 the Customer + Contact + ContactRole slice under `Sandbox → Database
 Architecture` from a small table/column/FK spec. Uses `ea_session` for
 isolation and `--reset` for re-runs.
@@ -259,8 +259,8 @@ directly.
 
 | File | Purpose |
 |------|---------|
-| `experiments/pdm/build_pdm_slice.py` | COM builder for the Customer + Contact + ContactRole slice — idempotent, `--reset` deletes only its own 3 tables; do not use for real model until adopted |
-| `experiments/pdm/*.sql` | Generated DDL evidence — `sandbox_baseline.sql` (Table1+Table2), `Customer-Contact-Contactrole-PostgreSQL.sql` (slice) |
+| `pdm/build_pdm_slice.py` | COM builder for the Customer + Contact + ContactRole slice — idempotent, `--reset` deletes only its own 3 tables; do not use for real model until adopted |
+| `pdm/*.sql` | Generated DDL evidence — `sandbox_baseline.sql` (Table1+Table2), `Customer-Contact-Contactrole-PostgreSQL.sql` (slice) |
 | `docs/superpowers/specs/2026-07-09-physical-data-model-experiment-design.md` | Full spec + findings F1..F7 with evidence trail |
 | `docs/superpowers/plans/2026-07-09-physical-data-model-experiment-plan.md` | Phase A/B/C/D plan |
 

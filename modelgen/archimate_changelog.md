@@ -1,3 +1,206 @@
+## 2026-07-17 10:42:30 — Audit
+
+### Checkpoints
+- Parsed MD
+- Diagram complete
+
+### Created
+| eid | Name | Type | GUID |
+|-----|------|------|------|
+| e-customer | Customer | BusinessActor | {C1BA8F2F-19A2-414a-9342-6CDBEF02170D} |
+| e-vendor | Vendor | BusinessActor | {BB4422FC-5EE0-458f-A745-DB3EF68DDFCA} |
+| e-role-primary | Primary Contact | BusinessRole | {811BDA10-0DA2-403d-8F91-3EBB0DDF523C} |
+| e-role-purchase | Purchase Contact | BusinessRole | {0454E4BA-00C8-4175-8BE3-DC71CB1FA1DD} |
+| e-role-sales | Sales Contact | BusinessRole | {770EEF50-2421-40e4-86E7-FBA6EC8972A0} |
+| e-role-license | License Holder | BusinessRole | {F0D44113-DC04-438e-BAAA-FB75093AAFF4} |
+| e-func-insight | Customer Insight | BusinessFunction | {968F7E2D-AA52-4d30-998A-B4B2A407D2CF} |
+| e-func-newsletter | Newsletter Management | BusinessFunction | {15038C92-26E4-4149-829C-430BC36E1508} |
+| e-func-sales | Sales Management | BusinessFunction | {2766B1CD-98EC-4416-9AD0-F15E7A6BD894} |
+| e-func-account | Manage Customer Account | BusinessFunction | {5CD4E03B-6DB1-44f5-82B3-9CC9ECA9FBBB} |
+| e-process-createaccount | Create Customer Account | BusinessProcess | {C941745A-EF66-46bb-92B2-186F861A83FC} |
+| e-process-dedupe | Flag Duplicate Accounts | BusinessProcess | {8F5698D8-D690-4043-9838-07023AFBB822} |
+| e-process-merge | Merge Customer Accounts | BusinessProcess | {E587CAC4-DDF1-4ae4-9520-EFA2BBD34FEE} |
+| e-process-emailhistory | Retrieve Customer Email History | BusinessProcess | {16EB355F-0987-4509-88F6-4E30F524A2E0} |
+| e-process-optinsuggest | Suggest Newsletter Opt-in | BusinessProcess | {07CBE85A-84F8-401f-8450-658131FAC4D3} |
+| e-process-imap | Retrieve Communications | BusinessProcess | {4323CE1E-5974-424f-AADF-2243A7F2C7C2} |
+| e-process-parse | Parse Documents | BusinessProcess | {175F0BE1-A31D-4a60-9547-D15BE6C8BD53} |
+| e-process-scrape | Scrape News Sources | BusinessProcess | {9D6A82A7-D422-47c9-8EA0-FB57E023C290} |
+| e-process-compose | Compose Newsletter | BusinessProcess | {0D9A5F96-6B06-485a-843E-EFD3A6B703D4} |
+| e-process-review | Review Newsletter | BusinessProcess | {C1CAA7DF-571D-4e21-AF93-C25926C116F5} |
+| e-process-send | Send Newsletter | BusinessProcess | {ABD553CB-86CE-4df6-B3F1-A7027F08A33F} |
+| e-process-optin | Manage Opt-in | BusinessProcess | {01F29C6E-0DE3-4ed9-AF90-963A3EE96025} |
+| e-process-rfq | Handle RFQ | BusinessProcess | {61D78040-3A18-4c8e-BE43-A7A443D1F559} |
+| e-process-offer | Manage Offer | BusinessProcess | {692C91B2-AF19-43e0-82A1-5BE80CC76952} |
+| e-process-procure | Procure Licenses & Services | BusinessProcess | {B3427505-C03B-459c-865D-4536AE8B61B5} |
+| e-process-deliver | Manage Delivery | BusinessProcess | {444BD8F9-DD2E-422e-A31C-418F83CC6BB2} |
+| e-process-invoice | Manage Invoicing & Payment | BusinessProcess | {FFF2F723-FC37-417c-A595-06AA29AA021D} |
+| e-bo-customer | Customer Data | BusinessObject | {E74F3724-738C-4af6-9433-A7C91FD1703C} |
+| e-bo-contact | Contact Data | BusinessObject | {E172AFB6-A99B-47f6-8AED-2A3C175B2C87} |
+| e-bo-communication | Communication Data | BusinessObject | {FD676BEE-58DC-442d-B065-5189FADB49FF} |
+| e-bo-document | Document Data | BusinessObject | {97EDA37E-B3F4-40b3-BE16-FF25516DAF27} |
+| e-bo-newsletter | Newsletter Data | BusinessObject | {58095A83-8C55-4409-99DE-C9CBCCB0EE4F} |
+| e-bo-license | License Data | BusinessObject | {D2FFC119-121F-408e-BB2D-770845671C40} |
+| e-bo-lineitem | License Line Item Data | BusinessObject | {0AE49707-FD00-46f7-BE5E-F3482304DED6} |
+| e-bo-purchase | Purchase Data | BusinessObject | {15764D31-CFF4-4cff-96A9-08D6D4F9ACDC} |
+| e-bo-offer | Offer Data | BusinessObject | {09597932-EF0E-4f27-A90C-3119A8A1102F} |
+| e-bo-quote | Quote Data | BusinessObject | {FCCE1407-E625-44e6-A27A-16D704CC9BB8} |
+| e-bo-delivery | Delivery Data | BusinessObject | {92495AC9-6E7C-4404-9462-67D07F056F8C} |
+| e-bo-salesinvoice | Sales Invoice Data | BusinessObject | {7146D1EF-DC1F-49d4-B422-513E83287C3A} |
+| e-bo-procurementinvoice | Procurement Invoice Data | BusinessObject | {97378B6B-402F-4392-B829-ADD1C0BA50E2} |
+| e-bo-service | Service Data | BusinessObject | {372BA17C-1D48-4a2b-BE5C-630091823F6C} |
+| e-bo-vendor | Vendor Data | BusinessObject | {5A58FDDE-F52C-4ab0-863D-06F266817635} |
+| e-app-django | EAxCRM Django Application | ApplicationComponent | {C1EDD0AE-85D2-4f97-B547-F81C85EE4E16} |
+| e-svc-customer | Customer Management Service | ApplicationService | {B10DF4E2-0405-4fa3-95AD-93DD8DD80C8A} |
+| e-svc-imap | IMAP Fetch Service | ApplicationService | {7CB24E08-39B2-44dd-BBCC-F7D4E4163E21} |
+| e-svc-parse | Document Parse Service | ApplicationService | {A8DB1ECC-0683-4dbc-BD5E-F16FEDCDBD23} |
+| e-svc-scrape | News Scrape Service | ApplicationService | {C368AAB9-CDCA-4bd0-BCE7-23121DC81002} |
+| e-svc-newsletter | Newsletter Service | ApplicationService | {439ADB42-6063-4555-A0D5-E5C16669590A} |
+| e-svc-sales | Sales Management Service | ApplicationService | {38F80115-5970-492e-AD41-A27184CAA054} |
+| e-data-customer | Customer Record | DataObject | {38755035-A014-4e91-8916-83CF0B5EB552} |
+| e-data-contact | Contact Record | DataObject | {4EC2CCB2-2A8E-462c-933F-C0A41E1EE343} |
+| e-data-email | Email Record | DataObject | {6DD22B64-1839-4070-9C13-9EF1F46F4B1B} |
+| e-data-attachment | Attachment Record | DataObject | {8202BB81-C84E-488d-BA58-C931459E2209} |
+| e-data-article | Article Record | DataObject | {E5140148-E045-4373-84CF-91C861113B84} |
+| e-data-newsletter | Newsletter Record | DataObject | {A4C30C82-1BAE-4526-9984-861185627FF8} |
+| e-data-license | License Record | DataObject | {AD785C56-FC25-478f-8682-BB2208CF353E} |
+| e-data-lineitem | License Line Item Record | DataObject | {1359CF37-731E-48bf-82AA-7F3D75ED7E04} |
+| e-data-purchase | Purchase Record | DataObject | {BBAF5B13-86B9-4203-AFAF-E19075A470A7} |
+| e-data-offer | Offer Record | DataObject | {863487A7-E636-4456-91DA-1ACFF8E7F2DC} |
+| e-data-quote | Quote Record | DataObject | {6DCDD9C2-425E-4dab-8E22-039E3ECAFC6D} |
+| e-data-delivery | Delivery Record | DataObject | {1F49BD55-1FE2-488e-B184-8F37CAEECECE} |
+| e-data-salesinvoice | Sales Invoice Record | DataObject | {6CFCA7A4-03D4-431e-A888-4B99C0E44535} |
+| e-data-procurementinvoice | Procurement Invoice Record | DataObject | {91B4CE04-76DA-411c-9CCA-5A830AEE1277} |
+| e-data-service | Service Record | DataObject | {8B729032-BDB1-4634-A3AF-C0FB7B34A4C1} |
+| e-data-vendor | Vendor Record | DataObject | {7F8F9059-02BE-4f8b-8FB9-60DAC052A4D0} |
+| e-node-nas | QNAP NAS | Node | {D31B01B3-03F1-4b8a-8008-52426A6C65E7} |
+| e-device-nas | QNAP Hardware | Device | {5B61036F-F1D5-42bc-B363-500339F38B96} |
+| e-sw-django | Django 6.x + Python 3.13 | SystemSoftware | {6A1B9734-A007-402f-B011-23FC9FE3130D} |
+| e-sw-sqlite | SQLite (local dev/test) | SystemSoftware | {23D95BE7-4BAD-4c98-8BA2-783428B3F44C} |
+| e-sw-container | Docker (Container Station) | SystemSoftware | {03966C11-6A12-47f3-822D-3A77B1551F06} |
+| e-art-dockerfile | Dockerfile | Artifact | {63C5E706-CDC4-4b4b-9FE8-A23346D58C8F} |
+| e-art-db | SQLite Database File (dev/test) | Artifact | {629D49BC-4B40-4e9c-AA8F-C81258272467} |
+| e-art-db-prod | PostgreSQL Database Instance | Artifact | {A2D412F6-CE85-40eb-B41A-48B68690EE34} |
+| e-businessactor1 | BusinessActor1 | BusinessActor | {50EBE3A9-0579-4f00-8AF8-090308F50A51} |
+| r-cust-pri | Association | Association | {25B15A87-260D-4998-88C3-3A29EBE00FEB} |
+| r-cust-pur | Association | Association | {9B68D3A0-F7B2-43a2-A18D-E96489D05098} |
+| r-cust-sal | Association | Association | {4AE98835-A137-4f8a-AB04-9C4FF8014C0C} |
+| r-cust-lic | Association | Association | {843A717D-AE40-4dca-A0C1-4030B3294089} |
+| r-comp-insight-imap | Composition | Composition | {E5B063DC-4779-430b-97C4-F9DA41D064C8} |
+| r-comp-insight-parse | Composition | Composition | {3FEE0458-AF07-435a-B435-A6FEE89FC4C3} |
+| r-comp-newsletter-scrape | Composition | Composition | {E190CE51-04E2-4084-98DB-4702A731CF32} |
+| r-comp-newsletter-compose | Composition | Composition | {BC6BFA36-43A2-4016-9A0C-D4D105AF80BD} |
+| r-comp-newsletter-review | Composition | Composition | {E44706DA-4F53-4d81-BB59-44A0573F8A9D} |
+| r-comp-newsletter-send | Composition | Composition | {81E855F7-02BB-4e09-8A6B-005ABF5AF2FB} |
+| r-comp-newsletter-optin | Composition | Composition | {AB0DB919-47AB-41d1-A409-5FADCF5CFCD3} |
+| r-access-imap-cust | Access | Access | {1F69C45F-DEDF-4da2-8C80-31DD1F6F1C65} |
+| r-access-imap-cont | Access | Access | {6CAB9A38-190F-4887-A5F8-F0CDB747C81A} |
+| r-access-imap-comm | Access | Access | {BF92766B-1341-4ae6-A7E6-6BD1C35F6DAE} |
+| r-access-parse-doc | Access | Access | {7DD68FEE-EFC8-47fa-AD0F-E54E190E3468} |
+| r-access-parse-lic | Access | Access | {099FDD7C-996E-4464-9715-A98D6002AFAD} |
+| r-access-parse-lli | Access | Access | {78E23CA0-D863-459a-80F3-E7AB8A84ED2B} |
+| r-access-compose-news | Access | Access | {406FFE67-BD2A-4334-ADCC-29DA024054C0} |
+| r-access-send-news | Access | Access | {E98E4642-C7F7-41a7-B4E1-E53B7D6418E2} |
+| r-assign-svc-customer | Assignment | Assignment | {C83A2208-C09A-4e18-95A3-464458C93DE0} |
+| r-assign-svc-imap | Assignment | Assignment | {5E60CE8E-3FAC-47ae-92DC-62CCF8FBE04E} |
+| r-assign-svc-parse | Assignment | Assignment | {4BF2FCEF-D95C-4592-9C47-78BCA51706D6} |
+| r-assign-svc-scrape | Assignment | Assignment | {196F40E9-4129-4d6d-BDF4-33018EF8DAC3} |
+| r-assign-svc-newsletter | Assignment | Assignment | {AB1533AF-BBD7-473f-BF74-0135CC227E36} |
+| r-access-cust-data | Access | Access | {3149FBF4-9AAD-458c-8FB2-2E220754FC43} |
+| r-access-cont-data | Access | Access | {1A7262F4-9BE3-46d5-B16D-6C055992571C} |
+| r-access-imap-data | Access | Access | {C5203BDD-50F9-4d6c-A509-3268BF507A5B} |
+| r-access-parse-data | Access | Access | {1377B1D9-C697-401d-ADA5-34ADEFDE30A0} |
+| r-access-scrape-data | Access | Access | {73597DAC-7A3D-4ca6-B410-CE643FAB655B} |
+| r-access-newsletter-data | Access | Access | {EAF237DB-8513-4273-8E07-47516CD93468} |
+| r-access-parse-lic-data | Access | Access | {18E024E3-C821-40b2-A748-5754DF9049C1} |
+| r-access-parse-lli-data | Access | Access | {C65C444E-828C-40dd-A2B1-982B340257EF} |
+| r-access-cust-purch | Access | Access | {00A856E7-B472-4bb0-8835-5C663952201E} |
+| r-realize-svc-cust-imap | Realization | Realization | {A104EBE9-F7ED-4a3d-8DD6-070D8EAAD467} |
+| r-realize-svc-imap-imap | Realization | Realization | {FF33C8B9-238A-42d3-AE0F-832529B078B7} |
+| r-realize-svc-cust-createaccount | Realization | Realization | {3FC2E92F-0097-4774-9307-589C94159D7C} |
+| r-realize-svc-cust-dedupe | Realization | Realization | {DCE7C147-AC00-4282-B03F-D9AB7C84CBD6} |
+| r-realize-svc-cust-merge | Realization | Realization | {F6FFE584-2E7D-4e25-BB51-57DC506134D3} |
+| r-realize-svc-cust-emailhistory | Realization | Realization | {C4D50ACC-DA58-45d0-999E-56C74D2D599E} |
+| r-realize-svc-imap-emailhistory | Realization | Realization | {74C3502F-B4F5-4850-8A9C-4BD890F41B9A} |
+| r-realize-svc-parse-parse | Realization | Realization | {8192B7C3-5BDF-4f02-9DC8-3A7E6869D21C} |
+| r-realize-svc-scrape-scrape | Realization | Realization | {4069BC27-9382-442b-93F6-42CD6D9A49D4} |
+| r-realize-svc-news-compose | Realization | Realization | {B26DBC9F-96B1-428e-BFC1-9007A29CD09B} |
+| r-realize-svc-news-review | Realization | Realization | {DE1BCBC9-7A6D-4616-816F-53D84E312679} |
+| r-realize-svc-news-send | Realization | Realization | {1F47CF8C-1F4A-496b-9D6D-6D6BC10F191E} |
+| r-realize-svc-cust-optin | Realization | Realization | {6DFB24DB-8FD4-4ecf-A591-F281636ABC45} |
+| r-realize-data-cust-bo | Realization | Realization | {BE67FFE2-648E-4870-AB91-CC46845BCB24} |
+| r-realize-data-contact-bo | Realization | Realization | {F6D3772C-3DAC-4df3-93B3-2EB34A0E86D4} |
+| r-realize-data-email-bo | Realization | Realization | {FF58DB48-B80E-4789-8619-7ABB6AD42B06} |
+| r-realize-data-attach-bo | Realization | Realization | {CEA4242F-A7A0-40bb-B5C2-EEC9F0D76EC1} |
+| r-realize-data-article-bo | Realization | Realization | {E70B118D-68EC-4160-AC61-8BD5F7C785E6} |
+| r-realize-data-newsletter-bo | Realization | Realization | {1B7901AC-73DC-4889-8649-7F20DDC95643} |
+| r-realize-data-license-bo | Realization | Realization | {DE00672C-71A3-4efc-84F5-80B0789F55F4} |
+| r-realize-data-lineitem-bo | Realization | Realization | {28B3C8F0-E5B9-4aad-A0F5-E0BF9CE4E5A1} |
+| r-realize-data-purchase-bo | Realization | Realization | {562FB9AA-4967-4f48-80E5-D4A640F12FC5} |
+| r-comp-node-device | Composition | Composition | {11AD662E-073F-4497-B99C-011E3DE580AA} |
+| r-assign-sw-django | Assignment | Assignment | {93D08B1B-F63A-419d-BC1E-D29D839A9B2A} |
+| r-assign-sw-sqlite | Assignment | Assignment | {D0F16D6C-82E0-44cd-9450-DFA357A59016} |
+| r-assign-sw-container | Assignment | Assignment | {A3B259E4-AEC1-422d-8ABC-EA93ADAC016C} |
+| r-realize-sw-django-app | Realization | Realization | {F218B98D-1B10-4d7c-86AC-64E7D57013BC} |
+| r-realize-art-db-sw | Realization | Realization | {D2DBA85F-9B98-4ea1-8B75-3B714C83E65E} |
+| r-realize-art-docker-sw | Realization | Realization | {CDDB6920-2D81-434e-A568-D167717D50AA} |
+| r-serve-sqlite-app-dev | Serving | Serving | {216B69C9-0E37-4a4d-BE23-7734085199E5} |
+| r-comp-sales-rfq | Composition | Composition | {6E277832-F1D5-4dfb-9779-72E832902DCD} |
+| r-comp-sales-offer | Composition | Composition | {EB8CBA6E-99AC-467e-803D-97C5C62E1EDF} |
+| r-comp-sales-procure | Composition | Composition | {44A58532-53BE-47c2-9A44-E312088297F2} |
+| r-comp-sales-deliver | Composition | Composition | {0575256D-EB61-4057-A3AE-4C25893FC65E} |
+| r-comp-sales-invoice | Composition | Composition | {0378000C-6EAA-4f14-8E17-573A7AF1C940} |
+| r-comp-account-create | Composition | Composition | {04DCF088-8F88-44db-901F-6E0CA8C83583} |
+| r-comp-account-dedupe | Composition | Composition | {2B9258AE-DEF7-4846-8527-62E6FEB6B2B5} |
+| r-comp-account-merge | Composition | Composition | {112B91EB-4259-4d93-ACF7-0D61EE491A22} |
+| r-comp-account-emailhistory | Composition | Composition | {EECEE799-9E06-47b5-B275-B0001CB425C4} |
+| r-comp-account-optinsuggest | Composition | Composition | {DBE63EA4-D74B-4b3c-AFFB-7CA4A9B22812} |
+| r-access-rfq-quote | Access | Access | {641BC4AF-CBDC-4151-B43B-AB2135EE1E12} |
+| r-access-createaccount-customer | Access | Access | {DF983EBA-8F93-4a4e-A737-61C2BC5DB473} |
+| r-access-createaccount-contact | Access | Access | {8B4BA729-5775-4fdd-AD66-7B5DD8D88662} |
+| r-access-dedupe-customer | Access | Access | {9F73DE90-E534-4012-840A-43510224C935} |
+| r-access-merge-customer | Access | Access | {8160B303-2914-40a0-9975-5CB38F61C55E} |
+| r-access-merge-contact | Access | Access | {F69FA620-D124-4c15-AD8D-7129E90D6BAF} |
+| r-access-emailhistory-communication | Access | Access | {6EC2F41F-8F8A-4264-9BB8-753CD540A876} |
+| r-access-dedupe-contact | Access | Access | {53AFEC7B-4D27-45b6-B518-98A6C28AFAAA} |
+| r-access-emailhistory-contact | Access | Access | {DBA8B120-FFE1-4ec7-9736-FEA6F35279D2} |
+| r-access-optinsuggest-contact | Access | Access | {93BB0148-2D8F-49b9-A8EA-9107C107F2D8} |
+| r-trigger-rfq-createaccount | Triggering | Triggering | {68B84CDE-FE16-4a50-80DD-33D0625DC59B} |
+| r-access-offer-offer | Access | Access | {C6F01871-FCB1-42ab-A48C-B95877861526} |
+| r-access-offer-service | Access | Access | {65821462-BC0E-4b4b-9F4A-08A7603B4B5C} |
+| r-access-procure-quote | Access | Access | {CA448650-41B3-4f87-A46C-B35D04FC3510} |
+| r-access-procure-vendor | Access | Access | {37A586A5-09F1-4e6c-81AD-70585486BB7B} |
+| r-access-deliver-delivery | Access | Access | {8181FA87-2A3B-4626-8FFC-61FF62C940C2} |
+| r-access-invoice-salesinv | Access | Access | {599D7EC0-09FA-4488-A4F6-20CE3114D3FC} |
+| r-access-invoice-procinv | Access | Access | {6190D3A0-FBB2-4bf6-A437-0B1F6B1D7C48} |
+| r-access-invoice-purchase | Access | Access | {E301E5C9-F77C-46d3-B42F-5A882C2A76D6} |
+| r-assign-svc-sales | Assignment | Assignment | {7373094F-49A4-41dc-B74A-BC0153F90F4E} |
+| r-access-sales-offer | Access | Access | {9BC592B7-48F4-4242-A0B1-DF626B57BF52} |
+| r-access-sales-quote | Access | Access | {5A2C86E8-5FE7-481f-9BA7-6795F24226EF} |
+| r-access-sales-delivery | Access | Access | {C1786808-E90F-4ab0-8FD5-138EE287047F} |
+| r-access-sales-salesinv | Access | Access | {CEF379C7-C7AC-4a53-9780-23080DBC8030} |
+| r-access-sales-procinv | Access | Access | {40DA9C92-5C26-4d59-9900-D4A87771FEBB} |
+| r-access-sales-service | Access | Access | {0A6CB0EC-A50A-4424-B850-E557777AE1E7} |
+| r-access-sales-vendor | Access | Access | {DE460C60-5DE7-46a2-92CC-E289EAEF18D2} |
+| r-realize-svc-rfq | Realization | Realization | {D0968A86-60AE-4955-9720-EAF6FB967798} |
+| r-realize-svc-offer | Realization | Realization | {23D83E63-6F79-48b9-A0BA-5C224BC81035} |
+| r-realize-svc-procure | Realization | Realization | {7544AB2E-077B-4f60-8CFC-A5E412400CF4} |
+| r-realize-svc-deliver | Realization | Realization | {A28A8BA9-139C-4853-A567-A92CF986DE7F} |
+| r-realize-svc-invoice | Realization | Realization | {517C5341-8644-47bf-8ED2-6D96C71BFDC0} |
+| r-realize-data-offer-bo | Realization | Realization | {97F7EDB4-3341-4f83-930A-A2FF947E74C0} |
+| r-realize-data-quote-bo | Realization | Realization | {2D0D2258-FABD-4161-B0A3-BA072D088436} |
+| r-realize-data-delivery-bo | Realization | Realization | {69937C74-1542-42a2-8CF2-84B155DF58D9} |
+| r-realize-data-salesinv-bo | Realization | Realization | {99FCF1F1-1C90-49e7-B7B5-68CA853503F8} |
+| r-realize-data-procinv-bo | Realization | Realization | {7578C8FB-2956-4b63-8591-97C9FC7DA3FE} |
+| r-realize-data-service-bo | Realization | Realization | {27696578-B075-4ebf-BE91-B6D13978E15E} |
+| r-realize-data-vendor-bo | Realization | Realization | {BB0D9946-6FBB-41ff-B3B6-7D6B08BBA03D} |
+| r-assignment-node-nas-sw-sqlite | Assignment | Assignment | {E1C21BF5-8AC5-4951-B783-5C683FDEB8A7} |
+| r-association-customer-art-db-prod | Association | Association | {05F54927-5C14-4931-8EED-5E61DA54F4A5} |
+| r-composition-art-db-prod-art-db-prod | Composition | Composition | {F356DAB8-2160-4667-901B-F5062EF2BE0D} |
+| r-assignment-node-nas-art-db-prod | Assignment | Assignment | {B527392E-0E20-40be-8113-179F6A7DBB6D} |
+| r-assignment-art-db-prod-sw-django | Assignment | Assignment | {3045F017-F88F-4737-926B-0BDACE2A6873} |
+| r-serving-art-db-prod-app-django | Serving | Serving | {65490C71-EB00-4edb-8FCB-CE6EBF4EECEB} |
+| r-realization-art-db-prod-art-db-prod | Realization | Realization | {90F171E0-37A2-4d65-B234-A90B588D1283} |
+
 ## 2026-07-16 13:34:51 — Audit
 
 ### Checkpoints

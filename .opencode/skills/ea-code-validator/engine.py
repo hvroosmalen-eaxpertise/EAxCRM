@@ -21,7 +21,7 @@ EA_IMPORT_MARKERS = (
     "EAinterop",
 )
 EA_COM_MARKERS = ("EA.App", "EA.Repository")
-MODELGEN_DIR_PART = ("experiments", "modelgen")
+MODELGEN_DIR_NAME = "modelgen"
 IGNORED_DIRS = {"__pycache__", ".venv", "venv", ".git", "node_modules"}
 
 # Path segments that mark the validator's own fixture directories.  Fixtures
@@ -100,10 +100,8 @@ def load_rules() -> None:
 
 
 def _is_ea_touching(path: pathlib.Path, source: str) -> bool:
-    parts = path.parts
-    for i in range(len(parts) - 1):
-        if parts[i] == MODELGEN_DIR_PART[0] and parts[i + 1] == MODELGEN_DIR_PART[1]:
-            return True
+    if MODELGEN_DIR_NAME in path.parts:
+        return True
     if any(marker in source for marker in EA_IMPORT_MARKERS):
         return True
     if "win32com" in source and any(marker in source for marker in EA_COM_MARKERS):

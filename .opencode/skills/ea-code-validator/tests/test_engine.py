@@ -22,7 +22,7 @@ def _write(tmp: pathlib.Path, rel: str, body: str) -> pathlib.Path:
 
 def test_scope_includes_modelgen_dir(tmp_path: pathlib.Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    a = _write(tmp_path, "experiments/modelgen/generate_x.py", "print(1)\n")
+    a = _write(tmp_path, "modelgen/generate_x.py", "print(1)\n")
     _write(tmp_path, "other/plain.py", "print(1)\n")
     scope = engine.discover_scope([tmp_path], respect_gitignore=False)
     assert a in scope
@@ -46,7 +46,7 @@ def test_scope_excludes_plain_django(tmp_path, monkeypatch):
 
 def test_scope_excludes_ignored_dirs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    _write(tmp_path, ".venv/experiments/modelgen/junk.py", "print(1)\n")
+    _write(tmp_path, ".venv/modelgen/junk.py", "print(1)\n")
     scope = engine.discover_scope([tmp_path], respect_gitignore=False)
     assert scope == []
 
@@ -125,7 +125,7 @@ def test_duplicate_id_rejected(_clean_rules):
 
 def test_rule_crash_isolated(_clean_rules, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    target = _write(tmp_path, "experiments/modelgen/x.py", "print(1)\n")
+    target = _write(tmp_path, "modelgen/x.py", "print(1)\n")
 
     class Boom:
         id = "BOOM"

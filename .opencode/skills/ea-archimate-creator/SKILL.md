@@ -7,7 +7,7 @@ description: Reference for generating the EAxCRM ArchiMate diagram via generate_
 
 ## Overview
 
-Covers `experiments/modelgen/generate_archimate.py`, generating the single "EAxCRM ArchiMate" diagram (Business/Application/Technology layers in one view). **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, Sandbox isolation protocol, and the general diagram-type/toolbox mechanism — this skill only covers what's ArchiMate-specific.
+Covers `modelgen/generate_archimate.py`, generating the single "EAxCRM ArchiMate" diagram (Business/Application/Technology layers in one view). **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, Sandbox isolation protocol, and the general diagram-type/toolbox mechanism — this skill only covers what's ArchiMate-specific.
 
 ## ArchiMate Diagram Type and Toolbox (user-confirmed correct 2026-07-06)
 
@@ -120,7 +120,7 @@ Note: the current EAxCRM ArchiMate model has 42 Access relations, all default (n
 
 ## Repairing Existing Connectors: `dedup_archimate_connectors.py`
 
-`experiments/modelgen/dedup_archimate_connectors.py` handles all model-repair scenarios — deduplication, adopting legacy blank stereotypes, retyping, and repairing a rel whose MD classification has changed. Two modes: default is dry-run (prints the plan), `--apply` executes.
+`modelgen/dedup_archimate_connectors.py` handles all model-repair scenarios — deduplication, adopting legacy blank stereotypes, retyping, and repairing a rel whose MD classification has changed. Two modes: default is dry-run (prints the plan), `--apply` executes.
 
 Three-tier match logic:
 
@@ -161,5 +161,5 @@ For ArchiMate specifically: Business layer at top, Application layer middle, Tec
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/generate_archimate.py` | ArchiMate diagram generator — `parse_md`, `sync_elements`, `sync_relations` (GUID-first + 4-tuple identity), `CONNECTOR_BASE_TYPE` |
-| `experiments/modelgen/dedup_archimate_connectors.py` | One-off repair tool — dedup, adopt legacy blank stereotypes, retype, and repair after MD reclassification. `--apply` to execute, dry-run by default |
+| `modelgen/generate_archimate.py` | ArchiMate diagram generator — `parse_md`, `sync_elements`, `sync_relations` (GUID-first + 4-tuple identity), `CONNECTOR_BASE_TYPE` |
+| `modelgen/dedup_archimate_connectors.py` | One-off repair tool — dedup, adopt legacy blank stereotypes, retype, and repair after MD reclassification. `--apply` to execute, dry-run by default |

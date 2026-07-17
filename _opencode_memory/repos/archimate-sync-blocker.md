@@ -4,7 +4,7 @@
 Root cause: `Dispatch("EA.Repository")` could attach to an already-registered
 EA automation server (COM Running Object Table) instead of spawning an
 isolated instance. Fixed by switching to `DispatchEx("EA.App")` + a
-`Models.GetAt(0)` retry loop, in a new shared `experiments/modelgen/
+`Models.GetAt(0)` retry loop, in a new shared `modelgen/
 ea_session.py` module used by every generator/sync script. v2.0 sync
 confirmed live in EA: 66 elements, 91 relationships (not 90 — corrected
 count), 1 diagram. See `AGENTS.md` "Bugfix: EA 61704 Error + Non-BPMN

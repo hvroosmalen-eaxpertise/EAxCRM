@@ -8,7 +8,7 @@ Re-run to update names, descriptions, attribute types, or add new entities/relat
 
 'LDM' distinguishes this UML-class-based logical model from the physical
 data model (PDM), which uses <<table>>-stereotyped classes and lives
-under experiments/pdm/.
+under pdm/.
 """
 import sys, os, argparse, json, re
 import diagram_utils

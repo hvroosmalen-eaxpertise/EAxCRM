@@ -9,7 +9,7 @@ importance: medium
 
 ## COM dispatching
 
-Two approaches exist in `experiments/modelgen/`:
+Two approaches exist in `modelgen/`:
 
 | Approach | Used by | Notes |
 |----------|---------|-------|

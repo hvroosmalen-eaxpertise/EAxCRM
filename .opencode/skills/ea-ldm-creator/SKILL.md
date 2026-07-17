@@ -7,7 +7,7 @@ description: Reference for generating/syncing the EAxCRM Data Model (UML Class d
 
 ## Overview
 
-Covers `experiments/modelgen/generate_ldm_from_md.py` and `sync_ldm_from_ea.py`, generating the "EAxCRM Data Model" UML Class diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill only covers what's specific to UML Class entities with real attributes.
+Covers `modelgen/generate_ldm_from_md.py` and `sync_ldm_from_ea.py`, generating the "EAxCRM Data Model" UML Class diagram. **Read `ea-model-common` first** for the coordinate system, GUID map pattern, COM session lifecycle, and Sandbox isolation protocol — this skill only covers what's specific to UML Class entities with real attributes.
 
 ## Diagram Placement and Type
 
@@ -44,5 +44,5 @@ Set to `8` (Orthogonal Square) — a 2026-07-02 user preference, different from 
 
 | File | Purpose |
 |------|---------|
-| `experiments/modelgen/generate_ldm_from_md.py` | UML Data Model diagram generator |
-| `experiments/modelgen/sync_ldm_from_ea.py` | Reads EA data model back to MD |
+| `modelgen/generate_ldm_from_md.py` | UML Data Model diagram generator |
+| `modelgen/sync_ldm_from_ea.py` | Reads EA data model back to MD |

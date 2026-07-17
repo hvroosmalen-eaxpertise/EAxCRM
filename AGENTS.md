@@ -6,7 +6,7 @@ A CRM system for managing Sparx EA customers, their communications, and newslett
 ## MANDATORY: Model Sync Before Discussion
 **Before ANY discussion or work involving the data model (entities, attributes, relationships), you MUST first run:**
 ```
-python experiments\modelgen\sync_ldm_from_ea.py
+python modelgen\sync_ldm_from_ea.py
 ```
 This reads the current state from `EAxCRM.qea` and updates `EAxCRM-DataModel.md`. Only then do you have the current model to discuss.
 
@@ -120,7 +120,7 @@ Attachment → Delivery (included_in)
 - Newsletter content sourced from SparxSystems.com and sparxsystems.eu
 - Newsletter frequency: once per 6 weeks
 - Opt-in required for newsletter contacts (initial opt-in via CRM-marked email addresses)
-- Experiments for IMAP and PDF parsing done in isolated `experiments/` directory before integrating into main app
+- IMAP and PDF-parsing POCs live in `experiments/` until integrated; mature model tooling has been promoted out to top-level `modelgen/` and `pdm/`
 - Database field for passwords encrypted at rest
 - No AI dependencies by design; optional small local LLM later if needed (ollama)
 
@@ -172,7 +172,7 @@ Domain skills that opencode auto-loads via each folder's `SKILL.md`.  Read `ea-m
 | `ea-wireframe-creator` | UI mockup (Wireframing) diagrams via `wireframe_engine.py` — explicit per-control bounds, one diagram per screen + sitemap. |
 | `ea-code-validator` | Enforces project rules on EA-touching Python (no direct EA-repo queries, generate/sync pairing, no writes to existing-diagram geometry).  Runs from the pre-commit hook and CI. |
 
-## Generator Scripts (experiments/modelgen/)
+## Generator Scripts (modelgen/)
 - `generate_archimate.py`: Reads `EAxCRM-Archimate.md` and generates/populates `EAxCRM.qea`
 - Idempotent: saves GUID map to `archimate_guid_map.json`, re-runs update existing without duplicates
 - 4-phase approach:
@@ -247,7 +247,7 @@ Controls the UML base type shape in Sparx EA. Set via `ELEMENT_BASE_TYPE` in the
 - **Zombie cleanup is MANDATORY** after every generator run: run `Get-Process -Name EA | Stop-Process -Force` to clean up zombie EA processes that the generator created. Zombies lock the `.qea` file and prevent EA from starting.
 - **Exception:** Always ask the user first if they have a real EA session open. Never kill if the user is actively working in EA.
 - The generator scripts' `kill_new_ea_processes()` handles intra-run cleanup safely (only kills PIDs that didn't exist before the script started).
-- GUID map file: `experiments/modelgen/archimate_guid_map.json`
+- GUID map file: `modelgen/archimate_guid_map.json`
 
 ## Markdown Model File Format
 The generator reads `.md` files with the following structure:
@@ -411,7 +411,7 @@ Both sales and newsletter BPMN generators used `dl.LineStyle = 5` with comment `
 - Requirements for this process were planned as CRM-6 through CRM-9 and SAL-5, but that ID range was reassigned 2026-07-07 to the Create Customer Account UI requirements (issue #7) before these process-level ones were ever generated into EA. Written 2026-07-08 (issue #8) as **CRM-13** (`Duplicatefound` gateway), **CRM-14** (`MergeCustomerAccounts` activity), **CRM-15** (`RetrieveCustomerEmailHistory` activity), **CRM-16** (`PrimaryorLicenseHolderrole` gateway + `SuggestNewsletterOptin` activity) — no SAL-5 needed. See "Requirements Model" below.
 - New ArchiMate additions (v2.1): BusinessFunction `Manage Customer Account` (`e-func-account`) with 4 BusinessProcesses (`e-process-createaccount`, `e-process-dedupe`, `e-process-merge`, `e-process-emailhistory`), reusing existing `Customer Data`/`Contact Data`/`Communication Data` BusinessObjects and the `Customer Management Service`/`IMAP Fetch Service` ApplicationServices; Triggering relation from `Handle RFQ` to `Create Customer Account`
 
-### Generator Scripts (experiments/modelgen/)
+### Generator Scripts (modelgen/)
 
 ## Cross-Session Memory
 - `opencode-memory` plugin (`@mathew-cf/opencode-memory@1.0.1`) installed in `~\.config\opencode\opencode.jsonc`
@@ -452,7 +452,7 @@ sync scripts) previously used `win32com.client.Dispatch("EA.Repository")`,
 which can attach to an EA automation server already registered in COM's
 Running Object Table — e.g. the user's own open EA instance on the same
 file — instead of spawning an isolated one. Switched every script to
-`DispatchEx("EA.App")` via a new shared `experiments/modelgen/ea_session.py`
+`DispatchEx("EA.App")` via a new shared `modelgen/ea_session.py`
 module, which also retries `Models.GetAt(0)` (observed to transiently fail
 right after `OpenFile`/`ActivateTechnology`) and centralizes zombie-process
 cleanup (before/after PID diffing — never touches a pre-existing EA
@@ -538,7 +538,7 @@ tagged-value options in EA.
 - Sync scripts use `compute_md_diff()` for full MD diff on the regenerated file
 
 ### Files Involved
-- `experiments/modelgen/changelog.py` — the `ChangeLog` class + `compute_md_diff()` function
+- `modelgen/changelog.py` — the `ChangeLog` class + `compute_md_diff()` function
 - Per-script changelog files (auto-generated, git-tracked):
 
 | Script | Changelog File |
@@ -553,7 +553,7 @@ tagged-value options in EA.
 - Generators log per-element: `clog.log(action, id, label, type, guid, changes=dict)`
 - Sync scripts read old MD → build new MD → diff → `clog.log_diff(diff)`
 - All `clog.close()` calls wrapped in `try/finally`
-- Logged to `experiments/modelgen/*_changelog.md`
+- Logged to `modelgen/*_changelog.md`
 
 ### Best Practices
 - Generator scripts already capture `old_notes` before overwriting (e.g., ArchiMate generator, seed_requirements_properties)

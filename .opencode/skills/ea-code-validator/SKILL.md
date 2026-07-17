@@ -2,7 +2,7 @@
 name: ea-code-validator
 description: >
   Enforce project-specific rules on EA-touching Python code.  Invoke before
-  committing any change under experiments/modelgen/ or any .py that imports
+  committing any change under modelgen/ or any .py that imports
   ea_session/bpmn_engine or references EAinterop.  Runs a set of registered
   rules and prints flake8-style findings; exits non-zero on any violation.
 ---
@@ -16,7 +16,7 @@ for the implementation plan.
 
 ## When to invoke
 
-- Before committing any file under `experiments/modelgen/`.
+- Before committing any file under `modelgen/`.
 - Before committing any `.py` that imports `ea_session` or `bpmn_engine`,
   or references `EAinterop`.
 - Before merging a PR that touches those files.
@@ -57,7 +57,7 @@ description.
 
 Only files identified as *EA-touching* are scanned:
 
-- anything under `experiments/modelgen/`, or
+- anything under `modelgen/`, or
 - any `.py` whose text contains `ea_session`, `bpmn_engine`, `EAinterop`,
   or `win32com` together with `EA.App` / `EA.Repository`.
 
